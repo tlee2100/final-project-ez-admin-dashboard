@@ -1,0 +1,295 @@
+/* ─── AppSidebar Styles ─────────────────────────────────────────────────────── */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 240px;
+  background: #ffffff;
+  border-right: 1px solid #f0f0f0;
+  box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 72px;
+}
+
+/* ─── Logo ──────────────────────────────────────────────────────────────────── */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #f5f5f5;
+  min-height: 64px;
+  text-decoration: none;
+}
+
+.sidebar-logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.sidebar-logo-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-logo-text {
+  opacity: 0;
+  width: 0;
+}
+
+/* ─── Nav ───────────────────────────────────────────────────────────────────── */
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  padding: 8px 20px 4px;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-section-label {
+  opacity: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  margin: 1px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item:hover {
+  background: #f5f3ff;
+  color: #4f46e5;
+}
+
+.nav-item.active {
+  background: #ede9fe;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: #6366f1;
+  border-radius: 0 2px 2px 0;
+}
+
+.nav-item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.nav-item-label {
+  transition: opacity 0.2s;
+  flex: 1;
+}
+
+.sidebar.collapsed .nav-item-label {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px;
+  margin: 1px 12px;
+}
+
+/* ─── Bottom section ────────────────────────────────────────────────────────── */
+.sidebar-bottom {
+  border-top: 1px solid #f5f5f5;
+  padding: 12px 0;
+}
+
+.sidebar-help {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  margin: 0 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.sidebar-help:hover {
+  background: #f5f3ff;
+  color: #4f46e5;
+}
+
+/* ─── Role Switcher ─────────────────────────────────────────────────────────── */
+.role-switcher {
+  margin: 8px 12px 0;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .role-switcher {
+  display: none;
+}
+
+.role-switcher-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.role-switcher-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+.role-tag {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 100px;
+  font-weight: 600;
+}
+
+.role-tag.superadmin {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.role-tag.admin {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.role-tag.agent {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.role-switcher-desc {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+/* ─── Signed in block ───────────────────────────────────────────────────────── */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-user {
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-user-label {
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.sidebar-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ─── Collapse toggle ───────────────────────────────────────────────────────── */
+.sidebar-toggle {
+  position: absolute;
+  top: 20px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s;
+  z-index: 10;
+}
+
+.sidebar-toggle:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  color: #6366f1;
+}
