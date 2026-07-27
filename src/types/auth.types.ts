@@ -42,6 +42,6 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     label: 'Agent',
     color: 'orange',
     badge: 'Agent',
-    navItems: ['dashboard', 'live-chats', 'bookings'],
+    navItems: ['dashboard', 'sites', 'live-chats', 'bookings'],
   },
 };
