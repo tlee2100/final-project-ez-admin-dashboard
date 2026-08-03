@@ -1,0 +1,134 @@
+.loginPage {
+  min-height: 100vh;
+  width: 100vw;
+  background-image: url('/bg_login.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  box-sizing: border-box;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.brandHeader {
+  position: absolute;
+  top: 48px;
+  left: 64px;
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 2px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.brandDot {
+  color: #3b82f6;
+}
+
+.cardContainer {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 44px 40px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 28px;
+  letter-spacing: -0.3px;
+}
+
+.label {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.errorAlert {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.loginButton {
+  height: 46px;
+  border-radius: 10px !important;
+  background-color: #2563eb !important;
+  border: none !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  margin-top: 8px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.loginButton:hover {
+  background-color: #1d4ed8 !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.footerText {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.forgotPasswordLink {
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.forgotPasswordLink:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .brandHeader {
+    top: 24px;
+    left: 24px;
+    font-size: 22px;
+  }
+
+  .cardContainer {
+    padding: 32px 24px;
+    border-radius: 16px;
+  }
+
+  .title {
+    font-size: 20px;
+    margin-bottom: 24px;
+  }
+}

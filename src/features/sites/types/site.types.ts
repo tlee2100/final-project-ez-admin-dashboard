@@ -1,10 +1,33 @@
 // ── Site Entity ─────────────────────────────────────────────────────────────
 
+// Mirrors the backend KnowledgeBaseStatus enum (sites.knowledgeBaseStatus).
+export type KnowledgeBaseStatus = 'pending' | 'processing' | 'ready';
+
+// Display metadata for each KB status — shared by the site card and detail
+// header so the label + color stay consistent everywhere.
+export const KB_STATUS_META: Record<
+  KnowledgeBaseStatus,
+  { label: string; variant: KnowledgeBaseStatus }
+> = {
+  pending: { label: 'Pending', variant: 'pending' },
+  processing: { label: 'Processing', variant: 'processing' },
+  ready: { label: 'Ready', variant: 'ready' },
+};
+
+// Safely resolve KB status meta, defaulting to 'pending' when missing.
+export function getKbStatusMeta(status: KnowledgeBaseStatus | undefined | null): {
+  label: string;
+  variant: KnowledgeBaseStatus;
+} {
+  return KB_STATUS_META[status ?? 'pending'] ?? KB_STATUS_META.pending;
+}
+
 export interface Site {
   id: string;
   name: string;
   url: string;
   enabled: boolean;
+  knowledgeBaseStatus: KnowledgeBaseStatus;
   kbDocuments: number;
   activeChats: number;
   updatedAt: string; // ISO date string

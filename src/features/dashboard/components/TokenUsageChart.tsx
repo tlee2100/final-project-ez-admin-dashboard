@@ -36,7 +36,7 @@ export function TokenUsageChart({ data }: TokenUsageChartProps) {
     <div className="chart-card">
       <div className="chart-card-header">
         <h3 className="chart-card-title">Token Usage</h3>
-        <div className="chart-period-tabs" role="tablist" aria-label="Token usage period">
+        <div className="chart-period-tabs" role="tablist" aria-label="Chart period">
           {PERIOD_OPTIONS.map((p) => (
             <button
               key={p}

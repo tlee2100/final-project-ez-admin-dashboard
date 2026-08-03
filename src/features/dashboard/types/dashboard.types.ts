@@ -9,6 +9,7 @@ export interface StatCardData {
   icon: string;
   iconColor: string;
   iconBg: string;
+  isMock?: boolean;
 }
 
 export interface ChartDataPoint {

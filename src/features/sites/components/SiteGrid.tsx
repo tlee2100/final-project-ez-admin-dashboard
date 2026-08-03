@@ -9,9 +9,19 @@ interface SiteGridProps {
   sites: Site[];
   canManage: boolean;
   onToggle: (siteId: string) => void;
+  onEdit: (site: Site) => void;
+  onDelete: (siteId: string) => void;
+  onAssignAgent?: (siteId: string, siteName: string) => void;
 }
 
-export function SiteGrid({ sites, canManage, onToggle }: SiteGridProps) {
+export function SiteGrid({
+  sites,
+  canManage,
+  onToggle,
+  onEdit,
+  onDelete,
+  onAssignAgent,
+}: SiteGridProps) {
   if (sites.length === 0) {
     return (
       <div className="sites-grid">
@@ -32,7 +42,14 @@ export function SiteGrid({ sites, canManage, onToggle }: SiteGridProps) {
     <div className="sites-grid" role="list" aria-label="Sites list">
       {sites.map((site) => (
         <div key={site.id} role="listitem">
-          <SiteCard site={site} canManage={canManage} onToggle={onToggle} />
+          <SiteCard
+            site={site}
+            canManage={canManage}
+            onToggle={onToggle}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAssignAgent={onAssignAgent}
+          />
         </div>
       ))}
     </div>

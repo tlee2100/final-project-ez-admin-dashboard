@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Select, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import {
   DashboardOutlined,
   GlobalOutlined,
@@ -16,14 +16,15 @@ import {
   LeftOutlined,
   RightOutlined,
   RobotOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
-import type { UserRole } from '@/src/types/auth.types';
 import './AppSidebar.css';
 
 // ── Nav item definitions ─────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: <DashboardOutlined />, href: '/dashboard' },
+  { key: 'organizations', label: 'Organizations', icon: <BankOutlined />, href: '/organizations' },
   { key: 'sites', label: 'Sites', icon: <GlobalOutlined />, href: '/sites' },
   { key: 'live-chats', label: 'Live Chats', icon: <MessageOutlined />, href: '/live-chats' },
   { key: 'bookings', label: 'Bookings', icon: <CalendarOutlined />, href: '/bookings' },
@@ -32,17 +33,15 @@ const NAV_ITEMS = [
   { key: 'settings', label: 'Settings', icon: <SettingOutlined />, href: '/settings' },
 ];
 
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'superadmin', label: 'Super Admin' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'agent', label: 'Agent' },
-];
+interface AppSidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
-  const { currentRole, roleConfig, user, switchRole, hasAccess } = useCurrentRole();
+  const { user, hasAccess } = useCurrentRole();
 
   const activeKey = NAV_ITEMS.find((item) => pathname.startsWith(item.href))?.key ?? 'dashboard';
 
@@ -62,7 +61,7 @@ export function AppSidebar() {
       <Tooltip title={collapsed ? 'Expand' : 'Collapse'} placement="right">
         <button
           className="sidebar-toggle"
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={onToggle}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
@@ -115,26 +114,6 @@ export function AppSidebar() {
             <div className="sidebar-user-label">Signed in as</div>
             <div className="sidebar-user-name">{user?.name ?? 'Unknown'}</div>
           </div>
-        </div>
-
-        {/* Role Switcher */}
-        <div className="role-switcher">
-          <div className="role-switcher-label">
-            <span className="role-switcher-title">DEMO ROLE</span>
-            <span className={`role-tag ${currentRole}`}>{roleConfig.label}</span>
-          </div>
-
-          <Select
-            value={currentRole}
-            onChange={(val) => switchRole(val as UserRole)}
-            size="small"
-            style={{ width: '100%' }}
-            options={ROLE_OPTIONS}
-            aria-label="Switch demo role"
-            suffixIcon={null}
-          />
-
-          <div className="role-switcher-desc">Switch roles to preview access control.</div>
         </div>
       </div>
     </aside>

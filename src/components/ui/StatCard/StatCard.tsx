@@ -34,7 +34,7 @@ const ACCENT_MAP: Record<string, string> = {
 };
 
 export function StatCard({ data }: StatCardProps) {
-  const { title, value, trend, trendDirection, icon, iconColor, iconBg } = data;
+  const { title, value, trend, trendDirection, icon, iconColor, iconBg, isMock } = data;
 
   const trendLabel =
     trendDirection === 'up' ? `+${trend}%` : trendDirection === 'down' ? `-${trend}%` : `${trend}%`;
@@ -54,7 +54,17 @@ export function StatCard({ data }: StatCardProps) {
       aria-label={`${title}: ${value}, trend ${trendLabel}`}
     >
       <div className="stat-card-content">
-        <p className="stat-card-title">{title}</p>
+        <p className="stat-card-title">
+          {title}
+          {isMock && (
+            <span
+              style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400, marginLeft: 6 }}
+              title="This metric is simulated (Mock Data)"
+            >
+              (Mock)
+            </span>
+          )}
+        </p>
         <p className="stat-card-value">{value}</p>
         <span className={`stat-card-trend ${trendDirection}`}>
           <TrendIcon />

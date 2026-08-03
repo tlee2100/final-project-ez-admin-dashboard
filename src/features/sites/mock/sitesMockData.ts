@@ -10,6 +10,7 @@ export const MOCK_SITES: Site[] = [
     name: 'TechSolutions Inc.',
     url: 'techsolutions.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'ready',
     kbDocuments: 12,
     activeChats: 3,
     updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
@@ -20,6 +21,7 @@ export const MOCK_SITES: Site[] = [
     name: 'EcommercePro',
     url: 'ecommercepro.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'processing',
     kbDocuments: 8,
     activeChats: 5,
     updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
@@ -30,6 +32,7 @@ export const MOCK_SITES: Site[] = [
     name: 'HealthcarePlus',
     url: 'healthcareplus.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'ready',
     kbDocuments: 15,
     activeChats: 2,
     updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
@@ -40,6 +43,7 @@ export const MOCK_SITES: Site[] = [
     name: 'FinanceAdvisors',
     url: 'financeadvisors.example.com',
     enabled: false,
+    knowledgeBaseStatus: 'pending',
     kbDocuments: 6,
     activeChats: 0,
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
@@ -50,6 +54,7 @@ export const MOCK_SITES: Site[] = [
     name: 'TravelExperts',
     url: 'travelexperts.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'ready',
     kbDocuments: 10,
     activeChats: 1,
     updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
@@ -60,6 +65,7 @@ export const MOCK_SITES: Site[] = [
     name: 'EducationPortal',
     url: 'educationportal.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'processing',
     kbDocuments: 20,
     activeChats: 4,
     updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
@@ -70,6 +76,7 @@ export const MOCK_SITES: Site[] = [
     name: 'Glow Hair Salon',
     url: 'glowsalon.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'pending',
     kbDocuments: 5,
     activeChats: 0,
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
@@ -80,6 +87,7 @@ export const MOCK_SITES: Site[] = [
     name: 'Bella Nails Studio',
     url: 'bellanails.example.com',
     enabled: true,
+    knowledgeBaseStatus: 'ready',
     kbDocuments: 7,
     activeChats: 2,
     updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago

@@ -9,7 +9,7 @@ import type { UserRole } from '@/src/types/auth.types';
  */
 export function useCurrentRole() {
   const { currentRole, user, switchRole } = useAuth();
-  const roleConfig = ROLE_CONFIGS[currentRole];
+  const roleConfig = ROLE_CONFIGS[currentRole] ?? ROLE_CONFIGS.agent;
 
   const hasAccess = (navKey: string) =>
     roleConfig.navItems.includes(navKey as Parameters<typeof roleConfig.navItems.includes>[0]);

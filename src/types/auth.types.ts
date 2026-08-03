@@ -7,12 +7,14 @@ export interface User {
   avatar?: string;
   role: UserRole;
   sites?: string[]; // siteIds managed by this user (admin/agent)
+  organizationId?: string | null;
 }
 
 export interface AuthState {
   user: User | null;
   currentRole: UserRole;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export interface RoleConfig {
@@ -23,21 +25,57 @@ export interface RoleConfig {
 }
 
 export type NavItemKey =
-  'dashboard' | 'sites' | 'live-chats' | 'bookings' | 'analytics' | 'users' | 'settings';
+  | 'dashboard'
+  | 'organizations'
+  | 'sites'
+  | 'live-chats'
+  | 'bookings'
+  | 'analytics'
+  | 'users'
+  | 'settings';
+
+export function normalizeUserRole(role: string): UserRole | null {
+  if (!role) return null;
+  const r = role.toUpperCase();
+  if (r === 'SUPER_ADMIN' || r === 'SUPERADMIN') return 'superadmin';
+  if (r === 'ADMIN') return 'admin';
+  if (r === 'AGENT') return 'agent';
+  // Unknown role — reject the session rather than escalate privileges.
+  return null;
+}
 
 export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   superadmin: {
     label: 'Super Admin',
     color: 'purple',
     badge: 'Super Admin',
-    navItems: ['dashboard', 'sites', 'live-chats', 'bookings', 'analytics', 'users', 'settings'],
+    navItems: [
+      'dashboard',
+      'organizations',
+      'sites',
+      'live-chats',
+      'bookings',
+      'analytics',
+      'users',
+      'settings',
+    ],
   },
   admin: {
     label: 'Admin',
     color: 'blue',
     badge: 'Admin',
-    navItems: ['dashboard', 'sites', 'live-chats', 'bookings'],
+    navItems: [
+      'dashboard',
+      'organizations',
+      'sites',
+      'live-chats',
+      'bookings',
+      'analytics',
+      'users',
+      'settings',
+    ],
   },
+
   agent: {
     label: 'Agent',
     color: 'orange',

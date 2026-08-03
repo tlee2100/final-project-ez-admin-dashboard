@@ -1,0 +1,242 @@
+/* Analytics Feature Styles */
+
+/* ── Tabs Container ── */
+.analytics-tabs-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 24px;
+  background-color: #f1f5f9; /* Slate 100 - distinct container background */
+  padding: 5px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.analytics-tab-btn {
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b; /* Slate 500 */
+  cursor: pointer;
+  transition: all 0.18s ease-in-out;
+  outline: none;
+}
+
+.analytics-tab-btn:hover {
+  color: #0f172a;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.analytics-tab-btn.active {
+  background-color: #ffffff;
+  color: #0f172a; /* Slate 900 */
+  font-weight: 600;
+  border-color: #cbd5e1;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Content Layout ── */
+.analytics-tab-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Custom Cards for Analytics ── */
+.analytics-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0; /* Sharp, crisp border */
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.analytics-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.analytics-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+/* ── Horizontal Bar Chart (Topics, Usage by Site) ── */
+.horizontal-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.horizontal-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.horizontal-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.horizontal-bar-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.horizontal-bar-value {
+  color: #64748b;
+  font-weight: 500;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.horizontal-bar-percent {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.horizontal-bar-track {
+  height: 8px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.horizontal-bar-fill {
+  height: 100%;
+  background-color: #2563eb; /* Vibrant blue fill */
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+/* ── Metrics List ── */
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.metric-trend {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #16a34a; /* Distinct green trend */
+}
+
+/* ── Simple Lists (Top Docs, Intents) ── */
+.simple-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.simple-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding: 2px 0;
+}
+
+.simple-list-label {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.simple-list-value {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ── Header Action Button Overrides for Analytics Page ── */
+.analytics-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.analytics-action-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Grid Layouts ── */
+.analytics-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .analytics-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}

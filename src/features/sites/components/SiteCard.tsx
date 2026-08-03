@@ -2,18 +2,37 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { GlobalOutlined, DatabaseOutlined } from '@ant-design/icons';
+import {
+  GlobalOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  DatabaseOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
+import { Popconfirm } from 'antd';
 import type { Site } from '../types/site.types';
+import { getKbStatusMeta } from '../types/site.types';
 import { getRelativeTime } from '../hooks/useSitesData';
 
 interface SiteCardProps {
   site: Site;
   canManage: boolean; // admin/superadmin → true; agent → false
   onToggle: (siteId: string) => void;
+  onEdit: (site: Site) => void;
+  onDelete: (siteId: string) => void;
+  onAssignAgent?: (siteId: string, siteName: string) => void;
 }
 
-export function SiteCard({ site, canManage, onToggle }: SiteCardProps) {
+export function SiteCard({
+  site,
+  canManage,
+  onToggle,
+  onEdit,
+  onDelete,
+  onAssignAgent,
+}: SiteCardProps) {
   const relativeTime = getRelativeTime(site.updatedAt);
+  const kbStatus = getKbStatusMeta(site.knowledgeBaseStatus);
 
   return (
     <div className="site-card">
@@ -44,6 +63,9 @@ export function SiteCard({ site, canManage, onToggle }: SiteCardProps) {
         <span className="site-card-url-text" title={site.url}>
           {site.url}
         </span>
+        <span className={`site-kb-badge ${kbStatus.variant}`} title="Knowledge Base status">
+          {kbStatus.label}
+        </span>
       </div>
 
       {/* ── Stats ── */}
@@ -70,10 +92,43 @@ export function SiteCard({ site, canManage, onToggle }: SiteCardProps) {
             <>
               <button
                 className="site-action-icon-btn"
-                title="KB Documents"
-                aria-label={`Manage KB for ${site.name}`}
+                title="Edit Site"
+                onClick={() => onEdit(site)}
+                aria-label={`Edit ${site.name}`}
+              >
+                <EditOutlined />
+              </button>
+              <Popconfirm
+                title="Delete Site"
+                description={`Are you sure you want to delete "${site.name}"?`}
+                onConfirm={() => onDelete(site.id)}
+                okText="Yes"
+                cancelText="No"
+                placement="topRight"
+              >
+                <button
+                  className="site-action-icon-btn delete-btn"
+                  title="Delete Site"
+                  aria-label={`Delete ${site.name}`}
+                >
+                  <DeleteOutlined />
+                </button>
+              </Popconfirm>
+              <Link
+                href={`/sites/${site.id}/kb`}
+                className="site-action-icon-btn"
+                title="Knowledge Base"
+                aria-label={`Knowledge Base for ${site.name}`}
               >
                 <DatabaseOutlined />
+              </Link>
+              <button
+                className="site-action-icon-btn"
+                title="Assign Agent"
+                onClick={() => onAssignAgent?.(site.id, site.name)}
+                aria-label={`Assign Agent to ${site.name}`}
+              >
+                <TeamOutlined />
               </button>
               <Link
                 href={`/sites/${site.id}`}
@@ -84,13 +139,23 @@ export function SiteCard({ site, canManage, onToggle }: SiteCardProps) {
               </Link>
             </>
           ) : (
-            <Link
-              href={`/sites/${site.id}`}
-              className="site-action-btn view"
-              aria-label={`View ${site.name}`}
-            >
-              View
-            </Link>
+            <>
+              <Link
+                href={`/sites/${site.id}/kb`}
+                className="site-action-icon-btn"
+                title="Knowledge Base"
+                aria-label={`Knowledge Base for ${site.name}`}
+              >
+                <DatabaseOutlined />
+              </Link>
+              <Link
+                href={`/sites/${site.id}`}
+                className="site-action-btn view"
+                aria-label={`View ${site.name}`}
+              >
+                View
+              </Link>
+            </>
           )}
         </div>
       </div>

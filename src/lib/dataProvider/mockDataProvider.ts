@@ -15,11 +15,14 @@ import type {
   GetManyParams,
 } from '@refinedev/core';
 import { MOCK_SITES } from '@/src/features/sites/mock/sitesMockData';
+import { MOCK_ORGANIZATIONS } from '@/src/features/organizations/mock/organizationsMockData';
 import { mockDashboardData } from '@/src/features/dashboard/mock/dashboardMockData';
 import type { Site } from '@/src/features/sites/types/site.types';
+import type { Organization } from '@/src/features/organizations/types/organization.types';
 
 // ── In-memory mutable copy of sites (supports toggle/update) ────────────────
 let sitesStore: Site[] = MOCK_SITES.map((s) => ({ ...s }));
+let orgsStore: Organization[] = MOCK_ORGANIZATIONS.map((o) => ({ ...o }));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function applyFilters(
@@ -89,6 +92,21 @@ export const mockDataProvider: DataProvider = {
       return { data: paginated as unknown as TData[], total: data.length };
     }
 
+    if (resource === 'organizations') {
+      const data = [...orgsStore];
+
+      // Basic support for filtering/sorting if needed in future, matching sites pattern
+      // data = applyFilters(data, filters);
+      // data = applySorters(data, sorters);
+
+      const current = pagination?.currentPage ?? 1;
+      const pageSize = pagination?.pageSize ?? 100;
+      const start = (current - 1) * pageSize;
+      const paginated = data.slice(start, start + pageSize);
+
+      return { data: paginated as unknown as TData[], total: data.length };
+    }
+
     return { data: [], total: 0 };
   },
 
@@ -108,6 +126,12 @@ export const mockDataProvider: DataProvider = {
       const site = sitesStore.find((s) => s.id === String(id));
       if (!site) throw new Error(`Site ${id} not found`);
       return { data: site as unknown as TData };
+    }
+
+    if (resource === 'organizations') {
+      const org = orgsStore.find((o) => o.id === String(id));
+      if (!org) throw new Error(`Organization ${id} not found`);
+      return { data: org as unknown as TData };
     }
 
     throw new Error(`Resource "${resource}" not supported`);
@@ -130,6 +154,15 @@ export const mockDataProvider: DataProvider = {
       return { data: updated as unknown as TData };
     }
 
+    if (resource === 'organizations') {
+      orgsStore = orgsStore.map((o) =>
+        o.id === String(id) ? { ...o, ...(variables as Partial<Organization>) } : o,
+      );
+      const updated = orgsStore.find((o) => o.id === String(id));
+      if (!updated) throw new Error(`Organization ${id} not found for update`);
+      return { data: updated as unknown as TData };
+    }
+
     throw new Error(`Update not supported for resource "${resource}"`);
   },
 
@@ -149,6 +182,15 @@ export const mockDataProvider: DataProvider = {
       return { data: newSite as unknown as TData };
     }
 
+    if (resource === 'organizations') {
+      const newOrg: Organization = {
+        id: `org-${Date.now()}`,
+        ...(variables as Omit<Organization, 'id'>),
+      };
+      orgsStore.push(newOrg);
+      return { data: newOrg as unknown as TData };
+    }
+
     throw new Error(`Create not supported for resource "${resource}"`);
   },
 
@@ -166,6 +208,13 @@ export const mockDataProvider: DataProvider = {
       return { data: site as unknown as TData };
     }
 
+    if (resource === 'organizations') {
+      const org = orgsStore.find((o) => o.id === String(id));
+      if (!org) throw new Error(`Organization ${id} not found for deletion`);
+      orgsStore = orgsStore.filter((o) => o.id !== String(id));
+      return { data: org as unknown as TData };
+    }
+
     throw new Error(`Delete not supported for resource "${resource}"`);
   },
 
@@ -177,6 +226,11 @@ export const mockDataProvider: DataProvider = {
 
     if (resource === 'sites') {
       const items = sitesStore.filter((s) => ids.map(String).includes(s.id));
+      return { data: items as unknown as TData[] };
+    }
+
+    if (resource === 'organizations') {
+      const items = orgsStore.filter((o) => ids.map(String).includes(o.id));
       return { data: items as unknown as TData[] };
     }
 

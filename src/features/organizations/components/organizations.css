@@ -1,0 +1,336 @@
+/* ── Page Layout ── */
+.organizations-page {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* ── Header ── */
+.organizations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.organizations-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.organizations-title-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.organizations-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.organizations-subtitle {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ── Info Banner ── */
+.organizations-banner {
+  background: #fdf2f8;
+  border: 1px solid #fce7f3;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+
+.organizations-banner-icon {
+  background: #fbcfe8;
+  color: #db2777;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.organizations-banner-content h3 {
+  margin: 0 0 8px 0;
+  color: #111827;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.organizations-banner-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.organizations-banner-content li {
+  color: #4b5563;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.organizations-banner-content li .anticon-check {
+  color: #10b981;
+}
+.organizations-banner-content li .anticon-info-circle {
+  color: #9ca3af;
+}
+
+/* ── Stats Grid ── */
+.organizations-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.org-stat-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.org-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.org-stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.org-stat-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.org-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ── Controls ── */
+.organizations-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.org-search {
+  width: 320px;
+}
+
+.org-search .ant-input-affix-wrapper {
+  border-radius: 8px;
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+/* ── Table ── */
+.org-table {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.org-table .ant-table-wrapper .ant-table-thead > tr > th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.org-owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.org-owner-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.org-owner-name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 14px;
+}
+
+.org-owner-email {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* ── Modals ── */
+.onboard-tenant-modal .ant-modal-content {
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.onboard-tenant-modal .modal-header-container {
+  padding: 24px 24px 12px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #ffffff;
+}
+
+.onboard-tenant-modal .modal-body-scrollable {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.onboard-tenant-modal .modal-footer-container {
+  padding: 16px 24px;
+  border-top: 1px solid #f3f4f6;
+  background: #ffffff;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.onboard-tenant-modal .ant-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.onboard-tenant-modal .ant-form-item-label > label {
+  color: #374151;
+  font-weight: 500;
+}
+
+.form-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.form-section-title:first-child {
+  margin-top: 0;
+}
+
+.tenant-trial-notice {
+  background: #f5f3ff;
+  border: 1px solid #ede9fe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #6d28d9;
+  font-size: 13px;
+  margin-top: 24px;
+}
+
+/* ── Org Detail Modal ── */
+.org-detail-modal .ant-modal-content {
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.org-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.metric-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 2px;
+}
+
+.org-owner-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+/* ── Create Admin Owner Modal ── */
+.create-admin-owner-modal .ant-modal-content {
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.org-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0f7ff;
+  border: 1px solid #e0f2fe;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.org-info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}

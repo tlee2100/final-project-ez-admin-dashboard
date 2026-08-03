@@ -1,0 +1,136 @@
+.notif-popover .ant-popover-inner {
+  padding: 0;
+  width: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.notif-popover-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 480px;
+}
+
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #f9fafb;
+}
+
+.notif-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.notif-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.notif-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.notif-list .ant-list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-items: flex-start;
+}
+
+.notif-list .ant-list-item:hover {
+  background-color: #f5f3ff;
+}
+
+.notif-list .notif-item.unread {
+  background-color: #eff6ff;
+}
+
+.notif-list .notif-item.unread:hover {
+  background-color: #e0e7ff;
+}
+
+.notif-item-icon {
+  margin-right: 12px;
+  margin-top: 2px;
+}
+
+.notif-icon {
+  font-size: 18px;
+}
+
+.notif-primary {
+  color: #6366f1;
+}
+.notif-success {
+  color: #10b981;
+}
+.notif-warning {
+  color: #f59e0b;
+}
+.notif-error {
+  color: #ef4444;
+}
+.notif-info {
+  color: #3b82f6;
+}
+.notif-default {
+  color: #6b7280;
+}
+
+.notif-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-item-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.notif-item-title {
+  font-size: 13px;
+  color: #111827;
+}
+
+.notif-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.notif-item-desc {
+  font-size: 12px;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.notif-item-time {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.notif-footer {
+  padding: 8px 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: center;
+  background-color: #f9fafb;
+}

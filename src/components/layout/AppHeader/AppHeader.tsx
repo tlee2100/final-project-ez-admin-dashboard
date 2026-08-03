@@ -2,16 +2,18 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Dropdown, Switch, Tooltip } from 'antd';
+import { useRouter } from 'next/navigation';
+import { Dropdown, Switch, Tooltip, type MenuProps, App } from 'antd';
 import {
   MessageOutlined,
-  BellOutlined,
   LogoutOutlined,
   UserOutlined,
   SettingOutlined,
   BulbOutlined,
 } from '@ant-design/icons';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { NotificationBell } from '@/src/components/ui/NotificationBell/NotificationBell';
 import './AppHeader.css';
 
 interface AppHeaderProps {
@@ -34,9 +36,25 @@ export function AppHeader({
   sidebarCollapsed = false,
   pageName = 'AI Chatbot Admin',
 }: AppHeaderProps) {
+  const router = useRouter();
+  const { logout } = useAuth();
   const { currentRole, roleConfig, user } = useCurrentRole();
+  const { message } = App.useApp();
 
-  const userMenuItems = [
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'profile') {
+      router.push('/profile');
+      return;
+    }
+
+    if (key === 'logout') {
+      logout();
+      message.success('Logged out successfully!');
+      router.push('/login');
+    }
+  };
+
+  const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
       label: 'Profile',
@@ -82,10 +100,7 @@ export function AppHeader({
 
         {/* Notification */}
         <Tooltip title="Notifications">
-          <button className="header-notif-btn" aria-label="Notifications">
-            <BellOutlined />
-            <span className="header-notif-dot" aria-hidden="true" />
-          </button>
+          <NotificationBell />
         </Tooltip>
 
         {/* Live Chats */}
@@ -98,7 +113,11 @@ export function AppHeader({
         <div className="header-divider" aria-hidden="true" />
 
         {/* Avatar + User dropdown */}
-        <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
+        <Dropdown
+          menu={{ items: userMenuItems, onClick: handleMenuClick }}
+          trigger={['click']}
+          placement="bottomRight"
+        >
           <div className="header-avatar-wrap" role="button" aria-label="User menu" tabIndex={0}>
             <div className="header-avatar" aria-hidden="true">
               {user ? getInitials(user.name) : 'AU'}

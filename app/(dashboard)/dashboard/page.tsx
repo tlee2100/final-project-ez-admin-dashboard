@@ -23,7 +23,7 @@ import '@/src/features/dashboard/components/dashboard.css';
 export default function DashboardPage() {
   const { currentRole, isSuperAdmin, isAdmin } = useCurrentRole();
   const { data } = useDashboardData();
-  const roleConfig = ROLE_CONFIGS[currentRole];
+  const roleConfig = ROLE_CONFIGS[currentRole] ?? ROLE_CONFIGS.agent;
 
   const pageSubtitle = isSuperAdmin
     ? 'Overview of your AI chatbot performance'

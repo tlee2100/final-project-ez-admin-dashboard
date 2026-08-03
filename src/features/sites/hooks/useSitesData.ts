@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState, useCallback } from 'react';
-import { useList, useUpdate } from '@refinedev/core';
+import { useList, useUpdate, useDelete } from '@refinedev/core';
 import type { Site, SitesFilter } from '../types/site.types';
-import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 
 // ── Default filter state ─────────────────────────────────────────────────────
 const DEFAULT_FILTER: SitesFilter = {
@@ -27,7 +26,6 @@ export function getRelativeTime(isoDate: string): string {
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export function useSitesData() {
-  const { currentRole, user } = useCurrentRole();
   const [filter, setFilter] = useState<SitesFilter>(DEFAULT_FILTER);
 
   // ── 1. Fetch from Refine (mockDataProvider → real API later) ──────────────
@@ -46,14 +44,10 @@ export function useSitesData() {
   const listData = listQuery.data;
   const isLoading = listQuery.isLoading;
 
-  // ── 2. Role-based visibility (client-side, since it's a UI concern) ───────
+  // ── 2. Role-based visibility (delegated to real backend query visibility) ───────
   const roleSites: Site[] = useMemo(() => {
-    const all = listData?.data ?? [];
-    if (currentRole === 'agent' && user) {
-      return all.filter((s) => user.sites?.includes(s.id) || s.assignedAgentIds.includes(user.id));
-    }
-    return all;
-  }, [listData, currentRole, user]);
+    return listData?.data ?? [];
+  }, [listData]);
 
   // ── 3. Client-side search (text search — not passed to provider) ──────────
   const filteredSites: Site[] = useMemo(() => {
@@ -67,6 +61,9 @@ export function useSitesData() {
   // ── 4. Toggle via useUpdate (goes through data provider) ─────────────────
   const { mutation: updateMutation } = useUpdate<Site>();
   const updateSite = updateMutation.mutate;
+
+  const { mutation: deleteMutation } = useDelete<Site>();
+  const deleteSiteMutate = deleteMutation.mutate;
 
   const toggleSiteEnabled = useCallback(
     (siteId: string) => {
@@ -83,6 +80,27 @@ export function useSitesData() {
     [listData, updateSite],
   );
 
+  const deleteSite = useCallback(
+    (siteId: string) => {
+      deleteSiteMutate({
+        resource: 'sites',
+        id: siteId,
+      });
+    },
+    [deleteSiteMutate],
+  );
+
+  const updateSiteData = useCallback(
+    (siteId: string, values: Partial<Site>) => {
+      updateSite({
+        resource: 'sites',
+        id: siteId,
+        values,
+      });
+    },
+    [updateSite],
+  );
+
   // ── 5. Filter update helpers ──────────────────────────────────────────────
   const updateFilter = useCallback((patch: Partial<SitesFilter>) => {
     setFilter((prev) => ({ ...prev, ...patch }));
@@ -95,5 +113,7 @@ export function useSitesData() {
     totalCount: roleSites.length,
     isLoading,
     toggleSiteEnabled,
+    deleteSite,
+    updateSiteData,
   };
 }
