@@ -263,6 +263,43 @@
   margin-top: -8px;
 }
 
+.preview-embed-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.preview-embed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preview-embed-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.preview-embed-code {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: #111827;
+  font-family: Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 /* Outer Viewport Wrapper */
 .preview-viewport-outer {
   background: #f9fafb;

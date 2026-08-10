@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { Modal, Form, Input, Button, App } from 'antd';
+import { Modal, Form, Input, Button, App, Select } from 'antd';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useSitesData } from '@/src/features/sites/hooks/useSitesData';
 import { SitesSearchBar } from '@/src/features/sites/components/SitesSearchBar';
 import { SitesFilterBar } from '@/src/features/sites/components/SitesFilterBar';
 import { SiteGrid } from '@/src/features/sites/components/SiteGrid';
 import { AgentDrawer } from '@/src/features/sites/components/AgentDrawer';
+import { AllowedDomainsInput } from '@/src/features/sites/components/AllowedDomainsInput';
 import type { Site } from '@/src/features/sites/types/site.types';
 import '@/src/features/sites/components/sites.css';
 import '@/src/features/dashboard/components/dashboard.css';
@@ -49,6 +50,7 @@ export default function SitesPage() {
       form.setFieldsValue({
         name: editingSite.name,
         url: editingSite.url,
+        allowedDomains: editingSite.allowedDomains || [],
       });
     } else {
       form.resetFields();
@@ -65,10 +67,20 @@ export default function SitesPage() {
     setEditingSite(null);
   };
 
-  const handleEditSubmit = async (values: { name: string; url: string }) => {
+  const handleEditSubmit = async (values: {
+    name: string;
+    url: string;
+    allowedDomains?: string[];
+  }) => {
     if (!editingSite) return;
     try {
-      updateSiteData(editingSite.id, values);
+      const cleanedDomains = values.allowedDomains
+        ? values.allowedDomains.map((d) => d?.trim()).filter((d): d is string => Boolean(d))
+        : [];
+      updateSiteData(editingSite.id, {
+        ...values,
+        allowedDomains: cleanedDomains,
+      });
       message.success('Site updated successfully!');
       setIsEditModalOpen(false);
       setEditingSite(null);
@@ -163,6 +175,8 @@ export default function SitesPage() {
           >
             <Input placeholder="e.g. https://my-site.com" />
           </Form.Item>
+
+          <AllowedDomainsInput />
 
           <Form.Item
             style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 0 }}

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { AnalyticsData } from '../types/analytics.types';
 import { mockAnalyticsData } from '../mock/analyticsMockData';
-import { apiRequest, getStoredAccessToken } from '@/src/lib/api.client';
+import { apiRequest } from '@/src/lib/api.client';
+import { useSession } from 'next-auth/react';
 
 export function useAnalyticsData() {
+  const { data: session } = useSession();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -12,7 +14,7 @@ export function useAnalyticsData() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const token = getStoredAccessToken();
+        const token = session?.accessToken;
         if (token) {
           try {
             const analyticsRes = await apiRequest<{
@@ -93,7 +95,7 @@ export function useAnalyticsData() {
     };
 
     fetchData();
-  }, []);
+  }, [session?.accessToken]);
 
   return { data, isLoading, error };
 }

@@ -2,6 +2,7 @@ import '@ant-design/v5-patch-for-react-19';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import type { Metadata } from 'next';
 import { AppProviders } from './providers';
+import { auth } from './auth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -11,11 +12,12 @@ export const metadata: Metadata = {
   keywords: ['chatbot', 'admin', 'AI', 'dashboard', 'booking'],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="vi">
       <head>
@@ -24,7 +26,7 @@ export default function RootLayout({
       </head>
       <body>
         <AntdRegistry>
-          <AppProviders>{children}</AppProviders>
+          <AppProviders session={session}>{children}</AppProviders>
         </AntdRegistry>
       </body>
     </html>

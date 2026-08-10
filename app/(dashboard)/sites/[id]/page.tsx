@@ -12,6 +12,7 @@ import { TabConversations } from '@/src/features/sites/components/detail/TabConv
 import { TabKnowledgeBase } from '@/src/features/sites/components/detail/TabKnowledgeBase';
 import { TabAgentManagement } from '@/src/features/sites/components/detail/TabAgentManagement';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
+import { useLiveChats } from '@/src/features/live-chats/hooks/useLiveChats';
 import '@/src/features/sites/components/detail/sites-detail.css';
 
 interface PageProps {
@@ -34,6 +35,9 @@ export default function SiteDetailPage({ params }: PageProps) {
 
   const site = query.data?.data;
   const isLoading = query.isLoading;
+
+  // Fetch real live chat data
+  const { conversations, stats: chatStats } = useLiveChats(siteId);
 
   if (isLoading) {
     return (
@@ -64,7 +68,14 @@ export default function SiteDetailPage({ params }: PageProps) {
   }
 
   // Load detailed dynamic mock data
-  const detailInfo = getSiteDetailInfo(site.id, site.name, site.kbDocuments, site.activeChats);
+  const mockDetailInfo = getSiteDetailInfo(site.id, site.name, site.kbDocuments, site.activeChats);
+
+  // Override mock stats with real data
+  const detailInfo = {
+    ...mockDetailInfo,
+    totalChats: chatStats.total + chatStats.closedCount,
+    activeChats: chatStats.activeBotCount,
+  };
 
   return (
     <div className="site-detail-page page-fade-in">
@@ -124,7 +135,7 @@ export default function SiteDetailPage({ params }: PageProps) {
 
       {/* Tab Body */}
       <div className="site-detail-tab-body">
-        {activeTab === 'preview' && <TabPreview key={site.id} />}
+        {activeTab === 'preview' && <TabPreview key={site.id} siteId={site.id} />}
         {activeTab === 'test' && <TabTestChatbot key={site.id} stats={detailInfo} />}
         {activeTab === 'conversations' && (
           <TabConversations key={site.id} siteId={site.id} siteName={site.name} />

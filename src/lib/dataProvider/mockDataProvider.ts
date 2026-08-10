@@ -58,8 +58,8 @@ function applySorters(
   if (!sorters.length) return data;
   return [...data].sort((a, b) => {
     for (const s of sorters) {
-      const aVal = a[s.field as keyof Site];
-      const bVal = b[s.field as keyof Site];
+      const aVal = a[s.field as keyof Site] ?? '';
+      const bVal = b[s.field as keyof Site] ?? '';
       if (aVal === bVal) continue;
       if (s.order === 'asc') return aVal < bVal ? -1 : 1;
       return aVal > bVal ? -1 : 1;

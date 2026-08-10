@@ -1,7 +1,7 @@
 export enum DocFileType {
   PDF = 'pdf',
   DOCX = 'docx',
-  MARKDOWN = 'markdown',
+  MARKDOWN = 'md',
   HTML = 'html',
   URL = 'url',
   TXT = 'txt',
@@ -81,4 +81,42 @@ export interface AddContentPayload {
   files?: File[];
   url?: string;
   sitemapUrl?: string;
+}
+
+export interface DocumentChunkItem {
+  id: string;
+  chunkIndex: number;
+  content: string;
+  tokenCount: number;
+  sectionTitle: string | null;
+  metadata: Record<string, unknown>;
+  embeddingModel: string;
+  vectorDimensions: number;
+  createdAt: string;
+}
+
+export interface DocumentChunksResponse {
+  document: {
+    id: string;
+    filename: string;
+    fileType: string;
+    fileSizeBytes: number | null;
+    status: string;
+    filePath: string;
+    uploadedAt: string;
+    processedAt: string | null;
+    chunksCount: number;
+  };
+  chunks: DocumentChunkItem[];
+}
+
+export interface KBStatsResponse {
+  totalDocuments: number;
+  totalChunks: number;
+  totalSizeBytes: number;
+  totalTokens: number;
+  vectorsUsed: number;
+  vectorsLimit: number;
+  usagePercentage: number;
+  lastProcessedAt: string | null;
 }

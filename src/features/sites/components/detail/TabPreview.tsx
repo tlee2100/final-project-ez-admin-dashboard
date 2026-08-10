@@ -9,7 +9,11 @@ import {
   MessageOutlined,
 } from '@ant-design/icons';
 
-export function TabPreview() {
+interface TabPreviewProps {
+  siteId: string;
+}
+
+export function TabPreview({ siteId }: TabPreviewProps) {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [position, setPosition] = useState<'left' | 'right'>('right');
 

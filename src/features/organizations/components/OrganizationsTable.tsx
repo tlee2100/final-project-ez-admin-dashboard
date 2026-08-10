@@ -112,11 +112,6 @@ export function OrganizationsTable({
       key: 'sitesCount',
     },
     {
-      title: 'OWNERS',
-      dataIndex: 'ownersCount',
-      key: 'ownersCount',
-    },
-    {
       title: 'CREATED',
       dataIndex: 'createdAt',
       key: 'createdAt',

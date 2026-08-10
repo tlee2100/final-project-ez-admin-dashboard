@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { io, Socket } from 'socket.io-client';
-import type { NotificationItem } from '@/src/types/notification.types';
+
+import { message as antMessage } from 'antd';
+import type { NotificationItem, ChatToastPayload } from '@/src/types/notification.types';
 import {
   getNotificationsApi,
   markAsReadApi,
@@ -12,11 +13,14 @@ import {
 } from '@/src/services/notification.service';
 import { useAuth } from './AuthContext';
 import { useNotificationSocket } from '../hooks/useNotificationSocket';
+import { Socket } from 'socket.io-client';
 
 interface NotificationContextValue {
   notifications: NotificationItem[];
   unreadCount: number;
   isLoading: boolean;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -30,19 +34,35 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const LIMIT = 10;
 
-  const fetchNotifications = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      setIsLoading(true);
-      const data = await getNotificationsApi();
-      setNotifications(data);
-    } catch (error) {
-      console.error('Failed to fetch notifications', error);
-    } finally {
-      setIsLoading(false);
+  const fetchNotifications = useCallback(
+    async (pageNum = 1, append = false) => {
+      if (!isAuthenticated) return;
+      try {
+        setIsLoading(true);
+        const res = await getNotificationsApi(undefined, pageNum, LIMIT);
+        const fetchedData = res.data;
+
+        setNotifications((prev) => (append ? [...prev, ...fetchedData] : fetchedData));
+        setHasMore(fetchedData.length === LIMIT);
+        setPage(pageNum);
+      } catch (error) {
+        console.error('Failed to fetch notifications', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [isAuthenticated],
+  );
+
+  const loadMore = useCallback(async () => {
+    if (!isLoading && hasMore) {
+      await fetchNotifications(page + 1, true);
     }
-  }, [isAuthenticated]);
+  }, [isLoading, hasMore, page, fetchNotifications]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -60,11 +80,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const handleNewNotification = useCallback((notification: NotificationItem) => {
     setNotifications((prev) => [notification, ...prev]);
+    window.dispatchEvent(new CustomEvent('new_notification'));
+  }, []);
+
+  const handleChatToast = useCallback((toast: ChatToastPayload) => {
+    void antMessage.info({
+      content: toast.title,
+      duration: 5,
+    });
   }, []);
 
   const { getSocket } = useNotificationSocket({
     enabled: isAuthenticated,
     onNewNotification: handleNewNotification,
+    onNewChatToast: handleChatToast,
   });
 
   const markAsRead = useCallback(
@@ -126,6 +155,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifications,
         unreadCount,
         isLoading,
+        hasMore,
+        loadMore,
         markAsRead,
         markAllAsRead,
         deleteNotification,

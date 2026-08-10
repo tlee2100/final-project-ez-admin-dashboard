@@ -42,19 +42,16 @@ export function SiteCard({
           {site.name}
         </h3>
 
-        {/* Custom toggle switch */}
-        <label
-          className="site-toggle"
-          aria-label={`${site.enabled ? 'Disable' : 'Enable'} ${site.name}`}
-        >
-          <input
-            type="checkbox"
-            checked={site.enabled}
-            disabled={!canManage}
-            onChange={() => canManage && onToggle(site.id)}
-          />
-          <span className="site-toggle-track" />
-        </label>
+        {/* Custom toggle switch — only shown for admin/superadmin */}
+        {canManage && (
+          <label
+            className="site-toggle"
+            aria-label={`${site.enabled ? 'Disable' : 'Enable'} ${site.name}`}
+          >
+            <input type="checkbox" checked={site.enabled} onChange={() => onToggle(site.id)} />
+            <span className="site-toggle-track" />
+          </label>
+        )}
       </div>
 
       {/* ── URL ── */}

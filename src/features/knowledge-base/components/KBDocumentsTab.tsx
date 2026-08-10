@@ -11,8 +11,11 @@ import {
   CodeOutlined,
   GlobalOutlined,
   FileTextOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { Popconfirm, Dropdown, MenuProps, Pagination } from 'antd';
+import { Popconfirm, Dropdown, MenuProps, Pagination, Tag } from 'antd';
 import { DocFileType, type KBDocument } from '../types/knowledge-base.types';
 import type { SortOption } from '../hooks/useKnowledgeBase';
 
@@ -199,8 +202,30 @@ export function KBDocumentsTab({
                       <span className="kb-type-badge">{getDocTypeBadgeLabel(doc.type)}</span>
                       <span className="kb-doc-meta-text">{doc.sizeFormatted}</span>
                       <span className="kb-doc-meta-bullet">•</span>
-                      {typeof doc.chunksCount === 'number' && (
-                        <span className="kb-doc-meta-text">{doc.chunksCount} chunks</span>
+                      {doc.status === 'processing' ? (
+                        <Tag
+                          icon={<SyncOutlined spin />}
+                          color="processing"
+                          style={{ margin: 0, fontSize: 11, borderRadius: 6 }}
+                        >
+                          Chunking...
+                        </Tag>
+                      ) : doc.status === 'failed' ? (
+                        <Tag
+                          icon={<ExclamationCircleOutlined />}
+                          color="error"
+                          style={{ margin: 0, fontSize: 11, borderRadius: 6 }}
+                        >
+                          Failed
+                        </Tag>
+                      ) : (
+                        <Tag
+                          icon={<CheckCircleOutlined />}
+                          color="success"
+                          style={{ margin: 0, fontSize: 11, borderRadius: 6 }}
+                        >
+                          Ready
+                        </Tag>
                       )}
                     </div>
                   </div>

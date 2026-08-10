@@ -14,6 +14,7 @@ import {
   Alert,
   Tooltip,
   Modal,
+  Popconfirm,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -23,10 +24,14 @@ import {
   GlobalOutlined,
   MailOutlined,
   ClockCircleOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/src/features/live-chats/hooks/useConversationDetail';
 import { useAuth } from '@/src/contexts/AuthContext';
 import type { ChatMessage } from '@/src/features/live-chats/types/chat.types';
+import ReactMarkdown from 'react-markdown';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -53,11 +58,40 @@ function relativeTime(iso: string) {
   return `${hrs} hour${hrs !== 1 ? 's' : ''} ago`;
 }
 
+function senderKey(msg: ChatMessage) {
+  return `${msg.senderType}:${msg.agentId ?? msg.senderName ?? ''}`;
+}
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
-  const isAgent = msg.senderType === 'AGENT';
+function MessageBubble({
+  msg,
+  visitorName,
+  currentUserId,
+  isFirstInGroup,
+  isLastInGroup,
+}: {
+  msg: ChatMessage;
+  visitorName: string;
+  currentUserId?: string;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const isAgentSide = msg.senderType === 'AGENT' || msg.senderType === 'AI';
   const isSystem = msg.senderType === 'SYSTEM';
+  const isAi = msg.senderType === 'AI';
+  const isSelf =
+    msg.senderType === 'AGENT' &&
+    (!!msg.localId || (!!currentUserId && msg.agentId === currentUserId));
+  const senderLabel =
+    msg.senderType === 'VISITOR'
+      ? visitorName
+      : isAi
+        ? 'AI Chatbot'
+        : isSelf
+          ? 'You'
+          : msg.senderName || 'Agent';
 
   if (isSystem) {
     return (
@@ -69,76 +103,107 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
     );
   }
 
+  const renderMessageStatus = (status?: string) => {
+    if (!status) return null;
+    const style = { marginLeft: 6, fontSize: 11, fontStyle: 'italic', color: '#6b7280' };
+    if (status === 'queued') return <span style={style}>queued</span>;
+    if (status === 'SENT') return <span style={style}>sent</span>;
+    if (status === 'DELIVERED') return <span style={style}>delivered</span>;
+    if (status === 'READ') return <span style={style}>read</span>;
+    return null;
+  };
+
+  const avatar = isAgentSide ? (
+    <Avatar
+      size={32}
+      icon={isAi ? <RobotOutlined /> : <UserOutlined />}
+      style={{
+        background: isAi ? '#06b6d4' : '#6366f1',
+        color: '#fff',
+        flexShrink: 0,
+        fontSize: 13,
+        fontWeight: 600,
+      }}
+    />
+  ) : (
+    <Avatar
+      size={32}
+      style={{
+        background: '#e5e7eb',
+        color: '#374151',
+        flexShrink: 0,
+        fontSize: 13,
+        fontWeight: 600,
+      }}
+    >
+      {visitorName.charAt(0).toUpperCase()}
+    </Avatar>
+  );
+  const avatarSlot = isLastInGroup ? (
+    avatar
+  ) : (
+    <span style={{ width: 32, flex: '0 0 32px' }} aria-hidden="true" />
+  );
+
   return (
     <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         display: 'flex',
-        justifyContent: isAgent ? 'flex-end' : 'flex-start',
-        marginBottom: 12,
+        justifyContent: isAgentSide ? 'flex-end' : 'flex-start',
+        marginBottom: isLastInGroup ? 10 : 2,
         gap: 8,
         alignItems: 'flex-end',
       }}
     >
-      {!isAgent && (
-        <Avatar
-          size={32}
-          style={{
-            background: '#e5e7eb',
-            color: '#374151',
-            flexShrink: 0,
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          V
-        </Avatar>
-      )}
+      {!isAgentSide && avatarSlot}
 
       <div style={{ maxWidth: '65%' }}>
-        {!isAgent && (
-          <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 2 }}>
-            Visitor
+        {isFirstInGroup && (
+          <Text
+            style={{
+              fontSize: 11,
+              color: '#9ca3af',
+              display: 'block',
+              marginBottom: 2,
+              textAlign: isAgentSide ? 'right' : 'left',
+            }}
+          >
+            {senderLabel}
           </Text>
         )}
         <div
+          className="markdown-bubble"
           style={{
-            background: isAgent ? '#dbeafe' : '#f3f4f6',
-            borderRadius: isAgent ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+            background: isAgentSide ? '#dbeafe' : '#f3f4f6',
+            borderRadius: isAgentSide ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
             padding: '10px 14px',
             fontSize: 14,
             color: '#111827',
             lineHeight: 1.5,
+            width: 'fit-content',
+            marginLeft: isAgentSide ? 'auto' : 0,
+            wordBreak: 'break-word',
           }}
         >
-          {msg.content}
+          <ReactMarkdown>{msg.content}</ReactMarkdown>
         </div>
         <Text
           style={{
             fontSize: 11,
             color: '#9ca3af',
-            display: 'block',
+            display: isLastInGroup || isHovered ? 'block' : 'none',
             marginTop: 2,
-            textAlign: isAgent ? 'right' : 'left',
+            textAlign: isAgentSide ? 'right' : 'left',
           }}
         >
           {formatTime(msg.createdAt)}
+          {isAgentSide && renderMessageStatus(msg.status)}
         </Text>
       </div>
 
-      {isAgent && (
-        <Avatar
-          size={32}
-          style={{
-            background: '#6366f1',
-            color: '#fff',
-            flexShrink: 0,
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          T
-        </Avatar>
-      )}
+      {isAgentSide && avatarSlot}
     </div>
   );
 }
@@ -149,11 +214,13 @@ function VisitorInfoTab({
   conversation,
   hasTakenChat,
   isConnected,
+  isAiStreaming,
   onTakeChat,
 }: {
   conversation: NonNullable<ReturnType<typeof useConversationDetail>['conversation']>;
   hasTakenChat: boolean;
   isConnected: boolean;
+  isAiStreaming: boolean;
   onTakeChat: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -189,7 +256,7 @@ function VisitorInfoTab({
             type="primary"
             block
             onClick={onTakeChat}
-            disabled={!isConnected}
+            disabled={!isConnected || isAiStreaming}
             icon={<UserOutlined />}
             style={{ background: '#2563eb', borderColor: '#2563eb', borderRadius: 8 }}
           >
@@ -365,18 +432,22 @@ export default function ConversationDetailPage() {
     isConnected,
     accessDenied,
     error,
+    isVisitorTyping,
+    isAiStreaming,
     takeChat,
     sendMessage,
+    emitTyping,
     closeChat,
+    setStatus,
   } = useConversationDetail(conversationId);
 
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or typing
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isVisitorTyping]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
@@ -392,13 +463,11 @@ export default function ConversationDetailPage() {
     }
   };
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  const canTakeChat =
-    !hasTakenChat &&
-    conversation?.handlingStatus === 'WAITING_FOR_AGENT' &&
-    conversation?.status !== 'CLOSED';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const canTakeChat = !isAdmin && !conversation?.agentId && conversation?.status !== 'CLOSED';
   const canReply = hasTakenChat && conversation?.status !== 'CLOSED';
   const isClosed = conversation?.status === 'CLOSED';
+  const isPaused = conversation?.status === 'PAUSED';
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -508,7 +577,7 @@ export default function ConversationDetailPage() {
               type="primary"
               icon={<UserOutlined />}
               onClick={takeChat}
-              disabled={!isConnected}
+              disabled={!isConnected || isAiStreaming}
               style={{
                 background: '#2563eb',
                 borderColor: '#2563eb',
@@ -521,16 +590,29 @@ export default function ConversationDetailPage() {
           )}
 
           {(isAdmin || hasTakenChat) && !isClosed && (
-            <Tooltip title="Close this conversation">
+            <>
               <Button
-                danger
-                icon={<CloseCircleOutlined />}
-                onClick={closeChat}
+                icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
+                onClick={() => setStatus(isPaused ? 'OPEN' : 'PAUSED')}
                 style={{ borderRadius: 8 }}
               >
-                Close Chat
+                {isPaused ? 'Resume Chat' : 'Pause Chat'}
               </Button>
-            </Tooltip>
+              <Tooltip title="Close this conversation">
+                <Popconfirm
+                  title="Close conversation"
+                  description="Are you sure you want to end this chat?"
+                  onConfirm={closeChat}
+                  okText="Yes, end chat"
+                  cancelText="No"
+                  placement="bottomRight"
+                >
+                  <Button danger icon={<CloseCircleOutlined />} style={{ borderRadius: 8 }}>
+                    Close Chat
+                  </Button>
+                </Popconfirm>
+              </Tooltip>
+            </>
           )}
         </div>
       </div>
@@ -605,22 +687,80 @@ export default function ConversationDetailPage() {
                 Closed
               </Tag>
             )}
+            {isPaused && !isClosed && (
+              <Tag
+                style={{
+                  borderRadius: 20,
+                  background: '#fef3c7',
+                  border: '1px solid #fde68a',
+                  color: '#d97706',
+                  fontSize: 12,
+                  padding: '1px 10px',
+                }}
+              >
+                Paused
+              </Tag>
+            )}
           </div>
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-            {isLoadingMessages ? (
-              <div style={{ textAlign: 'center', padding: 40 }}>
-                <Spin />
-              </div>
-            ) : messages.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>
-                No messages yet
-              </div>
-            ) : (
-              messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
-            )}
-            <div ref={messagesEndRef} />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                minHeight: '100%',
+              }}
+            >
+              {isLoadingMessages ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <Spin />
+                </div>
+              ) : messages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>
+                  No messages yet
+                </div>
+              ) : (
+                messages.map((msg, index) => (
+                  <MessageBubble
+                    key={msg.id}
+                    msg={msg}
+                    visitorName={conversation.visitorName}
+                    currentUserId={user?.id}
+                    isFirstInGroup={
+                      index === 0 || senderKey(messages[index - 1]) !== senderKey(msg)
+                    }
+                    isLastInGroup={
+                      index === messages.length - 1 ||
+                      senderKey(messages[index + 1]) !== senderKey(msg)
+                    }
+                  />
+                ))
+              )}
+              {isVisitorTyping && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', margin: '8px 0' }}>
+                  <Avatar
+                    size={32}
+                    style={{
+                      background: '#e5e7eb',
+                      color: '#374151',
+                      flexShrink: 0,
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    V
+                  </Avatar>
+                  <div className="typing-bubble">
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* Footer */}
@@ -638,19 +778,26 @@ export default function ConversationDetailPage() {
                 >
                   <TextArea
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    onChange={(e) => {
+                      setInputValue(e.target.value);
+                      emitTyping();
+                    }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your reply… (Enter to send, Shift+Enter for new line)"
+                    placeholder={
+                      isPaused
+                        ? 'Conversation is paused'
+                        : 'Type your reply… (Enter to send, Shift+Enter for new line)'
+                    }
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     style={{ borderRadius: 10, flex: 1, resize: 'none' }}
-                    disabled={isSending}
+                    disabled={isSending || isPaused}
                   />
                   <Button
                     type="primary"
                     icon={<SendOutlined />}
                     onClick={handleSend}
                     loading={isSending}
-                    disabled={!inputValue.trim() || !isConnected}
+                    disabled={!inputValue.trim() || !isConnected || isPaused}
                     style={{
                       borderRadius: 10,
                       background: '#6366f1',
@@ -691,7 +838,7 @@ export default function ConversationDetailPage() {
                       type="primary"
                       icon={<UserOutlined />}
                       onClick={takeChat}
-                      disabled={!isConnected}
+                      disabled={!isConnected || isAiStreaming}
                       style={{
                         background: '#2563eb',
                         borderColor: '#2563eb',
@@ -735,6 +882,7 @@ export default function ConversationDetailPage() {
                       conversation={conversation}
                       hasTakenChat={hasTakenChat}
                       isConnected={isConnected}
+                      isAiStreaming={isAiStreaming}
                       onTakeChat={takeChat}
                     />
                   </div>

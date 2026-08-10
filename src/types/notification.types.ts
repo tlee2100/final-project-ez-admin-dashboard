@@ -6,6 +6,7 @@ export enum NotificationType {
   BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',
   BOOKING_CANCELLED = 'BOOKING_CANCELLED',
   SYSTEM = 'SYSTEM',
+  NEW_MESSAGE = 'NEW_MESSAGE',
 }
 
 export interface NotificationItem {
@@ -23,4 +24,10 @@ export interface NotificationItem {
 
 export interface UnreadCountResponse {
   count: number;
+}
+
+export interface ChatToastPayload {
+  conversationId: string;
+  title: string;
+  visitorName: string;
 }

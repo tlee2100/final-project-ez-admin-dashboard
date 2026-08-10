@@ -11,11 +11,8 @@ import type {
 } from '../types/organization.types';
 import { apiRequest } from '@/src/lib/api.client';
 
-import { useCurrentRole } from '@/src/hooks/useCurrentRole';
-
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export function useOrganizationsData() {
-  const { isSuperAdmin } = useCurrentRole();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -88,9 +85,6 @@ export function useOrganizationsData() {
     filters: listFilters,
     sorters: [{ field: filter.sortKey, order: filter.sortOrder }],
     pagination: { pageSize: filter.limit, currentPage: filter.page },
-    queryOptions: {
-      enabled: isSuperAdmin,
-    },
   });
   const listData = listQuery.data;
   const isLoading = listQuery.isLoading;
@@ -103,9 +97,6 @@ export function useOrganizationsData() {
   const { query: statsQuery } = useList<Organization>({
     resource: 'organizations',
     pagination: { pageSize: 1000, currentPage: 1 },
-    queryOptions: {
-      enabled: isSuperAdmin,
-    },
   });
   const statsData = useMemo(() => statsQuery.data?.data ?? [], [statsQuery.data?.data]);
 

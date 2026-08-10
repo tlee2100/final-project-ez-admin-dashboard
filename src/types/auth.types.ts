@@ -1,4 +1,4 @@
-export type UserRole = 'superadmin' | 'admin' | 'agent';
+export type UserRole = 'super_admin' | 'admin' | 'agent';
 
 export interface User {
   id: string;
@@ -37,7 +37,7 @@ export type NavItemKey =
 export function normalizeUserRole(role: string): UserRole | null {
   if (!role) return null;
   const r = role.toUpperCase();
-  if (r === 'SUPER_ADMIN' || r === 'SUPERADMIN') return 'superadmin';
+  if (r === 'SUPER_ADMIN' || r === 'SUPERADMIN') return 'super_admin';
   if (r === 'ADMIN') return 'admin';
   if (r === 'AGENT') return 'agent';
   // Unknown role — reject the session rather than escalate privileges.
@@ -45,7 +45,7 @@ export function normalizeUserRole(role: string): UserRole | null {
 }
 
 export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
-  superadmin: {
+  super_admin: {
     label: 'Super Admin',
     color: 'purple',
     badge: 'Super Admin',

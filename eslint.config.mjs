@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     'out/**',
     'build/**',
     'next-env.d.ts',
-    // Ignore built widget
-    'public/ez-chat-widget.js',
   ]),
 ]);
 

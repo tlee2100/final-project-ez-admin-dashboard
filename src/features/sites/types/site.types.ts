@@ -32,6 +32,7 @@ export interface Site {
   activeChats: number;
   updatedAt: string; // ISO date string
   assignedAgentIds: string[]; // user IDs of agents assigned to this site
+  allowedDomains?: string[]; // Allowed domains for the chat widget
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────

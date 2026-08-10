@@ -1,12 +1,32 @@
 import { apiRequest } from '@/src/lib/api.client';
 import type { NotificationItem } from '@/src/types/notification.types';
 
-export async function getNotificationsApi(isRead?: boolean): Promise<NotificationItem[]> {
-  const query = isRead !== undefined ? `?isRead=${isRead}` : '';
-  return apiRequest<NotificationItem[]>(`/notifications${query}`, {
-    method: 'GET',
-    requiresAuth: true,
-  });
+interface NotificationApiResponse {
+  data?: NotificationItem[];
+  meta?: { totalItems?: number };
+}
+
+export async function getNotificationsApi(
+  isRead?: boolean,
+  page = 1,
+  limit = 10,
+): Promise<{ data: NotificationItem[]; totalItems: number }> {
+  let query = `?page=${page}&limit=${limit}`;
+  if (isRead !== undefined) {
+    query += `&isRead=${isRead}`;
+  }
+  const response = await apiRequest<NotificationApiResponse | NotificationItem[]>(
+    `/notifications${query}`,
+    {
+      method: 'GET',
+      requiresAuth: true,
+    },
+  );
+  // Handle both array and paginated { data, meta } formats
+  if (Array.isArray(response)) {
+    return { data: response, totalItems: response.length };
+  }
+  return { data: response.data || [], totalItems: response.meta?.totalItems || 0 };
 }
 
 export async function markAsReadApi(id: string): Promise<NotificationItem> {

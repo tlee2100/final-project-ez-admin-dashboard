@@ -39,34 +39,29 @@ function statusBadgeFor(conv: Conversation): { cls: string; label: string } {
 
 export function TabConversations({ siteId, siteName }: TabConversationsProps) {
   const router = useRouter();
-  const { conversations, isLoading, error } = useLiveChats(siteId);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'waiting' | 'closed'>('all');
+  const { conversations, stats, handlingFilter, setHandlingFilter, isLoading, error } =
+    useLiveChats(siteId);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Real metrics derived from the live conversations list (shared logic with
-  // the live-chats page via useLiveChats).
-  const countAll = conversations.length;
-  const countActive = conversations.filter((c) => c.handlingStatus === 'AI_HANDLING').length;
-  const countWaiting = conversations.filter((c) => c.handlingStatus === 'WAITING_FOR_AGENT').length;
-  const countWithAgent = conversations.filter((c) => c.handlingStatus === 'AGENT_HANDLING').length;
-  const countClosed = conversations.filter((c) => c.status === 'CLOSED').length;
+  // Real metrics derived from the live conversations stats
+  const countAll = stats.total + stats.closedCount;
+  const countActive = stats.activeBotCount;
+  const countWaiting = stats.waitingCount;
+  const countWithAgent = stats.assignedCount;
+  const countClosed = stats.closedCount;
+  const countOpen = stats.total;
 
   const filteredConvs = useMemo(() => {
-    return conversations.filter((c) => {
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matchesName = c.visitorName.toLowerCase().includes(q);
-        const matchesMsg = (c.latestMessage?.content ?? '').toLowerCase().includes(q);
-        const matchesEmail = c.visitorEmail.toLowerCase().includes(q);
-        if (!matchesName && !matchesMsg && !matchesEmail) return false;
-      }
+    if (!searchTerm.trim()) return conversations;
 
-      if (activeFilter === 'open') return c.status !== 'CLOSED';
-      if (activeFilter === 'waiting') return c.handlingStatus === 'WAITING_FOR_AGENT';
-      if (activeFilter === 'closed') return c.status === 'CLOSED';
-      return true;
+    return conversations.filter((c) => {
+      const q = searchTerm.toLowerCase();
+      const matchesName = c.visitorName?.toLowerCase().includes(q) ?? false;
+      const matchesMsg = (c.latestMessage?.content ?? '').toLowerCase().includes(q);
+      const matchesEmail = c.visitorEmail?.toLowerCase().includes(q) ?? false;
+      return matchesName || matchesMsg || matchesEmail;
     });
-  }, [conversations, activeFilter, searchTerm]);
+  }, [conversations, searchTerm]);
 
   const handleLiveMonitor = () => {
     message.info('Redirecting to Live Chat monitor...');
@@ -128,26 +123,26 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
       <div className="conv-controls-bar">
         <div className="conv-filters">
           <button
-            className={`conv-filter-btn ${activeFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('all')}
+            className={`conv-filter-btn ${handlingFilter === '' ? 'active' : ''}`}
+            onClick={() => setHandlingFilter('')}
           >
-            All <span className="filter-count">{countAll}</span>
+            All Open <span className="filter-count">{countOpen}</span>
           </button>
           <button
-            className={`conv-filter-btn ${activeFilter === 'open' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('open')}
+            className={`conv-filter-btn ${handlingFilter === 'AI_HANDLING' ? 'active' : ''}`}
+            onClick={() => setHandlingFilter('AI_HANDLING')}
           >
-            Open <span className="filter-count">{countAll - countClosed}</span>
+            Active <span className="filter-count">{countActive}</span>
           </button>
           <button
-            className={`conv-filter-btn ${activeFilter === 'waiting' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('waiting')}
+            className={`conv-filter-btn ${handlingFilter === 'WAITING_FOR_AGENT' ? 'active' : ''}`}
+            onClick={() => setHandlingFilter('WAITING_FOR_AGENT')}
           >
             Waiting <span className="filter-count">{countWaiting}</span>
           </button>
           <button
-            className={`conv-filter-btn ${activeFilter === 'closed' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('closed')}
+            className={`conv-filter-btn ${handlingFilter === 'CLOSED' ? 'active' : ''}`}
+            onClick={() => setHandlingFilter('CLOSED')}
           >
             Closed <span className="filter-count">{countClosed}</span>
           </button>
@@ -189,10 +184,12 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
               <div key={conv.id} className="conv-list-card">
                 <div className="conv-card-left">
                   <div className="conv-avatar">
-                    {conv.visitorName
+                    {(conv.visitorName || '?')
                       .split(' ')
                       .map((n) => n[0])
-                      .join('')}
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)}
                   </div>
                   <div className="conv-info-col">
                     <div className="conv-name-row">
@@ -205,7 +202,7 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
                     <div className="conv-meta-info-row">
                       <span className="conv-meta-time">{relativeTime(conv.lastActivityAt)}</span>
                       <span className="conv-meta-dot">•</span>
-                      <span className="conv-meta-start">{conv.visitorEmail}</span>
+                      <span className="conv-meta-start">{conv.visitorEmail || 'No email'}</span>
                     </div>
                   </div>
                 </div>

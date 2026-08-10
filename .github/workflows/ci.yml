@@ -39,6 +39,8 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.image.outputs.image }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6

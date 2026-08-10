@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { apiRequest } from '@/src/lib/api.client';
-import { getStoredAccessToken } from '@/src/lib/api.client';
+import { useSession } from 'next-auth/react';
 import { useAuth } from '@/src/contexts/AuthContext';
 import type { Conversation, PaginatedConversations, HandlingStatus } from '../types/chat.types';
 
@@ -20,11 +20,19 @@ export function useLiveChats(siteId?: string) {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
-  const [handlingFilter, setHandlingFilter] = useState<HandlingStatus | ''>('');
+  const [handlingFilter, setHandlingFilter] = useState<HandlingStatus | 'CLOSED' | ''>('');
+  const [stats, setStats] = useState({
+    total: 0,
+    activeBotCount: 0,
+    waitingCount: 0,
+    assignedCount: 0,
+    closedCount: 0,
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const { isAuthenticated } = useAuth();
+  const { data: session } = useSession();
 
   const fetchConversations = useCallback(
     async (opts?: { background?: boolean }) => {
@@ -43,7 +51,14 @@ export function useLiveChats(siteId?: string) {
           sortBy: 'lastActivityAt:DESC',
         });
         if (handlingFilter) {
-          params.set('filter.handlingStatus', `$eq:${handlingFilter}`);
+          if (handlingFilter === 'CLOSED') {
+            params.set('filter.status', `$eq:CLOSED`);
+          } else {
+            params.set('filter.handlingStatus', `$eq:${handlingFilter}`);
+            params.set('filter.status', `$not:$eq:CLOSED`);
+          }
+        } else {
+          params.set('filter.status', `$not:$eq:CLOSED`);
         }
         if (siteId) {
           params.set('filter.siteId', `$eq:${siteId}`);
@@ -67,13 +82,32 @@ export function useLiveChats(siteId?: string) {
     [page, pageSize, handlingFilter, siteId],
   );
 
+  const fetchConversationStats = useCallback(async () => {
+    try {
+      const url = siteId
+        ? `/chat/conversations/stats?siteId=${siteId}`
+        : `/chat/conversations/stats`;
+      const data = await apiRequest<{
+        total: number;
+        activeBotCount: number;
+        waitingCount: number;
+        assignedCount: number;
+        closedCount: number;
+      }>(url);
+      setStats(data);
+    } catch (err) {
+      console.error('[live-chats] failed to fetch stats:', err);
+    }
+  }, [siteId]);
+
   // Initial fetch + re-fetch on page/filter change
   useEffect(() => {
     const init = async () => {
       await fetchConversations();
+      await fetchConversationStats();
     };
     void init();
-  }, [fetchConversations]);
+  }, [fetchConversations, fetchConversationStats]);
 
   // Always-current ref so the socket can refetch without reconnecting on
   // every filter/page change.
@@ -85,7 +119,7 @@ export function useLiveChats(siteId?: string) {
   // WebSocket for real-time inbox updates — one stable connection per auth
   // state, not per filter/page change.
   useEffect(() => {
-    const token = getStoredAccessToken();
+    const token = session?.accessToken;
     if (!isAuthenticated || !token) return;
 
     const socket = io(WS_ROOT, {
@@ -95,7 +129,10 @@ export function useLiveChats(siteId?: string) {
 
     socketRef.current = socket;
 
-    const refetch = () => fetchRef.current({ background: true });
+    const refetch = () => {
+      fetchRef.current({ background: true });
+      fetchConversationStats();
+    };
 
     socket.on('newConversation', refetch); // newly created conversation at top
     socket.on('conversationAssigned', refetch); // claimed by another agent
@@ -110,11 +147,12 @@ export function useLiveChats(siteId?: string) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, session?.accessToken, fetchConversationStats]);
 
   return {
     conversations,
     total,
+    stats,
     page,
     pageSize,
     handlingFilter,

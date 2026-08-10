@@ -3,7 +3,7 @@
 import './live-chats.css';
 import React from 'react';
 import Link from 'next/link';
-import { Input, Button, Avatar, Alert, Spin } from 'antd';
+import { Input, Button, Avatar, Alert, Spin, Dropdown } from 'antd';
 import {
   FilterOutlined,
   CalendarOutlined,
@@ -18,6 +18,8 @@ import {
 } from '@ant-design/icons';
 import { useLiveChats } from '@/src/features/live-chats/hooks/useLiveChats';
 import type { HandlingStatus } from '@/src/features/live-chats/types/chat.types';
+import { useSitesData } from '@/src/features/sites/hooks/useSitesData';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -34,18 +36,17 @@ function relativeTime(iso: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function LiveChatsPage() {
-  const { conversations, total, handlingFilter, isLoading, error, setHandlingFilter } =
-    useLiveChats();
+  const [selectedSiteId, setSelectedSiteId] = React.useState<string | undefined>();
+  const { conversations, total, stats, handlingFilter, isLoading, error, setHandlingFilter } =
+    useLiveChats(selectedSiteId);
+  const { filteredSites } = useSitesData();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
-  // For UI demonstration, we count what is on the current page.
-  // In a full implementation, you'd fetch these aggregates from the backend.
-  const activeBotCount = conversations.filter((c) => c.handlingStatus === 'AI_HANDLING').length;
-  const waitingCount = conversations.filter((c) => c.handlingStatus === 'WAITING_FOR_AGENT').length;
-  const assignedCount = conversations.filter((c) => c.handlingStatus === 'AGENT_HANDLING').length;
-  const closedCount = conversations.filter((c) => c.status === 'CLOSED').length;
+  const { activeBotCount, waitingCount, assignedCount, closedCount } = stats;
 
   const tabs = [
-    { key: '', label: 'All Conversations', count: total },
+    { key: '', label: 'All Conversations', count: stats.total },
     { key: 'AI_HANDLING', label: 'Active', count: activeBotCount },
     { key: 'WAITING_FOR_AGENT', label: 'Waiting', count: waitingCount },
     { key: 'AGENT_HANDLING', label: 'Agent Assigned', count: assignedCount },
@@ -125,9 +126,22 @@ export default function LiveChatsPage() {
           <Input.Search placeholder="Search conversations..." allowClear size="large" />
         </div>
         <div className="filters-actions">
-          <Button icon={<FilterOutlined />} className="filter-btn">
-            Filter by Site
-          </Button>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'all', label: 'All Sites' },
+                ...filteredSites.map((site) => ({ key: site.id, label: site.name })),
+              ],
+              onClick: (info) => setSelectedSiteId(info.key === 'all' ? undefined : info.key),
+            }}
+            trigger={['click']}
+          >
+            <Button icon={<FilterOutlined />} className="filter-btn">
+              {selectedSiteId
+                ? filteredSites.find((s) => s.id === selectedSiteId)?.name || 'Filtered'
+                : 'Filter by Site'}
+            </Button>
+          </Dropdown>
           <Button icon={<UserOutlined />} className="filter-btn">
             Filter by Agent
           </Button>
@@ -144,9 +158,7 @@ export default function LiveChatsPage() {
             key={tab.key}
             className={`pill-tab ${handlingFilter === tab.key ? 'active' : ''}`}
             onClick={() => {
-              if (tab.key !== 'CLOSED') {
-                setHandlingFilter(tab.key as HandlingStatus | '');
-              }
+              setHandlingFilter(tab.key as HandlingStatus | 'CLOSED' | '');
             }}
           >
             {tab.label}
@@ -222,7 +234,7 @@ export default function LiveChatsPage() {
                 <div className="card-actions">
                   <Link href={`/live-chats/${chat.id}`}>
                     <button className="action-btn">
-                      {chat.handlingStatus === 'WAITING_FOR_AGENT' ? 'Take Chat' : 'Join Chat'}
+                      {chat.agentId ? 'View Chat' : isAdmin ? 'View Chat' : 'Take Chat'}
                       <ArrowRightOutlined style={{ fontSize: 12 }} />
                     </button>
                   </Link>

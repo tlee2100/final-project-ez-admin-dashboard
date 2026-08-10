@@ -92,7 +92,7 @@ export function LoginForm() {
             name="email"
             rules={[
               { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Invalid Emal!' },
+              { type: 'email', message: 'Invalid Email!' },
             ]}
           >
             <Input

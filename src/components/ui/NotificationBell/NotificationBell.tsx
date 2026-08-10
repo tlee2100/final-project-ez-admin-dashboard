@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge, Popover, Button, List, Typography, Spin, Empty } from 'antd';
 import {
   BellOutlined,
@@ -47,19 +48,54 @@ function formatTimeAgo(dateStr: string) {
 }
 
 export function NotificationBell() {
+  const router = useRouter();
+
+  const NAVIGABLE_TYPES: NotificationType[] = [
+    NotificationType.CONVERSATION_WAITING,
+    NotificationType.AGENT_HANDOFF_REQUEST,
+  ];
+
+  const [open, setOpen] = useState(false);
+
+  // Auto pop-up for new notifications has been disabled per request
+  // useEffect(() => {
+  //   const handleNewNotif = () => setOpen(true);
+  //   window.addEventListener('new_notification', handleNewNotif);
+  //   return () => window.removeEventListener('new_notification', handleNewNotif);
+  // }, []);
+
   const {
     notifications,
     unreadCount,
     isLoading,
+    hasMore,
+    loadMore,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     deleteAllNotifications,
   } = useNotification();
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 50) {
+      if (hasMore && !isLoading) {
+        loadMore();
+      }
+    }
+  };
+
   const handleItemClick = (item: NotificationItem) => {
     if (!item.readAt) {
-      markAsRead(item.id);
+      void markAsRead(item.id);
+    }
+
+    if (NAVIGABLE_TYPES.includes(item.type) && item.conversationId) {
+      setOpen(false);
+      router.push(`/live-chats/${item.conversationId}`);
+    } else if (item.type === NotificationType.DOCUMENT_PROCESSED && item.siteId) {
+      setOpen(false);
+      router.push(`/sites/${item.siteId}/kb`);
     }
   };
 
@@ -74,7 +110,7 @@ export function NotificationBell() {
         )}
       </div>
 
-      <div className="notif-body">
+      <div className="notif-body" onScroll={handleScroll}>
         {isLoading && notifications.length === 0 ? (
           <div className="notif-loading">
             <Spin />
@@ -84,7 +120,14 @@ export function NotificationBell() {
         ) : (
           <List
             className="notif-list"
-            dataSource={notifications.slice(0, 10)} // Show up to 10
+            dataSource={notifications}
+            footer={
+              isLoading && hasMore ? (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <Spin size="small" />
+                </div>
+              ) : null
+            }
             renderItem={(item) => (
               <List.Item
                 className={`notif-item ${!item.readAt ? 'unread' : ''}`}
@@ -138,6 +181,8 @@ export function NotificationBell() {
     <Popover
       content={content}
       trigger="click"
+      open={open}
+      onOpenChange={setOpen}
       placement="bottomRight"
       overlayClassName="notif-popover"
       arrow={false}

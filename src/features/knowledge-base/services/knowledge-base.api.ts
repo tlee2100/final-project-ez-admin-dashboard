@@ -1,5 +1,12 @@
-import { getStoredAccessToken } from '@/src/lib/api.client';
-import { DocFileExtension, DocFileType, type KBDocument } from '../types/knowledge-base.types';
+import { getSession } from 'next-auth/react';
+import {
+  DocFileExtension,
+  DocFileType,
+  type KBDocument,
+  type DocumentChunksResponse,
+  type KBStatsResponse,
+  type VectorStorageStats,
+} from '../types/knowledge-base.types';
 
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const API_BASE_URL = RAW_API_BASE_URL.replace(/\/$/, '').endsWith('/api/v1')
@@ -77,7 +84,8 @@ async function parseApiError(response: Response): Promise<string> {
 }
 
 async function kbApiRequest<T>(endpoint: string, init: RequestInit): Promise<T> {
-  const token = getStoredAccessToken();
+  const session = await getSession();
+  const token = session?.accessToken;
   const response = await fetch(buildApiUrl(endpoint), {
     ...init,
     headers: {
@@ -183,10 +191,9 @@ export async function fetchSiteDocumentsApi(
   const queryString = queryParams.toString();
   const endpoint = `/sites/${siteId}/kb/sources${queryString ? `?${queryString}` : ''}`;
 
-  const response = await kbApiRequest<NestPaginatedResponse<BackendDocumentDto> | BackendDocumentDto[]>(
-    endpoint,
-    { method: 'GET' },
-  );
+  const response = await kbApiRequest<
+    NestPaginatedResponse<BackendDocumentDto> | BackendDocumentDto[]
+  >(endpoint, { method: 'GET' });
 
   // Handle nestjs-paginate object response
   if (response && !Array.isArray(response) && Array.isArray(response.data)) {
@@ -236,4 +243,35 @@ export async function deleteSiteDocumentApi(
       method: 'DELETE',
     },
   );
+}
+
+export async function fetchDocumentChunksApi(
+  siteId: string,
+  documentId: string,
+): Promise<DocumentChunksResponse> {
+  return kbApiRequest<DocumentChunksResponse>(`/sites/${siteId}/kb/sources/${documentId}/chunks`, {
+    method: 'GET',
+  });
+}
+
+export async function fetchKBStatsApi(siteId: string): Promise<VectorStorageStats> {
+  const stats = await kbApiRequest<KBStatsResponse>(`/sites/${siteId}/kb/stats`, {
+    method: 'GET',
+  });
+
+  const formattedSize = stats.totalSizeBytes > 0 ? formatFileSize(stats.totalSizeBytes) : '0 KB';
+  const lastUpdated = stats.lastProcessedAt
+    ? formatDateTime(stats.lastProcessedAt) || 'Just now'
+    : 'Realtime Sync';
+
+  return {
+    totalDocuments: stats.totalDocuments,
+    totalChunks: stats.totalChunks,
+    totalSizeBytes: stats.totalSizeBytes,
+    totalSizeFormatted: formattedSize,
+    lastUpdatedRelative: lastUpdated,
+    vectorsUsed: stats.vectorsUsed,
+    vectorsLimit: stats.vectorsLimit,
+    usagePercentage: stats.usagePercentage,
+  };
 }

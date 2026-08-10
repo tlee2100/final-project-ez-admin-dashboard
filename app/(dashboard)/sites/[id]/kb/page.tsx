@@ -168,7 +168,12 @@ export default function KnowledgeBasePage({ params }: PageProps) {
         />
       )}
 
-      <DocPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
+      <DocPreviewModal
+        key={`${siteId}:${previewDoc?.id ?? 'closed'}`}
+        doc={previewDoc}
+        siteId={siteId}
+        onClose={() => setPreviewDoc(null)}
+      />
     </div>
   );
 }

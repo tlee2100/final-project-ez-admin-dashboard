@@ -17,12 +17,14 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Upload,
 } from 'antd';
 import type { UploadFile } from 'antd';
 import {
   DeleteOutlined,
   EditOutlined,
+  MailOutlined,
   PlusOutlined,
   ReloadOutlined,
   UploadOutlined,
@@ -42,6 +44,8 @@ interface UserRecord {
   email: string;
   name: string;
   role: UserRoleApi;
+  isActive: boolean;
+  activationTokenExpiresAt?: string | null;
   gender: UserGender | null;
   dateOfBirth: string | null;
   phone: string | null;
@@ -94,6 +98,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const handleCloseCreate = () => {
     setCreateOpen(false);
@@ -216,7 +221,9 @@ export default function UsersPage() {
           if (data.initialPassword) {
             setCreatedPassword(data.initialPassword);
           } else {
-            message.success('User created');
+            message.success(
+              'User created! An invitation email has been sent to activate the account.',
+            );
             handleCloseCreate();
           }
         },
@@ -240,6 +247,23 @@ export default function UsersPage() {
     );
   };
 
+  const handleResendActivation = async (record: UserRecord) => {
+    setResendingId(record.id);
+    try {
+      await apiRequest<{ activationEmailQueued: boolean }>(
+        `/users/${record.id}/resend-activation`,
+        { method: 'POST' },
+      );
+      message.success(`Activation email has been resent to ${record.email}`);
+      refreshUsers();
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to resend activation email';
+      message.error(errorMsg);
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const columns = [
     {
       title: 'User',
@@ -261,18 +285,81 @@ export default function UsersPage() {
       sorter: true,
       render: (value: UserRoleApi) => <Tag color={roleColor[value]}>{value}</Tag>,
     },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      render: (_: unknown, record: UserRecord) => {
+        if (record.isActive) {
+          return <Tag color="success">Active</Tag>;
+        }
+        const isExpired =
+          !record.activationTokenExpiresAt ||
+          new Date(record.activationTokenExpiresAt).getTime() < Date.now();
+
+        if (isExpired) {
+          return (
+            <Tooltip title="Activation token has expired. Click 'Resend Email' to issue a new activation link.">
+              <Tag color="error" style={{ cursor: 'pointer' }}>
+                Expired
+              </Tag>
+            </Tooltip>
+          );
+        }
+
+        const expiresDate = new Date(record.activationTokenExpiresAt!).toLocaleString();
+        return (
+          <Tooltip title={`Activation pending (expires: ${expiresDate})`}>
+            <Tag color="warning" style={{ cursor: 'pointer' }}>
+              Pending
+            </Tag>
+          </Tooltip>
+        );
+      },
+    },
     { title: 'Gender', dataIndex: 'gender', render: (value: string | null) => value || '-' },
     { title: 'Phone', dataIndex: 'phone', render: (value: string | null) => value || '-' },
     {
       title: 'Actions',
-      width: 120,
+      width: 150,
       render: (_: unknown, record: UserRecord) => {
         const isSelf = record.id === currentUser?.id;
         if (isSelf) return null; // Hide actions completely for the current user
 
+        const isPendingOrExpired = !record.isActive;
+        const isExpired =
+          isPendingOrExpired &&
+          (!record.activationTokenExpiresAt ||
+            new Date(record.activationTokenExpiresAt).getTime() < Date.now());
+
         return (
           <Space>
-            <Button icon={<EditOutlined />} onClick={() => setEditing(record)} />
+            {isPendingOrExpired && (
+              <Popconfirm
+                title="Resend activation email?"
+                description={`Send a new activation email link to ${record.email}?`}
+                okText="Resend"
+                cancelText="Cancel"
+                onConfirm={() => handleResendActivation(record)}
+                disabled={resendingId === record.id}
+              >
+                <Tooltip
+                  title={
+                    isExpired
+                      ? 'Activation link expired - Click to resend email'
+                      : 'Resend activation email'
+                  }
+                >
+                  <Button
+                    icon={<MailOutlined />}
+                    loading={resendingId === record.id}
+                    style={isExpired ? { color: '#ef4444', borderColor: '#fca5a5' } : undefined}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            )}
+            <Tooltip title="Edit user">
+              <Button icon={<EditOutlined />} onClick={() => setEditing(record)} />
+            </Tooltip>
             <Popconfirm
               title="Delete user?"
               onConfirm={() =>
@@ -288,7 +375,9 @@ export default function UsersPage() {
                 )
               }
             >
-              <Button danger icon={<DeleteOutlined />} />
+              <Tooltip title="Delete user">
+                <Button danger icon={<DeleteOutlined />} />
+              </Tooltip>
             </Popconfirm>
           </Space>
         );

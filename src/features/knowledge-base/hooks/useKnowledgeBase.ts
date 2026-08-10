@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type {
   KBDocument,
   VectorStorageStats,
@@ -11,16 +11,20 @@ import {
   fetchSiteDocumentsApi,
   uploadSiteDocumentApi,
   deleteSiteDocumentApi,
+  fetchKBStatsApi,
 } from '../services/knowledge-base.api';
+import { useSession } from 'next-auth/react';
 import { useNotification } from '@/src/contexts/NotificationContext';
-import { message } from 'antd';
+import { App } from 'antd';
 
 export type SortOption = 'name_asc' | 'name_desc' | 'date_desc' | 'date_asc' | 'size_desc';
 
 export function useKnowledgeBase(siteId: string) {
+  const { data: session } = useSession();
+  const { getSocket } = useNotification();
+  const { message } = App.useApp();
   const [documents, setDocuments] = useState<KBDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { getSocket } = useNotification();
   const [error, setError] = useState<string | null>(null);
 
   const [crawlerConfig] = useState<CrawlerConfig>(initialCrawlerConfig);
@@ -35,6 +39,18 @@ export function useKnowledgeBase(siteId: string) {
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
   const [totalDocs, setTotalDocs] = useState<number>(0);
+
+  // Live Stats
+  const [stats, setStats] = useState<VectorStorageStats>({
+    totalDocuments: 0,
+    totalChunks: 0,
+    totalSizeBytes: 0,
+    totalSizeFormatted: '0 MB',
+    lastUpdatedRelative: 'Realtime Sync',
+    vectorsUsed: 0,
+    vectorsLimit: 100000,
+    usagePercentage: 0,
+  });
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -61,6 +77,16 @@ export function useKnowledgeBase(siteId: string) {
     setPage(1);
   }, []);
 
+  const refreshStats = useCallback(async () => {
+    if (!siteId) return;
+    try {
+      const liveStats = await fetchKBStatsApi(siteId);
+      setStats(liveStats);
+    } catch (err: unknown) {
+      console.warn('Failed to fetch KB live stats:', err);
+    }
+  }, [siteId]);
+
   // Fetch Documents from Backend API with Pagination & Filtering
   const refreshDocuments = useCallback(async () => {
     if (!siteId) return;
@@ -77,13 +103,15 @@ export function useKnowledgeBase(siteId: string) {
 
       setDocuments(res.documents);
       setTotalDocs(res.total);
+      void refreshStats();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unable to load documents from backend';
       setError(msg);
+      message.error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [siteId, page, limit, selectedType, debouncedSearchQuery, sortOption]);
+  }, [siteId, page, limit, selectedType, debouncedSearchQuery, sortOption, refreshStats, message]);
 
   useEffect(() => {
     let ignore = false;
@@ -100,6 +128,7 @@ export function useKnowledgeBase(siteId: string) {
         if (!ignore) {
           setDocuments(res.documents);
           setTotalDocs(res.total);
+          void refreshStats();
         }
       } catch (err: unknown) {
         if (!ignore) {
@@ -118,7 +147,16 @@ export function useKnowledgeBase(siteId: string) {
     return () => {
       ignore = true;
     };
-  }, [siteId, page, limit, selectedType, debouncedSearchQuery, sortOption]);
+  }, [
+    siteId,
+    page,
+    limit,
+    selectedType,
+    debouncedSearchQuery,
+    sortOption,
+    refreshStats,
+    session?.accessToken,
+  ]);
 
   // 2. Realtime WebSocket Listener for Bull Queue Status Updates
   useEffect(() => {
@@ -134,8 +172,10 @@ export function useKnowledgeBase(siteId: string) {
     }) => {
       if (payload && payload.documentId) {
         if (payload.type === 'document-ready' || payload.status === 'ready') {
+          message.destroy('processing_docs');
           void refreshDocuments();
         } else if (payload.type === 'document-failed' || payload.status === 'failed') {
+          message.destroy('processing_docs');
           const fileNameStr = payload.filename ? `'${payload.filename}'` : 'Document';
           const errorMsgStr = payload.error ? `: ${payload.error}` : '';
           message.error(`Failed to process ${fileNameStr}${errorMsgStr}`);
@@ -149,33 +189,19 @@ export function useKnowledgeBase(siteId: string) {
     return () => {
       socket.off('document-status-changed', handleStatusChanged);
     };
-  }, [getSocket, refreshDocuments]);
-
-  // Dynamic Statistics Calculation
-  const stats: VectorStorageStats = useMemo(() => {
-    const totalDocsCount = totalDocs || documents.length;
-    const totalChunks = documents.reduce((acc, d) => acc + (d.chunksCount || 0), 0);
-    const totalBytes = documents.reduce((acc, d) => acc + d.sizeBytes, 0);
-    const sizeMB = (totalBytes / (1024 * 1024)).toFixed(1);
-    const vectorsUsed = totalChunks;
-    const vectorsLimit = 100000;
-    const usagePercentage = Math.min(100, Math.round((vectorsUsed / vectorsLimit) * 100));
-
-    return {
-      totalDocuments: totalDocsCount,
-      totalChunks,
-      totalSizeBytes: totalBytes,
-      totalSizeFormatted: `${sizeMB} MB`,
-      lastUpdatedRelative: 'Realtime Sync',
-      vectorsUsed,
-      vectorsLimit,
-      usagePercentage,
-    };
-  }, [documents, totalDocs]);
+  }, [refreshDocuments, session?.accessToken, getSocket, message]);
 
   // Actions connecting to Backend APIs
   const handleAddFile = async (files: File[]) => {
     if (!files || files.length === 0 || !siteId) return;
+
+    message.loading({
+      content: `Uploading ${files.length} document(s)...`,
+      key: 'processing_docs',
+    });
+
+    let failedCount = 0;
+    const successfulDocs: KBDocument[] = [];
 
     const uploadPromises = files.map(async (file) => {
       const newKBDoc = await uploadSiteDocumentApi(siteId, file);
@@ -183,9 +209,6 @@ export function useKnowledgeBase(siteId: string) {
     });
 
     const results = await Promise.allSettled(uploadPromises);
-    const successfulDocs: KBDocument[] = [];
-    let failedCount = 0;
-
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         successfulDocs.push(result.value.newKBDoc);
@@ -199,13 +222,19 @@ export function useKnowledgeBase(siteId: string) {
 
     if (successfulDocs.length > 0) {
       if (failedCount > 0) {
-        message.info(
-          `Uploaded ${successfulDocs.length} of ${files.length} file(s). Processing in background...`,
-        );
+        message.loading({
+          content: `Processing ${successfulDocs.length} of ${files.length} file(s) in background...`,
+          key: 'processing_docs',
+        });
       } else {
-        message.info(`Uploaded ${successfulDocs.length} file(s). Processing in background...`);
+        message.loading({
+          content: `Processing ${successfulDocs.length} file(s) in background...`,
+          key: 'processing_docs',
+        });
       }
       void refreshDocuments();
+    } else {
+      message.destroy('processing_docs');
     }
   };
 

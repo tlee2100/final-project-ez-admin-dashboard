@@ -5,18 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { DashboardLayout } from '@/src/components/layout/DashboardLayout/DashboardLayout';
 import { Spin } from 'antd';
+import { useSession } from 'next-auth/react';
 
 export default function DashboardGroupLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const { status } = useSession();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (status === 'unauthenticated') {
       router.replace('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [status, router]);
 
-  if (isLoading) {
+  if (isLoading || status === 'loading') {
     return (
       <div
         style={{
@@ -33,7 +35,7 @@ export default function DashboardGroupLayout({ children }: { children: React.Rea
     );
   }
 
-  if (!isAuthenticated) {
+  if (status === 'unauthenticated') {
     return null;
   }
 

@@ -15,7 +15,8 @@ import type {
   GetManyParams,
 } from '@refinedev/core';
 import { mockDataProvider } from './mockDataProvider';
-import { API_BASE_URL, apiRequest, getStoredAccessToken } from '@/src/lib/api.client';
+import { API_BASE_URL, apiRequest } from '@/src/lib/api.client';
+import { getSession } from 'next-auth/react';
 
 function requestBody(variables: unknown): BodyInit {
   return variables instanceof FormData ? variables : JSON.stringify(variables ?? {});
@@ -202,6 +203,35 @@ export const combinedDataProvider: DataProvider = {
       };
     }
 
+    if (resource === 'notifications') {
+      const queryParams: string[] = [];
+
+      if (pagination?.currentPage) {
+        queryParams.push(`page=${pagination.currentPage}`);
+      }
+      if (pagination?.pageSize) {
+        queryParams.push(`limit=${pagination.pageSize}`);
+      }
+      if (filters && filters.length > 0) {
+        filters.forEach((f) => {
+          if ('field' in f && f.field === 'isRead') {
+            queryParams.push(`isRead=${encodeURIComponent(String(f.value))}`);
+          }
+        });
+      }
+
+      const queryString = queryParams.length ? `?${queryParams.join('&')}` : '';
+      const response = await apiRequest<{
+        data: Record<string, unknown>[];
+        meta?: { totalItems?: number };
+      }>(`/notifications${queryString}`);
+
+      return {
+        data: response.data as unknown as TData[],
+        total: response.meta?.totalItems ?? response.data.length,
+      };
+    }
+
     // Delegate to mock provider for other resources
     return mockDataProvider.getList({ resource, filters, sorters, pagination });
   },
@@ -266,7 +296,8 @@ export const combinedDataProvider: DataProvider = {
     }
 
     if (resource === 'dashboard' || resource === 'analytics') {
-      const token = getStoredAccessToken();
+      const session = await getSession();
+      const token = session?.accessToken;
       if (token) {
         try {
           const analyticsRes = await apiRequest<{

@@ -14,7 +14,7 @@ export function useCurrentRole() {
   const hasAccess = (navKey: string) =>
     roleConfig.navItems.includes(navKey as Parameters<typeof roleConfig.navItems.includes>[0]);
 
-  const isSuperAdmin = currentRole === 'superadmin';
+  const isSuperAdmin = currentRole === 'super_admin';
   const isAdmin = currentRole === 'admin';
   const isAgent = currentRole === 'agent';
 
@@ -27,6 +27,6 @@ export function useCurrentRole() {
     isSuperAdmin,
     isAdmin,
     isAgent,
-    availableRoles: ['superadmin', 'admin', 'agent'] as UserRole[],
+    availableRoles: ['super_admin', 'admin', 'agent'] as UserRole[],
   };
 }

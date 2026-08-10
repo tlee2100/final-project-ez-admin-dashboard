@@ -6,6 +6,7 @@ import { useCreate } from '@refinedev/core';
 import { Form, Input, Button, Card, App } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import type { Site } from '@/src/features/sites/types/site.types';
+import { AllowedDomainsInput } from '@/src/features/sites/components/AllowedDomainsInput';
 import '@/src/features/sites/components/sites.css';
 
 export default function NewSitePage() {
@@ -14,11 +15,18 @@ export default function NewSitePage() {
   const { mutate, isPending: isLoading } = mutation;
   const { message } = App.useApp();
 
-  const handleFinish = (values: { name: string; url: string }) => {
+  const handleFinish = (values: { name: string; url: string; allowedDomains?: string[] }) => {
+    const cleanedDomains = values.allowedDomains
+      ? values.allowedDomains.map((d) => d?.trim()).filter((d): d is string => Boolean(d))
+      : [];
+
     mutate(
       {
         resource: 'sites',
-        values,
+        values: {
+          ...values,
+          allowedDomains: cleanedDomains,
+        },
       },
       {
         onSuccess: () => {
@@ -94,6 +102,8 @@ export default function NewSitePage() {
           >
             <Input placeholder="e.g. https://my-store.com" size="large" />
           </Form.Item>
+
+          <AllowedDomainsInput />
 
           <Form.Item
             style={{

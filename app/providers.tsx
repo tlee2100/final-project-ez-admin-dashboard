@@ -90,7 +90,7 @@ function RefineInnerProviders({ children }: { children: React.ReactNode }) {
   const { currentRole } = useAuth();
 
   const accessControlProvider = React.useMemo(() => {
-    const isManager = currentRole === 'superadmin' || currentRole === 'admin';
+    const isManager = currentRole === 'super_admin' || currentRole === 'admin';
     return {
       // Client-side policy is UX-only (hides/disables controls); the API
       // enforces authorization and tenant scope on every request. Deny by
@@ -141,17 +141,25 @@ function RefineInnerProviders({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { SessionProvider } from 'next-auth/react';
+import type { Session } from 'next-auth';
+
 // ── Provider tree ─────────────────────────────────────────────────────────────
-export function AppProviders({ children }: Readonly<{ children: React.ReactNode }>) {
+export function AppProviders({
+  children,
+  session,
+}: Readonly<{ children: React.ReactNode; session: Session | null }>) {
   return (
     <ConfigProvider theme={antdTheme}>
       <App>
         <GlobalMessageDismiss />
-        <AuthProvider>
-          <NotificationProvider>
-            <RefineInnerProviders>{children}</RefineInnerProviders>
-          </NotificationProvider>
-        </AuthProvider>
+        <SessionProvider session={session} refetchOnWindowFocus={false}>
+          <AuthProvider>
+            <NotificationProvider>
+              <RefineInnerProviders>{children}</RefineInnerProviders>
+            </NotificationProvider>
+          </AuthProvider>
+        </SessionProvider>
       </App>
     </ConfigProvider>
   );

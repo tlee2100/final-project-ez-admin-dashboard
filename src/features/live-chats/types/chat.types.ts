@@ -4,7 +4,7 @@ export type ConversationStatus = 'OPEN' | 'PAUSED' | 'CLOSED';
 
 export type HandlingStatus = 'AI_HANDLING' | 'WAITING_FOR_AGENT' | 'AGENT_HANDLING';
 
-export type SenderType = 'VISITOR' | 'AGENT' | 'SYSTEM';
+export type SenderType = 'VISITOR' | 'AGENT' | 'AI' | 'SYSTEM';
 
 // ─── Entities ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,7 @@ export interface ChatMessage {
   content: string;
   status: 'SENT' | 'DELIVERED' | 'READ';
   createdAt: string;
+  senderName?: string | null;
   localId?: string; // temporary id before server confirms
 }
 

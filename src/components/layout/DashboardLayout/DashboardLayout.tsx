@@ -27,6 +27,14 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
     return false;
   });
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
   const handleToggle = () => {
     setCollapsed((prev: boolean) => {
       const next = !prev;
