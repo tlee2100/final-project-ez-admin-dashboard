@@ -2,6 +2,15 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner
+        required: true
+        type: choice
+        default: ubuntu-latest
+        options:
+          - ubuntu-latest
+          - self-hosted
 
 permissions:
   contents: read
@@ -11,7 +20,7 @@ env:
 
 jobs:
   build-docker-image:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     outputs:
       image: ${{ steps.image.outputs.image }}
@@ -43,6 +52,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.image.outputs.image }}
           build-args: |
@@ -51,7 +61,7 @@ jobs:
   deploy:
     name: Deploy
     needs: build-docker-image
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 20
     steps:
       - name: Check out deployment helper
