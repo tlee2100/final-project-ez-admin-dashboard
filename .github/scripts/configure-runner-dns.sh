@@ -22,9 +22,16 @@ fi
 sudo systemctl restart systemd-resolved
 sudo systemctl restart docker
 
+# Override Azure link DNS so host lookups use 1.1.1.1 first.
+while read -r iface; do
+  [[ -n "$iface" ]] || continue
+  sudo resolvectl dns "$iface" 1.1.1.1 8.8.8.8 || true
+  sudo resolvectl domain "$iface" '~.' || true
+done < <(ls /sys/class/net | grep -vE '^(lo|docker|veth|br-|tun|tap)')
+
 echo "Host resolv.conf:"
 cat /etc/resolv.conf
 echo "systemd-resolved DNS:"
-resolvectl status | sed -n '1,40p' || true
-echo "Docker DNS:"
-docker info --format '{{json .DNS}}'
+resolvectl status | sed -n '1,60p' || true
+echo "Docker daemon.json:"
+cat /etc/docker/daemon.json
