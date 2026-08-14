@@ -29,6 +29,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Use file-based Docker config
+        if: inputs.runner == 'self-hosted'
+        run: |
+          cfg="${RUNNER_TEMP}/docker-config"
+          mkdir -p "$cfg"
+          printf '%s\n' '{"auths":{}}' > "$cfg/config.json"
+          echo "DOCKER_CONFIG=${cfg}" >> "$GITHUB_ENV"
+          echo "DOCKER_HOST=unix://${HOME}/.docker/run/docker.sock" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
