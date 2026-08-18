@@ -16,19 +16,33 @@ interface SubTabSecurityProps {
   onSave?: (updatedData: Partial<Site>) => void;
 }
 
+function sanitizeDomain(input: string): string {
+  let clean = input.trim().toLowerCase();
+  if (!clean) return '';
+
+  // If input contains protocol, extract hostname
+  if (clean.includes('://')) {
+    try {
+      clean = new URL(clean).hostname;
+    } catch {
+      clean = clean.replace(/^[a-zA-Z]+:\/\//, '');
+      clean = clean.split('/')[0].split('?')[0].split('#')[0].split(':')[0];
+    }
+  } else {
+    // Strip trailing path, query params, hashes, and ports (e.g. 127.0.0.1:5500/path -> 127.0.0.1)
+    clean = clean.split('/')[0].split('?')[0].split('#')[0].split(':')[0];
+  }
+
+  return clean.trim();
+}
+
 export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
   const { message } = App.useApp();
   const { mutate: updateSite } = useUpdate<Site>();
 
   // ── 1. Domain Restrictions State ──
   const initialDomains =
-    site.allowedDomains && site.allowedDomains.length > 0
-      ? site.allowedDomains
-      : [
-          'techsolutions.example.com',
-          'support.techsolutions.example.com',
-          'blog.techsolutions.example.com',
-        ];
+    site.allowedDomains && Array.isArray(site.allowedDomains) ? site.allowedDomains : [];
 
   const [allowedDomains, setAllowedDomains] = useState<string[]>(initialDomains);
   const [newDomainInput, setNewDomainInput] = useState<string>('');
@@ -49,24 +63,20 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
 
   // Handler: Add new domain
   const handleAddDomain = () => {
-    const trimmed = newDomainInput.trim().toLowerCase();
-    if (!trimmed) return;
-
-    // Simple domain regex validation (e.g., example.com or *.example.com)
-    const domainRegex = /^(\*\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?$/;
-    if (!domainRegex.test(trimmed)) {
-      message.error('Please enter a valid domain format (e.g. example.com or blog.example.com)');
+    const clean = sanitizeDomain(newDomainInput);
+    if (!clean) {
+      message.error('Please enter a valid domain or URL');
       return;
     }
 
-    if (allowedDomains.includes(trimmed)) {
+    if (allowedDomains.includes(clean)) {
       message.warning('This domain is already in the allowed list');
       return;
     }
 
-    setAllowedDomains((prev) => [...prev, trimmed]);
+    setAllowedDomains((prev) => [...prev, clean]);
     setNewDomainInput('');
-    message.success(`Added domain "${trimmed}"`);
+    message.success(`Added domain "${clean}"`);
   };
 
   // Handler: Remove domain tag
@@ -154,7 +164,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
           <input
             type="text"
             className="domain-input-field"
-            placeholder="Add a domain (e.g., example.com)"
+            placeholder="Add a domain or URL (e.g. example.com, *.example.com, http://127.0.0.1:5500)"
             value={newDomainInput}
             onChange={(e) => setNewDomainInput(e.target.value)}
             onKeyDown={handleKeyDown}
