@@ -14,6 +14,7 @@ interface BookingCalendarViewProps {
   onBookingClick: (booking: BookingRecord) => void;
   onEmptySlotClick?: (staffId: string, time: string) => void;
   selectedDate: dayjs.Dayjs;
+  holdingSlots?: { resourceId?: string; startAt: string; endAt: string }[];
 }
 
 export function BookingCalendarView({
@@ -26,6 +27,7 @@ export function BookingCalendarView({
   selectedDate,
   onBookingClick,
   onEmptySlotClick,
+  holdingSlots = [],
 }: BookingCalendarViewProps) {
   const now = dayjs();
   const currentDayOfWeek = selectedDate.day() === 0 ? 7 : selectedDate.day();
@@ -239,6 +241,38 @@ export function BookingCalendarView({
                         const slotDateTime = selectedDate.clone().hour(slotHour).minute(slotMin);
                         const isPastSlot = isPastDate || (isToday && slotDateTime.isBefore(now));
                         const isUnavailable = isPastSlot || isInactiveDay;
+
+                        // Check if this specific slot is currently being held
+                        const isHolding = holdingSlots.some((hold) => {
+                          const holdStart = dayjs(hold.startAt);
+                          return (
+                            (hold.resourceId === s.id || !hold.resourceId) &&
+                            holdStart.isSame(slotDateTime, 'minute')
+                          );
+                        });
+
+                        if (isHolding) {
+                          return (
+                            <Tooltip title="This slot is currently being held">
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#fef08a',
+                                  cursor: 'not-allowed',
+                                  pointerEvents: 'none',
+                                  borderRadius: 4,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: 18,
+                                }}
+                              >
+                                🕒
+                              </div>
+                            </Tooltip>
+                          );
+                        }
 
                         return isUnavailable ? (
                           <Tooltip

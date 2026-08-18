@@ -26,7 +26,12 @@ import { BookingCalendarView } from '@/src/features/bookings/components/BookingC
 import { ManualBookingModal } from '@/src/features/bookings/components/ManualBookingModal';
 import { BookingDetailsDrawer } from '@/src/features/bookings/components/BookingDetailsDrawer';
 import '@/src/features/bookings/components/bookings.css';
-import type { BookingRecord, BookingConfig } from '@/src/features/bookings/types/booking.types';
+import type {
+  BookingRecord,
+  BookingConfig,
+  AvailableSlot,
+} from '@/src/features/bookings/types/booking.types';
+import { useBookingManager } from '@/src/hooks/useBookingManager';
 
 export default function BookingsPage() {
   const { currentRole } = useAuth();
@@ -41,6 +46,7 @@ export default function BookingsPage() {
   const [initialModalData, setInitialModalData] = useState<{
     staffId?: string;
     timeSlot?: string;
+    date?: dayjs.Dayjs;
   } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null);
   const [currentDate, setCurrentDate] = useState(dayjs());
@@ -50,6 +56,18 @@ export default function BookingsPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterStaffId, setFilterStaffId] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+  const {
+    sessionId,
+    holdingSlots,
+    holdExpiry,
+    handleHoldSlot,
+    handleReleaseHold,
+    clearHoldExpiry,
+  } = useBookingManager({
+    activeSiteId,
+    onBookingConfirmed: () => tableQuery.refetch(),
+  });
 
   // ── Set default active site ────────────────────────────────────────────────
   useEffect(() => {
@@ -89,7 +107,7 @@ export default function BookingsPage() {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const slots = (response.data as any).slots || [];
-      return slots.map((slot: { startAt: string }) => dayjs(slot.startAt).format('HH:mm'));
+      return slots as AvailableSlot[];
     } catch (error) {
       console.error('Failed to fetch available slots via refine:', error);
       return [];
@@ -170,6 +188,7 @@ export default function BookingsPage() {
           staffId: data.staffId,
           notes: data.notes,
           timezone: config.timezone,
+          sessionId,
         }),
       });
 
@@ -177,6 +196,7 @@ export default function BookingsPage() {
       tableQuery.refetch();
       setIsModalOpen(false);
       setInitialModalData(null);
+      clearHoldExpiry();
       return true;
     } catch (error: unknown) {
       message.error((error as Error).message || 'Failed to create booking');
@@ -184,9 +204,27 @@ export default function BookingsPage() {
     }
   };
 
-  const handleEmptySlotClick = (staffId: string, time: string) => {
-    setInitialModalData({ staffId, timeSlot: time });
-    setIsModalOpen(true);
+  const handleEmptySlotClick = async (staffId: string, time: string) => {
+    setInitialModalData({ staffId, timeSlot: time, date: currentDate });
+
+    const formattedDate = currentDate.format('YYYY-MM-DD');
+    const startAt = dayjs(`${formattedDate} ${time}`).toISOString();
+    const endAt = dayjs(`${formattedDate} ${time}`)
+      .add(config?.slotDuration || 30, 'minute')
+      .toISOString();
+
+    const success = await handleHoldSlot({
+      startAt,
+      endAt,
+      status: 'AVAILABLE',
+      resourceId: staffId,
+    });
+
+    if (success) {
+      setIsModalOpen(true);
+    } else {
+      setInitialModalData(null);
+    }
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -412,6 +450,7 @@ export default function BookingsPage() {
               slotDuration={config.slotDuration}
               availableDays={config.availableDays || [1, 2, 3, 4, 5, 6, 7]}
               selectedDate={currentDate}
+              holdingSlots={holdingSlots}
               onBookingClick={(record) => setSelectedBooking(record)}
               onEmptySlotClick={handleEmptySlotClick}
             />
@@ -420,9 +459,10 @@ export default function BookingsPage() {
           {/* Modals & Drawers */}
           <ManualBookingModal
             open={isModalOpen}
-            onCancel={() => {
+            onCancel={async () => {
               setIsModalOpen(false);
               setInitialModalData(null);
+              await handleReleaseHold();
             }}
             onSuccess={handleCreateBooking}
             siteId={activeSiteId || ''}
@@ -434,6 +474,14 @@ export default function BookingsPage() {
             endTime={config.endTime || '18:00'}
             slotDuration={config.slotDuration || 30}
             fetchAvailableSlots={fetchAvailableSlots}
+            onHoldSlot={handleHoldSlot}
+            holdExpiry={holdExpiry}
+            onHoldExpired={async () => {
+              clearHoldExpiry();
+              setIsModalOpen(false);
+              setInitialModalData(null);
+            }}
+            onReleaseHold={handleReleaseHold}
           />
 
           <BookingDetailsDrawer

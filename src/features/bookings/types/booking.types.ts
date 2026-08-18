@@ -20,6 +20,15 @@ export interface BookingRecord {
   [key: string]: unknown;
 }
 
+export type SlotStatus = 'AVAILABLE' | 'HOLDING' | 'BOOKED';
+export interface AvailableSlot {
+  startAt: string;
+  endAt: string;
+  status: SlotStatus;
+  resourceId?: string;
+  availableResources?: { resourceId: string; resourceName: string }[];
+}
+
 export interface BookingConfig {
   bookingEnabled: boolean;
   slotDuration: number;

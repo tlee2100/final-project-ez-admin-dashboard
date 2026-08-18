@@ -1,4 +1,3 @@
-import React from 'react';
 import { Drawer, Typography, Button, Tag, Space, Divider } from 'antd';
 import {
   PhoneOutlined,
