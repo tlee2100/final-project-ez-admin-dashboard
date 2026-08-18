@@ -5,22 +5,23 @@ import { io, Socket } from 'socket.io-client';
 import { apiRequest } from '@/src/lib/api.client';
 import { useSession } from 'next-auth/react';
 import { useAuth } from '@/src/contexts/AuthContext';
-import type { Conversation, PaginatedConversations, HandlingStatus } from '../types/chat.types';
+import { useList, useInvalidate, CrudFilter } from '@refinedev/core';
+import type { Conversation, HandlingStatus } from '../types/chat.types';
 
-// ChatGateway runs on the default namespace at the API root. NEXT_PUBLIC_API_URL
-// includes the /api/v1 REST prefix, so strip it for the socket connection
-// (otherwise socket.io treats "/api/v1" as a namespace and never connects).
 const WS_ROOT = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(
   /\/api\/v\d+\/?$/,
   '',
 );
 
+export type DateRangeFilter = { start?: string; end?: string } | null;
+
 export function useLiveChats(siteId?: string) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [handlingFilter, setHandlingFilter] = useState<HandlingStatus | 'CLOSED' | ''>('');
+  const [agentId, setAgentId] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRangeFilter>(null);
+
   const [stats, setStats] = useState({
     total: 0,
     activeBotCount: 0,
@@ -28,59 +29,11 @@ export function useLiveChats(siteId?: string) {
     assignedCount: 0,
     closedCount: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
   const socketRef = useRef<Socket | null>(null);
   const { isAuthenticated } = useAuth();
   const { data: session } = useSession();
-
-  const fetchConversations = useCallback(
-    async (opts?: { background?: boolean }) => {
-      const background = opts?.background ?? false;
-      // Only show the full-page spinner for user-initiated loads (initial /
-      // filter / page). Background refetches (socket events) update the list
-      // in place so the screen doesn't flash on every new message.
-      if (!background) {
-        setIsLoading(true);
-        setError(null);
-      }
-      try {
-        const params = new URLSearchParams({
-          page: String(page),
-          limit: String(pageSize),
-          sortBy: 'lastActivityAt:DESC',
-        });
-        if (handlingFilter) {
-          if (handlingFilter === 'CLOSED') {
-            params.set('filter.status', `$eq:CLOSED`);
-          } else {
-            params.set('filter.handlingStatus', `$eq:${handlingFilter}`);
-            params.set('filter.status', `$not:$eq:CLOSED`);
-          }
-        } else {
-          params.set('filter.status', `$not:$eq:CLOSED`);
-        }
-        if (siteId) {
-          params.set('filter.siteId', `$eq:${siteId}`);
-        }
-
-        const data = await apiRequest<PaginatedConversations>(
-          `/chat/conversations/active?${params.toString()}`,
-        );
-        setConversations(data.data);
-        setTotal(data.meta.totalItems);
-      } catch (err: unknown) {
-        if (background) {
-          console.error('[live-chats] background refetch failed:', err);
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to load chats');
-        }
-      } finally {
-        if (!background) setIsLoading(false);
-      }
-    },
-    [page, pageSize, handlingFilter, siteId],
-  );
+  const invalidate = useInvalidate();
 
   const fetchConversationStats = useCallback(async () => {
     try {
@@ -100,24 +53,58 @@ export function useLiveChats(siteId?: string) {
     }
   }, [siteId]);
 
-  // Initial fetch + re-fetch on page/filter change
   useEffect(() => {
-    const init = async () => {
-      await fetchConversations();
-      await fetchConversationStats();
-    };
-    void init();
-  }, [fetchConversations, fetchConversationStats]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchConversationStats();
+  }, [fetchConversationStats]);
 
-  // Always-current ref so the socket can refetch without reconnecting on
-  // every filter/page change.
-  const fetchRef = useRef(fetchConversations);
-  useEffect(() => {
-    fetchRef.current = fetchConversations;
-  }, [fetchConversations]);
+  // Build Refine filters
+  const filters: CrudFilter[] = [];
 
-  // WebSocket for real-time inbox updates — one stable connection per auth
-  // state, not per filter/page change.
+  if (handlingFilter) {
+    if (handlingFilter === 'CLOSED') {
+      filters.push({ field: 'status', operator: 'eq', value: 'CLOSED' });
+    } else {
+      filters.push({ field: 'handlingStatus', operator: 'eq', value: handlingFilter });
+      filters.push({ field: 'status', operator: 'eq', value: 'OPEN' }); // status != CLOSED
+    }
+  } else {
+    filters.push({ field: 'status', operator: 'eq', value: 'OPEN' });
+  }
+
+  if (siteId) {
+    filters.push({ field: 'siteId', operator: 'eq', value: siteId });
+  }
+
+  if (agentId !== 'all') {
+    if (agentId === 'unassigned') {
+      filters.push({ field: 'agentId', operator: 'null', value: 'true' });
+    } else {
+      filters.push({ field: 'agentId', operator: 'eq', value: agentId });
+    }
+  }
+
+  if (dateRange?.start) {
+    filters.push({ field: 'lastActivityAt', operator: 'gte', value: dateRange.start });
+  }
+  if (dateRange?.end) {
+    filters.push({ field: 'lastActivityAt', operator: 'lte', value: dateRange.end });
+  }
+
+  const { query: listQuery } = useList<Conversation>({
+    resource: 'chat/conversations/active',
+    pagination: { currentPage: page, pageSize },
+    sorters: [{ field: 'lastActivityAt', order: 'desc' }],
+    filters,
+  });
+
+  const conversations = listQuery.data?.data ?? [];
+  const total = listQuery.data?.total ?? 0;
+  const error = listQuery.error ? listQuery.error.message : null;
+  const isLoading = listQuery.isLoading;
+  const refetch = listQuery.refetch;
+
+  // WebSocket for real-time inbox updates
   useEffect(() => {
     const token = session?.accessToken;
     if (!isAuthenticated || !token) return;
@@ -129,15 +116,19 @@ export function useLiveChats(siteId?: string) {
 
     socketRef.current = socket;
 
-    const refetch = () => {
-      fetchRef.current({ background: true });
+    const handleSocketEvent = () => {
+      // Silently invalidate to trigger a background refetch
+      invalidate({
+        resource: 'chat/conversations/active',
+        invalidates: ['list'],
+      });
       fetchConversationStats();
     };
 
-    socket.on('newConversation', refetch); // newly created conversation at top
-    socket.on('conversationAssigned', refetch); // claimed by another agent
-    socket.on('conversationActivity', refetch); // re-sort by lastActivityAt
-    socket.on('conversationClosed', refetch); // drop closed conversations
+    socket.on('newConversation', handleSocketEvent);
+    socket.on('conversationAssigned', handleSocketEvent);
+    socket.on('conversationActivity', handleSocketEvent);
+    socket.on('conversationClosed', handleSocketEvent);
 
     socket.on('connect_error', (err: Error) => {
       console.error('[live-chats] socket connect_error:', err.message);
@@ -147,7 +138,7 @@ export function useLiveChats(siteId?: string) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, session?.accessToken, fetchConversationStats]);
+  }, [isAuthenticated, session?.accessToken, fetchConversationStats, invalidate]);
 
   return {
     conversations,
@@ -156,10 +147,14 @@ export function useLiveChats(siteId?: string) {
     page,
     pageSize,
     handlingFilter,
+    agentId,
+    dateRange,
     isLoading,
     error,
     setPage,
     setHandlingFilter,
-    refresh: fetchConversations,
+    setAgentId,
+    setDateRange,
+    refresh: refetch,
   };
 }

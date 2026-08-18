@@ -54,7 +54,7 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
   const filteredConvs = useMemo(() => {
     if (!searchTerm.trim()) return conversations;
 
-    return conversations.filter((c) => {
+    return conversations.filter((c: Conversation) => {
       const q = searchTerm.toLowerCase();
       const matchesName = c.visitorName?.toLowerCase().includes(q) ?? false;
       const matchesMsg = (c.latestMessage?.content ?? '').toLowerCase().includes(q);
@@ -177,7 +177,7 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
             <p className="conv-empty-text">No conversations match the current criteria.</p>
           </div>
         ) : (
-          filteredConvs.map((conv) => {
+          filteredConvs.map((conv: Conversation) => {
             const badge = statusBadgeFor(conv);
             const isWaiting = conv.handlingStatus === 'WAITING_FOR_AGENT';
             return (
@@ -186,7 +186,7 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
                   <div className="conv-avatar">
                     {(conv.visitorName || '?')
                       .split(' ')
-                      .map((n) => n[0])
+                      .map((n: string) => n[0])
                       .join('')
                       .toUpperCase()
                       .slice(0, 2)}

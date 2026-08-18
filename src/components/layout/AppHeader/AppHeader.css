@@ -21,6 +21,28 @@
   left: 72px;
 }
 
+@media (max-width: 768px) {
+  .app-header {
+    left: 0 !important;
+  }
+}
+
+.mobile-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.mobile-toggle-btn:hover {
+  color: #111827;
+}
+
 /* ─── Left ──────────────────────────────────────────────────────────────────── */
 .header-left {
   display: flex;

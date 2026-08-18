@@ -27,6 +27,18 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
     return false;
   });
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   React.useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
@@ -43,11 +55,38 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
     });
   };
 
+  const handleMobileToggle = () => {
+    setMobileOpen((prev) => !prev);
+  };
+
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
   return (
     <div className="layout-root">
-      <AppSidebar collapsed={collapsed} onToggle={handleToggle} />
-      <AppHeader pageName={pageName} sidebarCollapsed={collapsed} />
-      <main className={`layout-main ${collapsed ? 'sidebar-collapsed' : ''}`} id="main-content">
+      {isMobile && mobileOpen && (
+        <div className="sidebar-mobile-overlay" onClick={closeMobileSidebar} />
+      )}
+      <AppSidebar
+        collapsed={isMobile ? false : collapsed}
+        isMobile={isMobile}
+        mobileOpen={mobileOpen}
+        onToggle={handleToggle}
+        onCloseMobile={closeMobileSidebar}
+      />
+      <AppHeader
+        pageName={pageName}
+        sidebarCollapsed={collapsed}
+        isMobile={isMobile}
+        onMobileToggle={handleMobileToggle}
+      />
+      <main
+        className={`layout-main ${collapsed && !isMobile ? 'sidebar-collapsed' : ''}`}
+        id="main-content"
+      >
         <div className="layout-content">{children}</div>
       </main>
     </div>

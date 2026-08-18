@@ -32,8 +32,15 @@ export interface KBDocument {
   updatedAt: string; // ISO string used for sorting
   updatedAtFormatted: string;
   url?: string;
+  sourceKind?: 'file' | 'url';
+  isActive?: boolean;
   contentSnippet?: string;
-  status: 'indexed' | 'processing' | 'failed';
+  status: 'indexed' | 'processing' | 'failed' | 'retired';
+  indexedChunkSize?: number | null;
+  indexedChunkOverlap?: number | null;
+  needsReindex: boolean;
+  reindexStatus: 'idle' | 'queued' | 'processing' | 'failed';
+  reindexError?: string | null;
 }
 
 export interface VectorStorageStats {
@@ -72,6 +79,7 @@ export interface KBSettings {
   vectorStoreBackend: 'pinecone' | 'qdrant' | 'pgvector';
   similarityThreshold: number;
   topKResults: number;
+  outdatedDocumentsCount: number;
 }
 
 export type ModalTabType = 'upload' | 'url' | 'sitemap';
@@ -119,4 +127,57 @@ export interface KBStatsResponse {
   vectorsLimit: number;
   usagePercentage: number;
   lastProcessedAt: string | null;
+}
+
+export interface CrawlerConfigDto {
+  sitemapUrl: string;
+  autoSyncEnabled: boolean;
+  updatedAt?: string;
+  lastRunAt?: string;
+  nextRunAt?: string;
+}
+
+export type CrawlRunItemStatus =
+  | 'discovered'
+  | 'queued'
+  | 'rendering'
+  | 'indexed'
+  | 'unchanged'
+  | 'skipped_robots'
+  | 'skipped_noindex'
+  | 'failed'
+  | 'quota_exceeded'
+  | 'retired';
+
+export interface CrawlRunDto {
+  id: string;
+  status: string;
+  totalPages: number;
+  processedPages: number;
+  createdAt?: string;
+  errorMessage?: string;
+  indexedPages: number;
+  unchangedPages: number;
+  skippedPages: number;
+  failedPages: number;
+  quotaExceededPages: number;
+}
+
+export interface CrawlerOverviewDto {
+  config: CrawlerConfigDto | null;
+  activeRun: CrawlRunDto | null;
+}
+
+export interface CrawlRunPageDto {
+  id: string;
+  url: string;
+  status: CrawlRunItemStatus;
+  errorMessage?: string;
+  errorCode?: string;
+  documentId?: string;
+}
+
+export interface CrawlerPaginatedResponse<T> {
+  data: T[];
+  total: number;
 }

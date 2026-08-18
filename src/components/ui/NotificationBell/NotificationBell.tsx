@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge, Popover, Button, List, Typography, Spin, Empty } from 'antd';
+import { Badge, Popover, Button, List, Typography, Spin, Empty, Tag, Segmented } from 'antd';
 import {
   BellOutlined,
-  CheckCircleOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-  FileDoneOutlined,
+  CheckCircleFilled,
+  CustomerServiceOutlined,
+  FileTextOutlined,
   CalendarOutlined,
   CloseCircleOutlined,
+  FrownFilled,
+  MessageOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { useNotification } from '@/src/contexts/NotificationContext';
 import { NotificationType, type NotificationItem } from '@/src/types/notification.types';
@@ -16,23 +18,96 @@ import './NotificationBell.css';
 
 const { Text } = Typography;
 
+type FilterType = 'all' | 'urgent' | 'messages' | 'system';
+
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
     case NotificationType.CONVERSATION_WAITING:
-      return <WarningOutlined className="notif-icon notif-warning" />;
+      return <MessageOutlined className="notif-icon" />;
     case NotificationType.AGENT_HANDOFF_REQUEST:
-      return <InfoCircleOutlined className="notif-icon notif-info" />;
+      return <CustomerServiceOutlined className="notif-icon" />;
+    case NotificationType.NEGATIVE_SENTIMENT:
+      return <FrownFilled className="notif-icon" />;
     case NotificationType.CONVERSATION_CLOSED:
-      return <CheckCircleOutlined className="notif-icon notif-success" />;
+      return <CheckCircleFilled className="notif-icon" />;
     case NotificationType.DOCUMENT_PROCESSED:
-      return <FileDoneOutlined className="notif-icon notif-primary" />;
+      return <FileTextOutlined className="notif-icon" />;
     case NotificationType.BOOKING_CONFIRMED:
-      return <CalendarOutlined className="notif-icon notif-success" />;
+      return <CalendarOutlined className="notif-icon" />;
     case NotificationType.BOOKING_CANCELLED:
-      return <CloseCircleOutlined className="notif-icon notif-error" />;
+      return <CloseCircleOutlined className="notif-icon" />;
     case NotificationType.SYSTEM:
     default:
-      return <BellOutlined className="notif-icon notif-default" />;
+      return <BellOutlined className="notif-icon" />;
+  }
+}
+
+function getNotificationColorClass(type: NotificationType, title?: string) {
+  if (title === 'Agent Requested') return 'notif-info';
+  switch (type) {
+    case NotificationType.CONVERSATION_WAITING:
+      return 'notif-warning';
+    case NotificationType.AGENT_HANDOFF_REQUEST:
+      return 'notif-info';
+    case NotificationType.NEGATIVE_SENTIMENT:
+    case NotificationType.BOOKING_CANCELLED:
+      return 'notif-error';
+    case NotificationType.CONVERSATION_CLOSED:
+    case NotificationType.BOOKING_CONFIRMED:
+      return 'notif-success';
+    case NotificationType.DOCUMENT_PROCESSED:
+      return 'notif-primary';
+    case NotificationType.SYSTEM:
+    default:
+      return 'notif-default';
+  }
+}
+
+function getNotificationTag(type: NotificationType, title?: string) {
+  if (title === 'Agent Requested' || type === NotificationType.AGENT_HANDOFF_REQUEST) {
+    return (
+      <Tag color="purple" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+        AGENT REQUEST
+      </Tag>
+    );
+  }
+  switch (type) {
+    case NotificationType.NEGATIVE_SENTIMENT:
+      return (
+        <Tag color="error" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          NEGATIVE
+        </Tag>
+      );
+    case NotificationType.CONVERSATION_WAITING:
+      return (
+        <Tag color="warning" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          WAITING
+        </Tag>
+      );
+    case NotificationType.NEW_MESSAGE:
+      return (
+        <Tag color="processing" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          NEW MESSAGE
+        </Tag>
+      );
+    case NotificationType.CONVERSATION_CLOSED:
+      return (
+        <Tag color="success" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          CLOSED
+        </Tag>
+      );
+    case NotificationType.DOCUMENT_PROCESSED:
+      return (
+        <Tag color="blue" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          DOCUMENT
+        </Tag>
+      );
+    default:
+      return (
+        <Tag color="default" style={{ margin: 0, fontSize: '10px', fontWeight: 600 }}>
+          SYSTEM
+        </Tag>
+      );
   }
 }
 
@@ -53,15 +128,11 @@ export function NotificationBell() {
   const NAVIGABLE_TYPES: NotificationType[] = [
     NotificationType.CONVERSATION_WAITING,
     NotificationType.AGENT_HANDOFF_REQUEST,
+    NotificationType.NEGATIVE_SENTIMENT,
   ];
 
   const [open, setOpen] = useState(false);
-
-  // Auto pop-up for new notifications has been disabled per request
-  // useEffect(() => {
-  //   const handleNewNotif = () => setOpen(true);
-  //   window.addEventListener('new_notification', handleNewNotif);
-  //   return () => window.removeEventListener('new_notification', handleNewNotif);
+  const [filter, setFilter] = useState<FilterType>('all');
   // }, []);
 
   const {
@@ -99,6 +170,31 @@ export function NotificationBell() {
     }
   };
 
+  const filteredNotifications = notifications.filter((item) => {
+    const isAgentHandoff =
+      item.type === NotificationType.AGENT_HANDOFF_REQUEST ||
+      (item.type === NotificationType.CONVERSATION_WAITING && item.title === 'Agent Requested');
+
+    if (filter === 'urgent') {
+      return item.type === NotificationType.NEGATIVE_SENTIMENT || isAgentHandoff;
+    }
+    if (filter === 'messages') {
+      return (
+        (item.type === NotificationType.CONVERSATION_WAITING && !isAgentHandoff) ||
+        item.type === NotificationType.NEW_MESSAGE
+      );
+    }
+    if (filter === 'system') {
+      return (
+        item.type === NotificationType.DOCUMENT_PROCESSED ||
+        item.type === NotificationType.SYSTEM ||
+        item.type === NotificationType.BOOKING_CONFIRMED ||
+        item.type === NotificationType.BOOKING_CANCELLED
+      );
+    }
+    return true;
+  });
+
   const content = (
     <div className="notif-popover-content">
       <div className="notif-header">
@@ -110,17 +206,32 @@ export function NotificationBell() {
         )}
       </div>
 
+      <div className="notif-filter-bar">
+        <Segmented
+          value={filter}
+          onChange={(val) => setFilter(val as FilterType)}
+          options={[
+            { label: 'All', value: 'all' },
+            { label: 'Urgent', value: 'urgent' },
+            { label: 'Messages', value: 'messages' },
+            { label: 'System', value: 'system' },
+          ]}
+          block
+          size="small"
+        />
+      </div>
+
       <div className="notif-body" onScroll={handleScroll}>
         {isLoading && notifications.length === 0 ? (
           <div className="notif-loading">
             <Spin />
           </div>
-        ) : notifications.length === 0 ? (
+        ) : filteredNotifications.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notifications" />
         ) : (
           <List
             className="notif-list"
-            dataSource={notifications}
+            dataSource={filteredNotifications}
             footer={
               isLoading && hasMore ? (
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
@@ -133,18 +244,32 @@ export function NotificationBell() {
                 className={`notif-item ${!item.readAt ? 'unread' : ''}`}
                 onClick={() => handleItemClick(item)}
               >
-                <div className="notif-item-icon">{getNotificationIcon(item.type)}</div>
+                <div
+                  className={`notif-item-icon ${getNotificationColorClass(item.type, item.title)}`}
+                >
+                  {getNotificationIcon(item.type)}
+                </div>
                 <div className="notif-item-content">
                   <div className="notif-item-title-row">
-                    <Text strong className="notif-item-title">
-                      {item.title}
-                    </Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {getNotificationTag(item.type, item.title)}
+                      <Text strong className="notif-item-title">
+                        {item.title}
+                      </Text>
+                    </div>
                     {!item.readAt && <span className="notif-unread-dot" />}
                   </div>
                   <Text className="notif-item-desc" ellipsis={{ tooltip: item.message }}>
                     {item.message}
                   </Text>
-                  <div className="notif-item-time">{formatTimeAgo(item.createdAt)}</div>
+                  <div className="notif-item-footer-row">
+                    <span className="notif-item-time">{formatTimeAgo(item.createdAt)}</span>
+                    {NAVIGABLE_TYPES.includes(item.type) && (
+                      <span className="notif-quick-action">
+                        View chat <RightOutlined style={{ fontSize: '10px' }} />
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button
                   type="text"

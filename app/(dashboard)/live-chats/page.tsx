@@ -3,10 +3,13 @@
 import './live-chats.css';
 import React from 'react';
 import Link from 'next/link';
-import { Input, Button, Avatar, Alert, Spin, Dropdown } from 'antd';
+import { Input, Button, Avatar, Alert, Spin, Dropdown, Select, DatePicker } from 'antd';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import { useOne } from '@refinedev/core';
+import type { Site } from '@/src/features/sites/types/site.types';
 import {
   FilterOutlined,
-  CalendarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   UserOutlined,
@@ -17,9 +20,23 @@ import {
   ArrowRightOutlined,
 } from '@ant-design/icons';
 import { useLiveChats } from '@/src/features/live-chats/hooks/useLiveChats';
-import type { HandlingStatus } from '@/src/features/live-chats/types/chat.types';
+import type { HandlingStatus, Conversation } from '@/src/features/live-chats/types/chat.types';
 import { useSitesData } from '@/src/features/sites/hooks/useSitesData';
 import { useAuth } from '@/src/contexts/AuthContext';
+
+const { RangePicker } = DatePicker;
+
+const rangePresets = [
+  { label: 'Today', value: [dayjs().startOf('day'), dayjs().endOf('day')] as [Dayjs, Dayjs] },
+  {
+    label: 'Yesterday',
+    value: [dayjs().subtract(1, 'd').startOf('day'), dayjs().subtract(1, 'd').endOf('day')] as [
+      Dayjs,
+      Dayjs,
+    ],
+  },
+  { label: 'This Week', value: [dayjs().startOf('week'), dayjs().endOf('week')] as [Dayjs, Dayjs] },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -37,11 +54,29 @@ function relativeTime(iso: string) {
 
 export default function LiveChatsPage() {
   const [selectedSiteId, setSelectedSiteId] = React.useState<string | undefined>();
-  const { conversations, total, stats, handlingFilter, isLoading, error, setHandlingFilter } =
-    useLiveChats(selectedSiteId);
+  const {
+    conversations,
+    stats,
+    handlingFilter,
+    isLoading,
+    error,
+    setHandlingFilter,
+    agentId,
+    setAgentId,
+    setDateRange,
+  } = useLiveChats(selectedSiteId);
+
   const { filteredSites } = useSitesData();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const { query: siteQuery } = useOne<Site>({
+    resource: 'sites',
+    id: selectedSiteId as string,
+    queryOptions: { enabled: !!selectedSiteId },
+  });
+
+  const siteAgents = siteQuery.data?.data?.agents || [];
 
   const { activeBotCount, waitingCount, assignedCount, closedCount } = stats;
 
@@ -142,12 +177,35 @@ export default function LiveChatsPage() {
                 : 'Filter by Site'}
             </Button>
           </Dropdown>
-          <Button icon={<UserOutlined />} className="filter-btn">
-            Filter by Agent
-          </Button>
-          <Button icon={<CalendarOutlined />} className="filter-btn">
-            Today
-          </Button>
+
+          {isAdmin && selectedSiteId && (
+            <Select
+              className="filter-select"
+              value={agentId}
+              onChange={(val) => setAgentId(val)}
+              style={{ width: 160 }}
+              options={[
+                { label: 'All Agents', value: 'all' },
+                { label: 'Unassigned', value: 'unassigned' },
+                ...siteAgents.map((a: { id: string; name?: string; email?: string }) => ({
+                  label: a.name || a.email,
+                  value: a.id,
+                })),
+              ]}
+            />
+          )}
+
+          <RangePicker
+            className="filter-datepicker"
+            presets={rangePresets}
+            onChange={(dates) => {
+              if (dates && dates[0] && dates[1]) {
+                setDateRange({ start: dates[0].toISOString(), end: dates[1].toISOString() });
+              } else {
+                setDateRange(null);
+              }
+            }}
+          />
         </div>
       </div>
 
@@ -180,7 +238,7 @@ export default function LiveChatsPage() {
             <div className="empty-state-desc">New chats will appear here in real time</div>
           </div>
         ) : (
-          conversations.map((chat) => {
+          conversations.map((chat: Conversation) => {
             let statusClass = 'closed';
             let statusLabel = 'Closed';
             if (chat.handlingStatus === 'WAITING_FOR_AGENT') {

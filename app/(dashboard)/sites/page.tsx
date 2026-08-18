@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { Modal, Form, Input, Button, App, Select } from 'antd';
+import { Modal, Form, Input, Button, App } from 'antd';
+import type { HttpError } from '@refinedev/core';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useSitesData } from '@/src/features/sites/hooks/useSitesData';
 import { SitesSearchBar } from '@/src/features/sites/components/SitesSearchBar';
@@ -73,29 +74,38 @@ export default function SitesPage() {
     allowedDomains?: string[];
   }) => {
     if (!editingSite) return;
-    try {
-      const cleanedDomains = values.allowedDomains
-        ? values.allowedDomains.map((d) => d?.trim()).filter((d): d is string => Boolean(d))
-        : [];
-      updateSiteData(editingSite.id, {
+    const cleanedDomains = values.allowedDomains
+      ? values.allowedDomains.map((d) => d?.trim()).filter((d): d is string => Boolean(d))
+      : [];
+
+    updateSiteData(
+      editingSite.id,
+      {
         ...values,
         allowedDomains: cleanedDomains,
-      });
-      message.success('Site updated successfully!');
-      setIsEditModalOpen(false);
-      setEditingSite(null);
-    } catch {
-      message.error('Failed to update site!');
-    }
+      },
+      {
+        onSuccess: () => {
+          message.success('Site updated successfully!');
+          setIsEditModalOpen(false);
+          setEditingSite(null);
+        },
+        onError: (error: HttpError) => {
+          message.error(error?.message || 'Failed to update site!');
+        },
+      },
+    );
   };
 
   const handleDelete = (siteId: string) => {
-    try {
-      deleteSite(siteId);
-      message.success('Site deleted successfully!');
-    } catch {
-      message.error('Failed to delete site!');
-    }
+    deleteSite(siteId, {
+      onSuccess: () => {
+        message.success('Site deleted successfully!');
+      },
+      onError: (error: HttpError) => {
+        message.error(error?.message || 'Failed to delete site!');
+      },
+    });
   };
 
   const pageSubtitle = canManage
@@ -117,7 +127,7 @@ export default function SitesPage() {
           )}
         </div>
 
-        {canManage && (
+        {isAdmin && (
           <Link href="/sites/new" id="add-new-site-btn" className="btn-primary">
             <PlusOutlined />
             Add New Site

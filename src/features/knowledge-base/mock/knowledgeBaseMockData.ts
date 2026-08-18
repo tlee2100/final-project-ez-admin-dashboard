@@ -1,4 +1,4 @@
-import type { CrawlerConfig, KBSettings } from '../types/knowledge-base.types';
+import type { CrawlerConfig } from '../types/knowledge-base.types';
 
 export const initialCrawlerConfig: CrawlerConfig = {
   sitemapUrl: 'https://techsolutions.example.com/sitemap.xml',
@@ -29,13 +29,4 @@ export const initialCrawlerConfig: CrawlerConfig = {
       lastCrawled: '2 days ago',
     },
   ],
-};
-
-export const initialKBSettings: KBSettings = {
-  chunkSize: 1000,
-  chunkOverlap: 200,
-  embeddingModel: 'text-embedding-3-small (1536 dims)',
-  vectorStoreBackend: 'pgvector',
-  similarityThreshold: 0.75,
-  topKResults: 5,
 };

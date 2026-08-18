@@ -2,14 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Dropdown, Switch, Tooltip, type MenuProps, App } from 'antd';
+import { usePathname, useRouter } from 'next/navigation';
+import { Dropdown, Switch, Tooltip, type MenuProps, App, Breadcrumb } from 'antd';
 import {
   MessageOutlined,
   LogoutOutlined,
   UserOutlined,
   SettingOutlined,
   BulbOutlined,
+  MenuOutlined,
 } from '@ant-design/icons';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useAuth } from '@/src/contexts/AuthContext';
@@ -19,6 +20,8 @@ import './AppHeader.css';
 interface AppHeaderProps {
   sidebarCollapsed?: boolean;
   pageName?: string;
+  isMobile?: boolean;
+  onMobileToggle?: () => void;
 }
 
 // ── Helper: get user initials ────────────────────────────────────────────────
@@ -34,9 +37,12 @@ function getInitials(name: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AppHeader({
   sidebarCollapsed = false,
-  pageName = 'AI Chatbot Admin',
+  pageName,
+  isMobile = false,
+  onMobileToggle,
 }: AppHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { logout } = useAuth();
   const { currentRole, roleConfig, user } = useCurrentRole();
   const { message } = App.useApp();
@@ -74,12 +80,40 @@ export function AppHeader({
     },
   ];
 
+  // Generate breadcrumb items
+  const pathSnippets = pathname.split('/').filter((i) => i);
+  const breadcrumbItems = pathSnippets.map((snippet, index) => {
+    const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
+    const name = snippet.charAt(0).toUpperCase() + snippet.slice(1).replace(/-/g, ' ');
+    return {
+      key: url,
+      title: <Link href={url}>{name}</Link>,
+    };
+  });
+  const allBreadcrumbItems = [
+    { key: 'home', title: <Link href="/dashboard">Home</Link> },
+    ...breadcrumbItems,
+  ];
+
   return (
-    <header className={`app-header ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} role="banner">
+    <header
+      className={`app-header ${sidebarCollapsed && !isMobile ? 'sidebar-collapsed' : ''}`}
+      role="banner"
+    >
       {/* ── Left ── */}
       <div className="header-left">
-        <span className="header-app-name">{pageName}</span>
-        <span className="header-breadcrumb-sep">·</span>
+        {isMobile && (
+          <button className="mobile-toggle-btn" onClick={onMobileToggle} aria-label="Toggle menu">
+            <MenuOutlined />
+          </button>
+        )}
+        <Breadcrumb items={allBreadcrumbItems} className="header-breadcrumb" />
+        <span
+          className="header-breadcrumb-sep"
+          style={{ marginLeft: 8, marginRight: 8, color: '#d1d5db' }}
+        >
+          |
+        </span>
         <span
           className={`header-role-badge ${currentRole}`}
           aria-label={`Current role: ${roleConfig.label}`}

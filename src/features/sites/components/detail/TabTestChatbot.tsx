@@ -2,95 +2,225 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SendOutlined, UndoOutlined, CheckSquareOutlined, BorderOutlined } from '@ant-design/icons';
-import type { SiteDetailInfo } from '../../mock/sitesDetailMockData';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { io, Socket } from 'socket.io-client';
+import { apiRequest } from '@/src/lib/api.client';
+import type { SiteDetailInfo, MockKBFile } from '../../mock/sitesDetailMockData';
 
 interface TabTestChatbotProps {
+  siteId: string;
   stats: SiteDetailInfo;
 }
 
 interface MessageItem {
   id: string;
-  sender: 'bot' | 'visitor';
+  sender: 'bot' | 'visitor' | 'system';
   text: string;
   timestamp: string;
 }
 
-export function TabTestChatbot({ stats }: TabTestChatbotProps) {
-  const [messages, setMessages] = useState<MessageItem[]>(() => [
-    {
-      id: 'msg-start',
-      sender: 'bot',
-      text: `Hi there! I'm ChatBot, your AI assistant. How can I help you with ${stats.conversations[0]?.visitorName ? 'our' : 'this'} products or services today?`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+interface KBResponse {
+  data: {
+    id: string;
+    filename: string;
+    fileSizeBytes: number;
+    fileType: string;
+  }[];
+}
+
+// BACKEND_URL already contains '/api/v1' (NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1)
+// Strip the '/api/v1' suffix to get the socket host
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const SOCKET_HOST = BACKEND_URL.replace(/\/api\/v1\/?$/, '');
+
+export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
+  const [messages, setMessages] = useState<MessageItem[]>([]);
   const [inputVal, setInputVal] = useState('');
-  const [selectedKB, setSelectedKB] = useState<string[]>(() =>
-    stats.kbDocuments.map((doc) => doc.name),
-  );
+
+  // Real KB state
+  const [kbDocuments, setKbDocuments] = useState<MockKBFile[]>([]);
+  const [selectedKB, setSelectedKB] = useState<string[]>([]);
+
+  // Chat state
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch real KB Documents on mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDocuments = async () => {
+      try {
+        const response = await apiRequest<KBResponse>(`/sites/${siteId}/kb/sources`);
+        if (isMounted && response?.data) {
+          const docs: MockKBFile[] = response.data.map((doc) => ({
+            name: doc.filename,
+            size: `${(doc.fileSizeBytes / 1024).toFixed(1)} KB`,
+            type: doc.fileType,
+          }));
+          setKbDocuments(docs);
+          setSelectedKB(docs.map((d) => d.name));
+        }
+      } catch (err) {
+        console.error('Failed to fetch KB documents:', err);
+        // Fallback to stats mock if API fails
+        if (isMounted) {
+          setKbDocuments(stats.kbDocuments);
+          setSelectedKB(stats.kbDocuments.map((d) => d.name));
+        }
+      }
+    };
+    void fetchDocuments();
+    return () => {
+      isMounted = false;
+    };
+  }, [siteId, stats.kbDocuments]);
 
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleKBChange = (fileName: string) => {
-    setSelectedKB((prev) =>
-      prev.includes(fileName) ? prev.filter((name) => name !== fileName) : [...prev, fileName],
-    );
+  // Create conversation and connect socket
+  const initializeChat = useCallback(async () => {
+    try {
+      // 1. Create a sandboxed test conversation via the admin-only endpoint.
+      //    apiRequest automatically attaches the JWT Bearer token so the
+      //    DomainAllowlistGuard is bypassed cleanly via JwtAuthGuard.
+      const data = await apiRequest<{ conversationId: string }>('/chat/admin-test/conversations', {
+        method: 'POST',
+        body: JSON.stringify({ siteId }),
+      });
+
+      if (!data?.conversationId) {
+        throw new Error('Failed to create test conversation');
+      }
+
+      const newConversationId = data.conversationId;
+      setConversationId(newConversationId);
+      setMessages([
+        {
+          id: `msg-start-${Date.now()}`,
+          sender: 'bot',
+          text: `Hi there! I'm your AI assistant. How can I help you today?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      setIsTyping(false);
+
+      // 2. Initialize Socket connection to the base host (not the /api/v1 path)
+      const newSocket = io(SOCKET_HOST, {
+        query: { conversationId: newConversationId },
+      });
+
+      newSocket.on('connect', () => {
+        console.log('Socket connected for testing:', newConversationId);
+      });
+
+      newSocket.on('newMessage', (payload: { id: string; senderType: string; content: string }) => {
+        if (payload.senderType === 'VISITOR') return;
+
+        setIsTyping(false);
+        setMessages((prev) => {
+          // If we are replacing an AI stream message
+          if (payload.senderType === 'AI') {
+            const filtered = prev.filter((m) => m.id !== `ai-stream-${newConversationId}`);
+            return [
+              ...filtered,
+              {
+                id: payload.id,
+                sender: 'bot',
+                text: payload.content,
+                timestamp: new Date().toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+              },
+            ];
+          }
+          return [
+            ...prev,
+            {
+              id: payload.id,
+              sender: payload.senderType === 'SYSTEM' ? 'system' : 'bot',
+              text: payload.content,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ];
+        });
+      });
+
+      newSocket.on('aiChunk', (payload: { conversationId: string; token: string }) => {
+        if (payload.conversationId !== newConversationId) return;
+        setIsTyping(false);
+
+        setMessages((prev) => {
+          const streamId = `ai-stream-${newConversationId}`;
+          const existingIdx = prev.findIndex((m) => m.id === streamId);
+          if (existingIdx >= 0) {
+            const copy = [...prev];
+            copy[existingIdx] = {
+              ...copy[existingIdx],
+              text: copy[existingIdx].text + payload.token,
+            };
+            return copy;
+          }
+          return [
+            ...prev,
+            {
+              id: streamId,
+              sender: 'bot',
+              text: payload.token,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ];
+        });
+      });
+
+      newSocket.on('aiMessageComplete', (payload: { conversationId: string }) => {
+        if (payload.conversationId !== newConversationId) return;
+        setIsTyping(false);
+      });
+
+      setSocket(newSocket);
+    } catch (err) {
+      console.error('Chat init error:', err);
+      setMessages([
+        {
+          id: `msg-error-${Date.now()}`,
+          sender: 'system',
+          text: `Failed to connect to the live chatbot server.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+  }, [siteId]);
+
+  // Initial chat setup
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void initializeChat();
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  const handleResetConversation = () => {
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
+    void initializeChat();
   };
-
-  const getBotResponse = useCallback((text: string, currentKB: string[]): string => {
-    if (currentKB.length === 0) {
-      return "I don't have access to any knowledge base documents right now to answer that query. Please enable at least one document in the testing controls.";
-    }
-
-    const query = text.toLowerCase();
-
-    // Check query keywords
-    if (query.includes('pricing') || query.includes('plans') || query.includes('cost')) {
-      if (!currentKB.includes('Pricing Information.pdf')) {
-        return "I see you're asking about pricing, but the 'Pricing Information.pdf' document is currently disabled in my active context.";
-      }
-      return 'Our plans start at $29/month for the Starter package, $79/month for Growth, and custom packages for Enterprise needs. All plans include standard dashboard analytics.';
-    }
-
-    if (query.includes('password') || query.includes('reset') || query.includes('login')) {
-      if (!currentKB.includes('User Manual.docx')) {
-        return "Resetting passwords is covered in the 'User Manual.docx', which is currently disabled in my context.";
-      }
-      return "To reset your password, visit the login screen, click 'Forgot Password', enter your email, and follow the secure link sent to your inbox.";
-    }
-
-    if (query.includes('api') || query.includes('developer') || query.includes('integrate')) {
-      if (!currentKB.includes('API Documentation.md')) {
-        return "Detailed API specs are outlined in 'API Documentation.md', which is currently disabled.";
-      }
-      return 'You can use our Javascript widget SDK. Just include the embed script before the closing </body> tag, initializing with your site ID.';
-    }
-
-    if (query.includes('feature') || query.includes('spec') || query.includes('what can you do')) {
-      if (!currentKB.includes('Product Specifications.pdf')) {
-        return "Product features are detailed in 'Product Specifications.pdf', which is currently disabled.";
-      }
-      return 'I support natural language processing, active live chat takeover, customized salon templates, and logical site metrics grouping.';
-    }
-
-    if (query.includes('help') || query.includes('support')) {
-      if (!currentKB.includes('FAQ.html')) {
-        return "FAQs are detailed in 'FAQ.html', which is currently disabled.";
-      }
-      return 'For billing issues, email support@ezchatbot.io. For general widget questions, check out our inline testing simulator.';
-    }
-
-    return "That's a great question! Based on my available knowledge base files, I can verify that topic is supported. Let me know how you'd like to proceed.";
-  }, []);
 
   const handleSendMessage = useCallback(
     (text: string) => {
-      if (!text.trim()) return;
+      if (!text.trim() || !conversationId || !socket) return;
 
       const userMsg: MessageItem = {
         id: `msg-user-${Date.now()}`,
@@ -103,31 +233,16 @@ export function TabTestChatbot({ stats }: TabTestChatbotProps) {
       setInputVal('');
       setIsTyping(true);
 
-      // Simulate network lag + typing indicators
-      setTimeout(() => {
-        setIsTyping(false);
-        const botMsg: MessageItem = {
-          id: `msg-bot-${Date.now()}`,
-          sender: 'bot',
-          text: getBotResponse(text, selectedKB),
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, botMsg]);
-      }, 1000);
+      // Emit to backend
+      socket.emit('sendMessage', {
+        conversationId,
+        content: text,
+        senderType: 'VISITOR',
+        localId: userMsg.id,
+      });
     },
-    [selectedKB, getBotResponse],
+    [conversationId, socket],
   );
-
-  const handleResetConversation = () => {
-    setMessages([
-      {
-        id: `msg-reset-${Date.now()}`,
-        sender: 'bot',
-        text: `Conversation reset. Hi! How can I help you with ${stats.conversations[0]?.visitorName ? 'our' : 'this'} products or services today?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-  };
 
   return (
     <div className="test-chatbot-container">
@@ -148,7 +263,9 @@ export function TabTestChatbot({ stats }: TabTestChatbotProps) {
           {messages.map((msg) => (
             <div key={msg.id} className={`chat-message-row ${msg.sender}`}>
               <div className="chat-message-bubble">
-                <p className="chat-message-text">{msg.text}</p>
+                <div className="chat-message-text">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                </div>
                 <span className="chat-message-time">{msg.timestamp}</span>
               </div>
             </div>
@@ -180,14 +297,14 @@ export function TabTestChatbot({ stats }: TabTestChatbotProps) {
             placeholder="Type your message..."
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            disabled={isTyping}
+            disabled={isTyping || !conversationId}
             maxLength={200}
             autoComplete="off"
           />
           <button
             type="submit"
             className="test-chat-send-btn"
-            disabled={!inputVal.trim() || isTyping}
+            disabled={!inputVal.trim() || isTyping || !conversationId}
           >
             <SendOutlined />
           </button>
@@ -202,17 +319,21 @@ export function TabTestChatbot({ stats }: TabTestChatbotProps) {
         <div className="test-control-section">
           <h4 className="test-section-subtitle">Knowledge Base</h4>
           <p className="test-section-desc">
-            Select specific KB documents to test how the chatbot responds with limited context.
+            These documents are currently active in the site&apos;s Knowledge Base and will be used
+            by the AI.
           </p>
           <div className="test-kb-list">
-            {stats.kbDocuments.map((doc) => {
+            {kbDocuments.length === 0 && (
+              <p style={{ color: '#888', fontSize: '0.85rem' }}>No documents uploaded yet.</p>
+            )}
+            {kbDocuments.map((doc) => {
               const isChecked = selectedKB.includes(doc.name);
               return (
                 <button
                   key={doc.name}
                   className={`test-kb-item ${isChecked ? 'selected' : ''}`}
-                  onClick={() => handleKBChange(doc.name)}
-                  aria-label={`Toggle document ${doc.name}`}
+                  aria-label={`Document ${doc.name}`}
+                  style={{ cursor: 'default' }}
                 >
                   <span className="test-kb-icon">
                     {isChecked ? <CheckSquareOutlined /> : <BorderOutlined />}
@@ -241,7 +362,7 @@ export function TabTestChatbot({ stats }: TabTestChatbotProps) {
                 key={q}
                 className="test-question-card"
                 onClick={() => handleSendMessage(q)}
-                disabled={isTyping}
+                disabled={isTyping || !conversationId}
               >
                 <span className="test-question-card-text">{q}</span>
               </button>

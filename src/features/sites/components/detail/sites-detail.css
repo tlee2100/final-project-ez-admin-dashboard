@@ -645,8 +645,109 @@
 .chat-message-text {
   font-size: 13.5px;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
+}
+
+.chat-message-text p {
+  margin: 0 0 6px 0;
+}
+
+.chat-message-text p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-message-text ul,
+.chat-message-text ol {
+  margin: 4px 0 6px 0;
+  padding-left: 18px;
+}
+
+.chat-message-text li {
+  margin-bottom: 2px;
+}
+
+.chat-message-text code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+}
+
+.chat-message-row.visitor .chat-message-text code {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.chat-message-text pre {
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.chat-message-text pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.chat-message-text a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.chat-message-row.visitor .chat-message-text a {
+  color: #e0e7ff;
+}
+
+/* Markdown Tables Styling */
+.chat-message-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12.5px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.chat-message-text th,
+.chat-message-text td {
+  padding: 6px 10px;
+  text-align: left;
+  border: 1px solid #e5e7eb;
+}
+
+.chat-message-text th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.chat-message-text tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.chat-message-row.visitor .chat-message-text table {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.chat-message-row.visitor .chat-message-text th,
+.chat-message-row.visitor .chat-message-text td {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.chat-message-row.visitor .chat-message-text th {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.chat-message-row.visitor .chat-message-text tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .chat-message-time {

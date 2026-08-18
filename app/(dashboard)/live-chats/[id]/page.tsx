@@ -15,6 +15,9 @@ import {
   Tooltip,
   Modal,
   Popconfirm,
+  Upload,
+  message,
+  Image,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -27,11 +30,17 @@ import {
   PauseCircleOutlined,
   PlayCircleOutlined,
   RobotOutlined,
+  PictureOutlined,
+  LoadingOutlined,
+  CloseCircleFilled,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/src/features/live-chats/hooks/useConversationDetail';
 import { useAuth } from '@/src/contexts/AuthContext';
 import type { ChatMessage } from '@/src/features/live-chats/types/chat.types';
 import ReactMarkdown from 'react-markdown';
+import { getSession } from 'next-auth/react';
+import { API_BASE_URL } from '@/src/lib/api.client';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -187,7 +196,65 @@ function MessageBubble({
             wordBreak: 'break-word',
           }}
         >
-          <ReactMarkdown>{msg.content}</ReactMarkdown>
+          <Image.PreviewGroup>
+            <ReactMarkdown
+              components={{
+                img({ node: _node, ...props }) {
+                  return (
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <Image
+                        src={props.src as string}
+                        alt={props.alt}
+                        style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+                        preview={{
+                          toolbarRender: (originalNode) => (
+                            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                              {originalNode}
+                              <a
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  try {
+                                    const url = props.src as string;
+                                    if (url.startsWith('blob:')) {
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = 'attachment.png';
+                                      a.click();
+                                    } else {
+                                      const res = await fetch(url);
+                                      const blob = await res.blob();
+                                      const objectUrl = URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = objectUrl;
+                                      a.download = 'attachment.png';
+                                      a.click();
+                                      URL.revokeObjectURL(objectUrl);
+                                    }
+                                  } catch (_err) {
+                                    window.open(props.src as string, '_blank');
+                                  }
+                                }}
+                                style={{
+                                  color: 'rgba(255, 255, 255, 0.85)',
+                                  fontSize: 20,
+                                  cursor: 'pointer',
+                                  marginLeft: 16,
+                                }}
+                              >
+                                <DownloadOutlined />
+                              </a>
+                            </div>
+                          ),
+                        }}
+                      />
+                    </div>
+                  );
+                },
+              }}
+            >
+              {msg.content}
+            </ReactMarkdown>
+          </Image.PreviewGroup>
         </div>
         <Text
           style={{
@@ -442,6 +509,8 @@ export default function ConversationDetailPage() {
   } = useConversationDetail(conversationId);
 
   const [inputValue, setInputValue] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [attachments, setAttachments] = useState<Array<{ file: File; previewUrl: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages or typing
@@ -449,14 +518,77 @@ export default function ConversationDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isVisitorTyping]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim()) return;
-    const text = inputValue;
-    setInputValue('');
-    await sendMessage(text);
+  const handleFileSelect = (file: File) => {
+    setAttachments((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+    return false; // Prevent auto upload
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => {
+      const newAttachments = [...prev];
+      URL.revokeObjectURL(newAttachments[index].previewUrl);
+      newAttachments.splice(index, 1);
+      return newAttachments;
+    });
+  };
+
+  const handleSend = async () => {
+    const text = inputValue.trim();
+    if (!text && attachments.length === 0) return;
+
+    let finalMessage = text;
+
+    if (attachments.length > 0) {
+      setIsUploading(true);
+      try {
+        const session = await getSession();
+        const token = session?.accessToken;
+        const baseUrl = API_BASE_URL || '';
+
+        const uploadPromises = attachments.map(async ({ file }) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch(`${baseUrl}/chat/conversations/${conversationId}/upload`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          });
+
+          if (!res.ok) throw new Error('Upload failed');
+          const data = await res.json();
+          return `![image](${data.url})`;
+        });
+
+        const uploadedMarkdowns = await Promise.all(uploadPromises);
+        const imagesText = uploadedMarkdowns.join('\n\n');
+        finalMessage = finalMessage ? `${imagesText}\n\n${finalMessage}` : imagesText;
+      } catch (_err) {
+        message.error('Failed to upload one or more images');
+        setIsUploading(false);
+        return;
+      }
+    }
+
+    setInputValue('');
+    attachments.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    setAttachments([]);
+    setIsUploading(false);
+    await sendMessage(finalMessage);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          handleFileSelect(file);
+        }
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -774,38 +906,129 @@ export default function ConversationDetailPage() {
               {canReply ? (
                 /* Reply input */
                 <div
-                  style={{ display: 'flex', gap: 10, padding: '14px 20px', alignItems: 'flex-end' }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    padding: '14px 20px',
+                  }}
                 >
-                  <TextArea
-                    value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                      emitTyping();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder={
-                      isPaused
-                        ? 'Conversation is paused'
-                        : 'Type your reply… (Enter to send, Shift+Enter for new line)'
-                    }
-                    autoSize={{ minRows: 1, maxRows: 4 }}
-                    style={{ borderRadius: 10, flex: 1, resize: 'none' }}
-                    disabled={isSending || isPaused}
-                  />
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={handleSend}
-                    loading={isSending}
-                    disabled={!inputValue.trim() || !isConnected || isPaused}
+                  {attachments.length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, marginLeft: 30, flexWrap: 'wrap' }}>
+                      {attachments.map((att, index) => (
+                        <div key={index} style={{ position: 'relative', width: 60, height: 60 }}>
+                          <Image
+                            src={att.previewUrl}
+                            width={60}
+                            height={60}
+                            style={{ objectFit: 'cover', borderRadius: 8 }}
+                            preview={true}
+                            alt="Attachment preview"
+                          />
+                          <CloseCircleFilled
+                            style={{
+                              position: 'absolute',
+                              top: -6,
+                              right: -6,
+                              color: '#ff4d4f',
+                              cursor: 'pointer',
+                              fontSize: 16,
+                              background: 'white',
+                              borderRadius: '50%',
+                            }}
+                            onClick={() => removeAttachment(index)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div
                     style={{
-                      borderRadius: 10,
-                      background: '#6366f1',
-                      borderColor: '#6366f1',
-                      height: 40,
-                      paddingInline: 18,
+                      display: 'flex',
+                      gap: 8,
+                      alignItems: 'flex-end',
+                      background: '#ffffff',
+                      borderRadius: 24,
+                      padding: '4px 6px',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                     }}
-                  />
+                  >
+                    <Upload
+                      beforeUpload={handleFileSelect}
+                      showUploadList={false}
+                      accept="image/*"
+                      disabled={isSending || isPaused || isUploading}
+                    >
+                      <Button
+                        type="text"
+                        icon={
+                          isUploading ? (
+                            <LoadingOutlined style={{ fontSize: 20 }} />
+                          ) : (
+                            <PictureOutlined style={{ fontSize: 20 }} />
+                          )
+                        }
+                        disabled={isSending || isPaused || isUploading}
+                        style={{
+                          padding: '4px 8px',
+                          color: '#6b7280',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: 36,
+                        }}
+                      />
+                    </Upload>
+                    <TextArea
+                      value={inputValue}
+                      onChange={(e) => {
+                        setInputValue(e.target.value);
+                        emitTyping();
+                      }}
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      placeholder={
+                        isPaused
+                          ? 'Conversation is paused'
+                          : 'Type your reply… (Enter to send, Shift+Enter for new line)'
+                      }
+                      autoSize={{ minRows: 1, maxRows: 4 }}
+                      bordered={false}
+                      style={{
+                        flex: 1,
+                        resize: 'none',
+                        padding: '6px 0',
+                        background: 'transparent',
+                        boxShadow: 'none',
+                      }}
+                      disabled={isSending || isPaused || isUploading}
+                    />
+                    <Button
+                      type="primary"
+                      shape="circle"
+                      icon={<SendOutlined style={{ color: '#ffffff', fontSize: 16 }} />}
+                      onClick={handleSend}
+                      loading={isSending || isUploading}
+                      disabled={
+                        (inputValue.trim() === '' && attachments.length === 0) ||
+                        !isConnected ||
+                        isPaused ||
+                        isUploading
+                      }
+                      style={{
+                        background: '#6366f1',
+                        borderColor: '#6366f1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 36,
+                        height: 36,
+                        minWidth: 36,
+                        marginBottom: 2,
+                      }}
+                    />
+                  </div>
                 </div>
               ) : (
                 /* Preview banner */

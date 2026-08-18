@@ -51,16 +51,10 @@ export default function DashboardPage() {
         {/* Actions differ by role */}
         <div className="page-actions">
           {isSuperAdmin && (
-            <>
-              <button className="btn-secondary">
-                <ExportOutlined />
-                Export Report
-              </button>
-              <Link href="/sites/new" className="btn-primary">
-                <PlusOutlined />
-                New Site
-              </Link>
-            </>
+            <button className="btn-secondary">
+              <ExportOutlined />
+              Export Report
+            </button>
           )}
 
           {isAdmin && (

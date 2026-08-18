@@ -1,7 +1,7 @@
 FROM node:24.12.0-alpine AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN HUSKY=0 npm ci
+RUN HUSKY=0 npm install
 
 FROM node:24.12.0-alpine AS builder
 WORKDIR /app

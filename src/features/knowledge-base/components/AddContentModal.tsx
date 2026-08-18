@@ -14,6 +14,7 @@ interface AddContentModalProps {
   onUploadFiles: (files: File[]) => void;
   onScrapeUrl: (url: string) => void;
   onAddSitemap: (sitemapUrl: string) => void;
+  initialTab?: ModalTabType;
 }
 
 export function AddContentModal({
@@ -22,8 +23,9 @@ export function AddContentModal({
   onUploadFiles,
   onScrapeUrl,
   onAddSitemap,
+  initialTab = 'upload',
 }: AddContentModalProps) {
-  const [activeTab, setActiveTab] = useState<ModalTabType>('upload');
+  const [activeTab, setActiveTab] = useState<ModalTabType>(initialTab);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [urlInput, setUrlInput] = useState('');
   const [sitemapInput, setSitemapInput] = useState('');
@@ -254,7 +256,11 @@ export function AddContentModal({
             onClick={handleSubmit}
             disabled={isSubmitDisabled}
           >
-            Upload
+            {activeTab === 'upload'
+              ? 'Upload'
+              : activeTab === 'url'
+                ? 'Start Crawl'
+                : 'Save & Crawl'}
           </button>
         </div>
       </div>

@@ -52,6 +52,7 @@ interface UserRecord {
   avatarUrl: string | null;
   organizationId?: string | null;
   initialPassword?: string;
+  activationEmailQueued?: boolean;
 }
 
 interface OrganizationRecord {
@@ -97,6 +98,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<UserRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [activationEmailQueued, setActivationEmailQueued] = useState(false);
   const [copied, setCopied] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
@@ -104,6 +106,7 @@ export default function UsersPage() {
     setCreateOpen(false);
     createForm.resetFields();
     setCreatedPassword(null);
+    setActivationEmailQueued(false);
     setCopied(false);
   };
 
@@ -220,6 +223,8 @@ export default function UsersPage() {
           refreshUsers();
           if (data.initialPassword) {
             setCreatedPassword(data.initialPassword);
+          } else if (data.activationEmailQueued) {
+            setActivationEmailQueued(true);
           } else {
             message.success(
               'User created! An invitation email has been sent to activate the account.',
@@ -526,6 +531,27 @@ export default function UsersPage() {
           </div>
         )}
 
+        {activationEmailQueued && (
+          <div style={{ padding: '24px 0', textAlign: 'center' }}>
+            <MailOutlined style={{ fontSize: 48, color: '#2563eb', marginBottom: 16 }} />
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', margin: '0 0 12px 0' }}>
+              User Created Successfully!
+            </h3>
+            <p style={{ color: '#4b5563', fontSize: 14, marginBottom: 24 }}>
+              An invitation email has been sent to the user. Please tell them to check their inbox
+              to activate their account and set a password.
+            </p>
+            <Button
+              type="primary"
+              onClick={handleCloseCreate}
+              size="large"
+              style={{ borderRadius: 8, background: '#2563eb' }}
+            >
+              Done
+            </Button>
+          </div>
+        )}
+
         <Form
           form={createForm}
           layout="vertical"
@@ -535,7 +561,10 @@ export default function UsersPage() {
             organizationId: currentUser?.organizationId ?? undefined,
             gender: 'other',
           }}
-          style={{ marginTop: 20, display: createdPassword ? 'none' : 'block' }}
+          style={{
+            marginTop: 20,
+            display: createdPassword || activationEmailQueued ? 'none' : 'block',
+          }}
         >
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
             <Input />

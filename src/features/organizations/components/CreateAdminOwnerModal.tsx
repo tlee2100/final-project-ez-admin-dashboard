@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, App } from 'antd';
-import { BankOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import { BankOutlined, CopyOutlined, CheckOutlined, MailOutlined } from '@ant-design/icons';
 import type { Organization } from '../types/organization.types';
 
 interface CreateAdminOwnerModalProps {
@@ -12,7 +12,7 @@ interface CreateAdminOwnerModalProps {
   onSubmit: (
     orgId: string,
     values: { name: string; email: string },
-  ) => Promise<{ initialPassword?: string }>;
+  ) => Promise<{ initialPassword?: string; activationEmailQueued?: boolean }>;
 }
 
 export function CreateAdminOwnerModal({
@@ -24,6 +24,7 @@ export function CreateAdminOwnerModal({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [activationEmailSent, setActivationEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const { message } = App.useApp();
 
@@ -34,6 +35,8 @@ export function CreateAdminOwnerModal({
       const res = await onSubmit(organization.id, values);
       if (res.initialPassword) {
         setCreatedPassword(res.initialPassword);
+      } else if (res.activationEmailQueued) {
+        setActivationEmailSent(true);
       } else {
         message.success('Admin Owner created successfully!');
         handleClose();
@@ -49,6 +52,7 @@ export function CreateAdminOwnerModal({
   const handleClose = () => {
     form.resetFields();
     setCreatedPassword(null);
+    setActivationEmailSent(false);
     setCopied(false);
     onCancel();
   };
@@ -113,11 +117,35 @@ export function CreateAdminOwnerModal({
         </div>
       )}
 
+      {activationEmailSent && (
+        <div style={{ padding: '12px 0', textAlign: 'center' }}>
+          <MailOutlined style={{ fontSize: 48, color: '#2563eb', marginBottom: 16 }} />
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 12px 0', color: '#111827' }}>
+            Admin Owner Created!
+          </h2>
+          <p style={{ color: '#4b5563', fontSize: 14, marginBottom: 24 }}>
+            An invitation email has been sent to the Admin Owner. Please tell them to check their
+            inbox to activate their account and set a password.
+          </p>
+          <Button
+            type="primary"
+            onClick={handleClose}
+            size="large"
+            style={{ borderRadius: 8, background: '#2563eb' }}
+          >
+            Done
+          </Button>
+        </div>
+      )}
+
       <Form
         form={form}
         layout="vertical"
         onFinish={handleFinish}
-        style={{ marginTop: 20, display: createdPassword ? 'none' : 'block' }}
+        style={{
+          marginTop: 20,
+          display: createdPassword || activationEmailSent ? 'none' : 'block',
+        }}
       >
         <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 16 }}>
           For organization &quot;{organization?.name}&quot;

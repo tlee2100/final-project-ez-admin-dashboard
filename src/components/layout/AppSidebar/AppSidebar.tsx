@@ -11,7 +11,6 @@ import {
   CalendarOutlined,
   BarChartOutlined,
   TeamOutlined,
-  SettingOutlined,
   QuestionCircleOutlined,
   LeftOutlined,
   RightOutlined,
@@ -30,27 +29,41 @@ const NAV_ITEMS = [
   { key: 'bookings', label: 'Bookings', icon: <CalendarOutlined />, href: '/bookings' },
   { key: 'analytics', label: 'Analytics', icon: <BarChartOutlined />, href: '/analytics' },
   { key: 'users', label: 'Users', icon: <TeamOutlined />, href: '/users' },
-  { key: 'settings', label: 'Settings', icon: <SettingOutlined />, href: '/settings' },
 ];
 
 interface AppSidebarProps {
   collapsed?: boolean;
+  isMobile?: boolean;
+  mobileOpen?: boolean;
   onToggle?: () => void;
+  onCloseMobile?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
+export function AppSidebar({
+  collapsed = false,
+  isMobile = false,
+  mobileOpen = false,
+  onToggle,
+  onCloseMobile,
+}: AppSidebarProps) {
   const pathname = usePathname();
   const { user, hasAccess } = useCurrentRole();
 
-  const activeKey = NAV_ITEMS.find((item) => pathname.startsWith(item.href))?.key ?? 'dashboard';
+  const segments = pathname.split('/').filter(Boolean);
+  const rootSegment = segments.length > 0 ? `/${segments[0]}` : '/dashboard';
+  const activeKey = NAV_ITEMS.find((item) => item.href === rootSegment)?.key ?? 'dashboard';
 
   const visibleNavItems = NAV_ITEMS.filter((item) => hasAccess(item.key));
 
+  const sidebarClass = isMobile
+    ? `sidebar mobile-drawer ${mobileOpen ? 'open' : ''}`
+    : `sidebar ${collapsed ? 'collapsed' : ''}`;
+
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={sidebarClass}>
       {/* ── Logo ── */}
-      <Link href="/dashboard" className="sidebar-logo">
+      <Link href="/dashboard" className="sidebar-logo" onClick={onCloseMobile}>
         <div className="sidebar-logo-icon">
           <RobotOutlined />
         </div>
@@ -58,19 +71,21 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
       </Link>
 
       {/* ── Collapse toggle ── */}
-      <Tooltip title={collapsed ? 'Expand' : 'Collapse'} placement="right">
-        <button
-          className="sidebar-toggle"
-          onClick={onToggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? (
-            <RightOutlined style={{ fontSize: 10 }} />
-          ) : (
-            <LeftOutlined style={{ fontSize: 10 }} />
-          )}
-        </button>
-      </Tooltip>
+      {!isMobile && (
+        <Tooltip title={collapsed ? 'Expand' : 'Collapse'} placement="right">
+          <button
+            className="sidebar-toggle"
+            onClick={onToggle}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <RightOutlined style={{ fontSize: 10 }} />
+            ) : (
+              <LeftOutlined style={{ fontSize: 10 }} />
+            )}
+          </button>
+        </Tooltip>
+      )}
 
       {/* ── Nav ── */}
       <nav className="sidebar-nav" aria-label="Main navigation">
@@ -82,13 +97,14 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
               href={item.href}
               className={`nav-item ${isActive ? 'active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
+              onClick={onCloseMobile}
             >
               <span className="nav-item-icon">{item.icon}</span>
               <span className="nav-item-label">{item.label}</span>
             </Link>
           );
 
-          return collapsed ? (
+          return collapsed && !isMobile ? (
             <Tooltip key={item.key} title={item.label} placement="right">
               {navEl}
             </Tooltip>

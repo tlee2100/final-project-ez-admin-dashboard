@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useOne } from '@refinedev/core';
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Site } from '@/src/features/sites/types/site.types';
-import type { KBSettings } from '@/src/features/knowledge-base/types/knowledge-base.types';
 import { useKnowledgeBase } from '@/src/features/knowledge-base/hooks/useKnowledgeBase';
 import { KBStatsHeader } from '@/src/features/knowledge-base/components/KBStatsHeader';
 import { KBDocumentsTab } from '@/src/features/knowledge-base/components/KBDocumentsTab';
@@ -14,6 +13,8 @@ import { KBSettingsTab } from '@/src/features/knowledge-base/components/KBSettin
 import { AddContentModal } from '@/src/features/knowledge-base/components/AddContentModal';
 import { DocPreviewModal } from '@/src/features/knowledge-base/components/DocPreviewModal';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
+import { useCrawler } from '@/src/features/knowledge-base/hooks/useCrawler';
+import type { ModalTabType } from '@/src/features/knowledge-base/types/knowledge-base.types';
 
 import '@/src/features/knowledge-base/components/knowledge-base.css';
 
@@ -26,6 +27,7 @@ type MainTabType = 'documents' | 'crawler' | 'settings';
 export default function KnowledgeBasePage({ params }: PageProps) {
   const { id: siteId } = use(params);
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('documents');
+  const [addContentInitialTab, setAddContentInitialTab] = useState<ModalTabType>('upload');
   const { isSuperAdmin, isAdmin } = useCurrentRole();
   const canAddContent = isSuperAdmin || isAdmin;
 
@@ -42,9 +44,13 @@ export default function KnowledgeBasePage({ params }: PageProps) {
   const {
     documents,
     stats,
-    crawlerConfig,
     settings,
-    setSettings,
+    isSettingsLoading,
+    isSettingsSaving,
+    isBulkReindexing,
+    saveSettings,
+    reindexDocument,
+    reindexAllOutdated,
     searchQuery,
     setSearchQuery,
     selectedType,
@@ -56,15 +62,16 @@ export default function KnowledgeBasePage({ params }: PageProps) {
     limit,
     setLimit,
     totalDocs,
+    refreshDocuments,
     isAddModalOpen,
     setIsAddModalOpen,
     previewDoc,
     setPreviewDoc,
     handleAddFile,
-    handleAddUrl,
-    handleAddSitemap,
     handleDeleteDocument,
   } = useKnowledgeBase(siteId);
+
+  const crawler = useCrawler(siteId, refreshDocuments);
 
   return (
     <div className="kb-page page-fade-in">
@@ -81,7 +88,13 @@ export default function KnowledgeBasePage({ params }: PageProps) {
         </div>
 
         {canAddContent && (
-          <button className="kb-add-btn" onClick={() => setIsAddModalOpen(true)}>
+          <button
+            className="kb-add-btn"
+            onClick={() => {
+              setAddContentInitialTab('upload');
+              setIsAddModalOpen(true);
+            }}
+          >
             <PlusOutlined />
             Add Content
           </button>
@@ -137,22 +150,58 @@ export default function KnowledgeBasePage({ params }: PageProps) {
             onLimitChange={setLimit}
             onPreview={setPreviewDoc}
             onDelete={handleDeleteDocument}
+            canManage={canAddContent}
+            onReindex={(documentId) => void reindexDocument(documentId)}
           />
         )}
 
         {activeMainTab === 'crawler' && (
           <KBCrawlerTab
-            config={crawlerConfig}
-            onAddSitemapClick={() => canAddContent && setIsAddModalOpen(true)}
+            key={crawler.config?.updatedAt ?? 'new-crawler-config'}
+            config={crawler.config}
+            activeRun={crawler.activeRun}
+            selectedRun={crawler.selectedRun}
+            selectedRunId={crawler.selectedRunId}
+            runs={crawler.runs}
+            pages={crawler.pages}
+            pagesTotal={crawler.pagesTotal}
+            pagesPage={crawler.pagesPage}
+            pagesLimit={crawler.pagesLimit}
+            pageSearch={crawler.pageSearch}
+            pageStatusFilter={crawler.pageStatusFilter}
+            progressPercent={crawler.progressPercent}
+            isLoading={crawler.isLoading}
+            isActionLoading={crawler.isActionLoading}
+            canManage={canAddContent}
+            onSelectRun={crawler.setSelectedRunId}
+            onStatusFilter={crawler.setPageStatusFilter}
+            onSearchPages={crawler.searchPages}
+            onPagesChange={(page, pageSize) => {
+              crawler.setPagesPage(page);
+              crawler.setPagesLimit(pageSize);
+            }}
+            onSaveConfig={crawler.saveConfig}
+            onStartCrawl={crawler.startCrawl}
+            onRetryFailed={crawler.retryFailed}
+            onRecrawlSource={crawler.recrawlSource}
+            onAddSitemapClick={() => {
+              if (!canAddContent) return;
+              setAddContentInitialTab('sitemap');
+              setIsAddModalOpen(true);
+            }}
           />
         )}
 
         {activeMainTab === 'settings' && (
           <KBSettingsTab
+            key={`${siteId}:${settings.chunkSize}:${settings.chunkOverlap}:${settings.topKResults}:${settings.similarityThreshold}`}
             settings={settings}
-            onUpdateSettings={(newSettings) =>
-              setSettings((prev: KBSettings) => ({ ...prev, ...newSettings }))
-            }
+            canManage={canAddContent}
+            isLoading={isSettingsLoading}
+            isSaving={isSettingsSaving}
+            isBulkReindexing={isBulkReindexing}
+            onSave={saveSettings}
+            onReindexAll={reindexAllOutdated}
           />
         )}
       </div>
@@ -160,11 +209,13 @@ export default function KnowledgeBasePage({ params }: PageProps) {
       {/* ── Modals ── */}
       {canAddContent && (
         <AddContentModal
+          key={`${siteId}:${addContentInitialTab}:${isAddModalOpen ? 'open' : 'closed'}`}
           isOpen={isAddModalOpen}
+          initialTab={addContentInitialTab}
           onClose={() => setIsAddModalOpen(false)}
           onUploadFiles={handleAddFile}
-          onScrapeUrl={handleAddUrl}
-          onAddSitemap={handleAddSitemap}
+          onScrapeUrl={(url) => void crawler.ingestUrl(url)}
+          onAddSitemap={(sitemapUrl) => void crawler.addSitemapAndStart(sitemapUrl)}
         />
       )}
 

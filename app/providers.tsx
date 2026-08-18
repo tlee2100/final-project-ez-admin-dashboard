@@ -9,26 +9,6 @@ import { AuthProvider, useAuth } from '@/src/contexts/AuthContext';
 import { NotificationProvider } from '@/src/contexts/NotificationContext';
 import { combinedDataProvider } from '@/src/lib/dataProvider/combinedDataProvider';
 
-function GlobalMessageDismiss() {
-  const { message, notification } = App.useApp();
-
-  React.useEffect(() => {
-    const handleGlobalClick = () => {
-      message.destroy();
-      notification.destroy();
-    };
-
-    // Use capture phase to ensure it runs early, but not stop propagation
-    window.addEventListener('click', handleGlobalClick, { capture: true });
-
-    return () => {
-      window.removeEventListener('click', handleGlobalClick, { capture: true });
-    };
-  }, [message, notification]);
-
-  return null;
-}
-
 // ── Shared Ant Design theme ──────────────────────────────────────────────────
 const antdTheme = {
   token: {
@@ -152,7 +132,6 @@ export function AppProviders({
   return (
     <ConfigProvider theme={antdTheme}>
       <App>
-        <GlobalMessageDismiss />
         <SessionProvider session={session} refetchOnWindowFocus={false}>
           <AuthProvider>
             <NotificationProvider>

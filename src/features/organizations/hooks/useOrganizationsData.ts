@@ -109,7 +109,7 @@ export function useOrganizationsData() {
       notes?: string;
       adminName: string;
       email: string;
-    }): Promise<{ initialPassword?: string }> => {
+    }): Promise<{ initialPassword?: string; activationEmailQueued?: boolean }> => {
       // 1. Create Organization
       const orgRes = await apiRequest<{ data: { id: string } }>('/organizations', {
         method: 'POST',
@@ -125,11 +125,13 @@ export function useOrganizationsData() {
 
       // 2. Create Admin Owner User
       let initialPassword: string | undefined = undefined;
+      let activationEmailQueued: boolean | undefined = undefined;
       if (orgId && values.email && values.adminName) {
         try {
           const userRes = await apiRequest<{
             user: { id: string };
             initialPassword?: string;
+            activationEmailQueued?: boolean;
           }>('/users', {
             method: 'POST',
             body: JSON.stringify({
@@ -142,6 +144,7 @@ export function useOrganizationsData() {
           });
 
           initialPassword = userRes.initialPassword;
+          activationEmailQueued = userRes.activationEmailQueued;
 
           if (userRes.user?.id) {
             await apiRequest(`/organizations/${orgId}`, {
@@ -162,7 +165,7 @@ export function useOrganizationsData() {
 
       invalidate({ resource: 'organizations', invalidates: ['list'] });
 
-      return { initialPassword };
+      return { initialPassword, activationEmailQueued };
     },
     [invalidate],
   );
@@ -198,11 +201,12 @@ export function useOrganizationsData() {
     async (
       orgId: string,
       payload: { name: string; email: string },
-    ): Promise<{ initialPassword?: string }> => {
+    ): Promise<{ initialPassword?: string; activationEmailQueued?: boolean }> => {
       // 1. Call POST /users to create Admin user
       const userRes = await apiRequest<{
         user: { id: string };
         initialPassword?: string;
+        activationEmailQueued?: boolean;
       }>('/users', {
         method: 'POST',
         body: JSON.stringify({
@@ -225,7 +229,10 @@ export function useOrganizationsData() {
       // 3. Invalidate list
       invalidate({ resource: 'organizations', invalidates: ['list'] });
 
-      return { initialPassword: userRes.initialPassword };
+      return {
+        initialPassword: userRes.initialPassword,
+        activationEmailQueued: userRes.activationEmailQueued,
+      };
     },
     [invalidate],
   );

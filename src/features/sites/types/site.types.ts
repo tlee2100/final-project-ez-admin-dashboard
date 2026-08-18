@@ -32,7 +32,38 @@ export interface Site {
   activeChats: number;
   updatedAt: string; // ISO date string
   assignedAgentIds: string[]; // user IDs of agents assigned to this site
+  agents?: { id: string; name: string; email: string }[];
   allowedDomains?: string[]; // Allowed domains for the chat widget
+
+  // Timeout Settings
+  enableConversationTimeout?: boolean;
+  inactivityTimeoutMinutes?: number;
+  warningTimeMinutes?: number;
+  inactivityWarningMessage?: string;
+  timeoutMessage?: string;
+  resetTimerOnBotResponse?: boolean;
+  pauseTimerForAgentChats?: boolean;
+  sendEmailNotificationOnTimeout?: boolean;
+
+  // Appearance Settings
+  primaryColor?: string;
+  backgroundColor?: string;
+  botAvatar?: string;
+  launcherIcon?: string;
+  defaultGreetingMessage?: string;
+  chatButtonPosition?: string;
+  chatWindowTitle?: string;
+  chatButtonText?: string;
+  showAvatar?: boolean;
+
+  maxMessagesPerSession?: number;
+  maxSessionsPerIp?: number;
+  maxTokensPerResponse?: number;
+  systemPromptOverride?: string | null;
+  useCurrentPageContent?: boolean;
+  memorySummarization?: boolean;
+  sentimentDetection?: boolean;
+  llmModel?: string;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────

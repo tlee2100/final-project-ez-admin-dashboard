@@ -27,6 +27,8 @@ export default function NewSitePage() {
           ...values,
           allowedDomains: cleanedDomains,
         },
+        successNotification: false,
+        errorNotification: false,
       },
       {
         onSuccess: () => {
@@ -43,10 +45,7 @@ export default function NewSitePage() {
   };
 
   return (
-    <div
-      className="sites-page page-fade-in"
-      style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px' }}
-    >
+    <div className="sites-page page-fade-in" style={{ maxWidth: 600, margin: '0 auto' }}>
       {/* ── Page Header ── */}
       <div className="sites-header" style={{ marginBottom: 20 }}>
         <div

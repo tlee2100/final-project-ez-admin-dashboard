@@ -14,8 +14,9 @@ import {
   SyncOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
-import { Popconfirm, Dropdown, MenuProps, Pagination, Tag } from 'antd';
+import { Popconfirm, Dropdown, MenuProps, Pagination, Popover, Tag } from 'antd';
 import { DocFileType, type KBDocument } from '../types/knowledge-base.types';
 import type { SortOption } from '../hooks/useKnowledgeBase';
 
@@ -34,6 +35,8 @@ interface KBDocumentsTabProps {
   onLimitChange?: (limit: number) => void;
   onPreview: (doc: KBDocument) => void;
   onDelete: (id: string) => void;
+  canManage: boolean;
+  onReindex: (id: string) => void;
 }
 
 const DOC_TYPE_LABELS: Record<DocFileType, string> = {
@@ -60,6 +63,8 @@ export function KBDocumentsTab({
   onLimitChange,
   onPreview,
   onDelete,
+  canManage,
+  onReindex,
 }: KBDocumentsTabProps) {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -218,6 +223,10 @@ export function KBDocumentsTab({
                         >
                           Failed
                         </Tag>
+                      ) : doc.status === 'retired' ? (
+                        <Tag color="default" style={{ margin: 0, fontSize: 11, borderRadius: 6 }}>
+                          Retired
+                        </Tag>
                       ) : (
                         <Tag
                           icon={<CheckCircleOutlined />}
@@ -228,13 +237,59 @@ export function KBDocumentsTab({
                         </Tag>
                       )}
                     </div>
+                    {doc.needsReindex && doc.reindexStatus === 'idle' && (
+                      <Tag color="warning" style={{ marginTop: 8 }}>
+                        Needs re-index
+                      </Tag>
+                    )}
+                    {['queued', 'processing'].includes(doc.reindexStatus) && (
+                      <Tag icon={<SyncOutlined spin />} color="processing" style={{ marginTop: 8 }}>
+                        Re-indexing
+                      </Tag>
+                    )}
+                    {doc.reindexStatus === 'failed' && (
+                      <Popover
+                        title="Re-index details"
+                        content={doc.reindexError || 'The source could not be re-indexed.'}
+                        trigger="click"
+                      >
+                        <button className="kb-tool-btn" style={{ marginTop: 8 }}>
+                          View details
+                        </button>
+                      </Popover>
+                    )}
                   </div>
                 </div>
 
                 <div className="kb-doc-bottom">
                   <span className="kb-doc-updated">Uploaded {doc.uploadedAtFormatted}</span>
 
+                  {doc.url && doc.type === DocFileType.URL && (
+                    <a href={doc.url} target="_blank" rel="noreferrer" title={doc.url}>
+                      Open source
+                    </a>
+                  )}
+
                   <div className="kb-doc-actions">
+                    {canManage && (doc.needsReindex || doc.reindexStatus === 'failed') && (
+                      <Popconfirm
+                        title={
+                          doc.reindexStatus === 'failed' ? 'Retry re-index' : 'Re-index document'
+                        }
+                        description="The existing chunks remain available until the new index is ready."
+                        onConfirm={() => onReindex(doc.id)}
+                        okText="Re-index"
+                        cancelText="Cancel"
+                      >
+                        <button
+                          className="kb-icon-action view"
+                          title={doc.reindexStatus === 'failed' ? 'Retry Re-index' : 'Re-index'}
+                          aria-label={`Re-index ${doc.name}`}
+                        >
+                          <ReloadOutlined />
+                        </button>
+                      </Popconfirm>
+                    )}
                     <button
                       className="kb-icon-action view"
                       title="Preview Document"

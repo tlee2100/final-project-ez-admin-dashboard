@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, Input, Select, DatePicker, Button, Typography, Spin } from 'antd';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+
+interface ManualBookingModalProps {
+  open: boolean;
+  onCancel: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSuccess: (bookingData: any) => boolean | void | Promise<boolean | void>;
+  siteId: string;
+  siteServices: { id: string; name: string }[];
+  siteStaff: { id: string; name: string }[];
+  initialData?: { staffId?: string; timeSlot?: string } | null;
+  selectedDate: dayjs.Dayjs;
+  startTime: string;
+  endTime: string;
+  slotDuration: number;
+  fetchAvailableSlots: (
+    siteId: string,
+    startDate: string,
+    endDate: string,
+    resourceId: string,
+  ) => Promise<string[]>;
+}
+
+export function ManualBookingModal({
+  open,
+  onCancel,
+  onSuccess,
+  siteId,
+  siteServices,
+  siteStaff,
+  initialData,
+  selectedDate,
+
+  fetchAvailableSlots,
+}: ManualBookingModalProps) {
+  const [form] = Form.useForm();
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+
+  const selectedFormDate = Form.useWatch('date', form);
+  const selectedStaffId = Form.useWatch('staffId', form);
+
+  // Validate Vietnamese phone number: 0 + 9-10 digits
+  const phoneValidator = (_: unknown, value: string) => {
+    if (!value) return Promise.resolve();
+    const phoneRegex = /^0[0-9]{9,10}$/;
+    if (!phoneRegex.test(value)) {
+      return Promise.reject(new Error('Phone must match Vietnamese format (0xxxxxxxxx).'));
+    }
+    return Promise.resolve();
+  };
+
+  React.useEffect(() => {
+    if (open) {
+      form.setFieldsValue({
+        date: selectedDate || dayjs(),
+        staffId: initialData?.staffId || undefined,
+        timeSlot: initialData?.timeSlot || undefined,
+      });
+    } else {
+      form.resetFields();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAvailableSlots([]);
+    }
+  }, [open, initialData, selectedDate, form]);
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!selectedFormDate || !selectedStaffId || !siteId) {
+        setAvailableSlots([]);
+        return;
+      }
+
+      setIsFetchingSlots(true);
+      try {
+        const startDate = selectedFormDate.startOf('day').toISOString();
+        const endDate = selectedFormDate.endOf('day').toISOString();
+
+        const formattedSlots = await fetchAvailableSlots(
+          siteId,
+          startDate,
+          endDate,
+          selectedStaffId,
+        );
+        setAvailableSlots(formattedSlots);
+      } catch (error) {
+        console.error('Failed to fetch available slots:', error);
+        setAvailableSlots([]);
+      } finally {
+        setIsFetchingSlots(false);
+      }
+    };
+
+    if (open) {
+      fetchSlots();
+    }
+  }, [selectedFormDate, selectedStaffId, siteId, open, fetchAvailableSlots]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFinish = async (values: any) => {
+    const success = await onSuccess(values);
+    if (success !== false) {
+      form.resetFields();
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title={
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 600 }}>Create New Booking</div>
+          <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
+            Manual walk-in or phone booking — auto-confirmed
+          </Text>
+        </div>
+      }
+      onCancel={onCancel}
+      footer={null}
+      width={500}
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 24 }}>
+        <Title level={5} style={{ marginBottom: 16 }}>
+          Customer Info
+        </Title>
+
+        <Form.Item name="customerName" label="Name" rules={[{ required: true }]}>
+          <Input placeholder="Tân Lê" />
+        </Form.Item>
+
+        <Form.Item
+          name="customerPhone"
+          label="Phone"
+          rules={[{ required: true }, { validator: phoneValidator }]}
+          extra="Vietnamese format: 0 + 9-10 digits"
+        >
+          <Input placeholder="0912345678" />
+        </Form.Item>
+
+        <Form.Item name="customerEmail" label="Email">
+          <Input placeholder="email@example.com" />
+        </Form.Item>
+
+        <Form.Item name="notes" label="Notes">
+          <Input.TextArea placeholder="Any special requests..." rows={3} />
+        </Form.Item>
+
+        <Title level={5} style={{ marginTop: 32, marginBottom: 16 }}>
+          Booking Details
+        </Title>
+
+        <Form.Item name="serviceId" label="Service" rules={[{ required: true }]}>
+          <Select placeholder="Select service">
+            {siteServices.map((s) => (
+              <Select.Option key={s.id} value={s.id}>
+                {s.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item name="staffId" label="Staff" rules={[{ required: true }]}>
+          <Select placeholder="Select staff">
+            {siteStaff.map((s) => (
+              <Select.Option key={s.id} value={s.id}>
+                {s.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item name="date" label="Date" rules={[{ required: true }]}>
+          <DatePicker
+            style={{ width: '100%' }}
+            format="DD/MM/YYYY"
+            disabledDate={(current) => current && current < dayjs().startOf('day')}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="timeSlot"
+          label="Time Slot"
+          rules={[{ required: true }]}
+          extra={
+            !selectedFormDate || !selectedStaffId
+              ? 'Please select a date and staff first'
+              : `${availableSlots.length} slots available for this date & staff`
+          }
+        >
+          <Select
+            placeholder="Select time"
+            loading={isFetchingSlots}
+            notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
+            disabled={!selectedFormDate || !selectedStaffId}
+          >
+            {availableSlots.map((time) => (
+              <Select.Option key={time} value={time}>
+                {time}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button type="primary" htmlType="submit">
+            Create Booking
+          </Button>
+        </div>
+      </Form>
+    </Modal>
+  );
+}

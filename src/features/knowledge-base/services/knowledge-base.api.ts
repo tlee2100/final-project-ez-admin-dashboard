@@ -6,6 +6,7 @@ import {
   type DocumentChunksResponse,
   type KBStatsResponse,
   type VectorStorageStats,
+  type KBSettings,
 } from '../types/knowledge-base.types';
 
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -16,7 +17,10 @@ const API_BASE_URL = RAW_API_BASE_URL.replace(/\/$/, '').endsWith('/api/v1')
 export interface BackendDocumentDto {
   id: string;
   filename: string;
-  filePath: string;
+  filePath: string | null;
+  sourceKind?: 'file' | 'url';
+  sourceUrl?: string | null;
+  isActive?: boolean;
   fileSizeBytes?: number | string | null;
   chunksCount?: number | null;
   cloudinaryPublicId: string | null;
@@ -25,11 +29,27 @@ export interface BackendDocumentDto {
   uploadedAt: string;
   processedAt: string | null;
   errorMessage?: string | null;
+  indexedChunkSize?: number | null;
+  indexedChunkOverlap?: number | null;
+  needsReindex?: boolean;
+  reindexStatus?: 'idle' | 'queued' | 'processing' | 'failed';
+  reindexError?: string | null;
 }
 
 interface ApiErrorResponse {
   message?: string | string[];
   error?: string;
+}
+
+export class ApiRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly body: ApiErrorResponse | null,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
 }
 
 function buildApiUrl(endpoint: string): string {
@@ -74,16 +94,22 @@ function formatDateTime(value?: string | null): string | undefined {
   }).format(date);
 }
 
-async function parseApiError(response: Response): Promise<string> {
+async function parseApiError(response: Response): Promise<{
+  message: string;
+  body: ApiErrorResponse | null;
+}> {
   const errorData = (await response.json().catch(() => null)) as ApiErrorResponse | null;
   if (errorData?.message) {
-    return Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
+    return {
+      message: Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message,
+      body: errorData,
+    };
   }
-  if (errorData?.error) return errorData.error;
-  return 'Knowledge base document request failed';
+  if (errorData?.error) return { message: errorData.error, body: errorData };
+  return { message: 'Knowledge base request failed', body: errorData };
 }
 
-async function kbApiRequest<T>(endpoint: string, init: RequestInit): Promise<T> {
+export async function kbApiRequest<T>(endpoint: string, init: RequestInit): Promise<T> {
   const session = await getSession();
   const token = session?.accessToken;
   const response = await fetch(buildApiUrl(endpoint), {
@@ -96,7 +122,8 @@ async function kbApiRequest<T>(endpoint: string, init: RequestInit): Promise<T> 
   });
 
   if (!response.ok) {
-    throw new Error(await parseApiError(response));
+    const errorData = await parseApiError(response);
+    throw new ApiRequestError(response.status, errorData.message, errorData.body);
   }
 
   return (await response.json()) as T;
@@ -106,7 +133,8 @@ export function mapBackendDocToKBDoc(doc: BackendDocumentDto): KBDocument {
   const ext = doc.filename.split('.').pop()?.toLowerCase() || '';
   let docType: DocFileType = DocFileType.TXT;
 
-  if (ext === DocFileExtension.PDF) docType = DocFileType.PDF;
+  if (doc.sourceKind === 'url') docType = DocFileType.URL;
+  else if (ext === DocFileExtension.PDF) docType = DocFileType.PDF;
   else if (ext === DocFileExtension.DOCX) docType = DocFileType.DOCX;
   else if (ext === DocFileExtension.MARKDOWN || ext === DocFileExtension.MARKDOWN_LONG) {
     docType = DocFileType.MARKDOWN;
@@ -136,9 +164,28 @@ export function mapBackendDocToKBDoc(doc: BackendDocumentDto): KBDocument {
     processedAtFormatted,
     updatedAt,
     updatedAtFormatted: formatDateTime(updatedAt) || uploadedAtFormatted,
-    url: doc.filePath !== 'pending' ? doc.filePath : undefined,
+    url:
+      doc.sourceKind === 'url'
+        ? doc.sourceUrl || undefined
+        : doc.filePath && doc.filePath !== 'pending'
+          ? doc.filePath
+          : undefined,
+    sourceKind: doc.sourceKind,
+    isActive: doc.isActive,
     contentSnippet: `Document '${doc.filename}' uploaded to site KB. Status: ${doc.status}`,
-    status: isIndexed ? 'indexed' : isFailed ? 'failed' : 'processing',
+    status:
+      doc.isActive === false
+        ? 'retired'
+        : isIndexed
+          ? 'indexed'
+          : isFailed
+            ? 'failed'
+            : 'processing',
+    indexedChunkSize: doc.indexedChunkSize,
+    indexedChunkOverlap: doc.indexedChunkOverlap,
+    needsReindex: doc.needsReindex ?? false,
+    reindexStatus: doc.reindexStatus ?? 'idle',
+    reindexError: doc.reindexError,
   };
 }
 
@@ -274,4 +321,33 @@ export async function fetchKBStatsApi(siteId: string): Promise<VectorStorageStat
     vectorsLimit: stats.vectorsLimit,
     usagePercentage: stats.usagePercentage,
   };
+}
+
+export function fetchKBSettingsApi(siteId: string): Promise<KBSettings> {
+  return kbApiRequest<KBSettings>(`/sites/${siteId}/kb/settings`, { method: 'GET' });
+}
+
+export function updateKBSettingsApi(
+  siteId: string,
+  settings: Pick<KBSettings, 'chunkSize' | 'chunkOverlap' | 'topKResults' | 'similarityThreshold'>,
+): Promise<KBSettings> {
+  return kbApiRequest<KBSettings>(`/sites/${siteId}/kb/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+}
+
+export function reindexDocumentApi(siteId: string, documentId: string) {
+  return kbApiRequest<{ documentId?: string; runId?: string; status: string }>(
+    `/sites/${siteId}/kb/sources/${documentId}/reindex`,
+    { method: 'POST' },
+  );
+}
+
+export function reindexOutdatedDocumentsApi(siteId: string) {
+  return kbApiRequest<{ queued: number; skipped: number; totalOutdated: number }>(
+    `/sites/${siteId}/kb/reindex-outdated`,
+    { method: 'POST' },
+  );
 }

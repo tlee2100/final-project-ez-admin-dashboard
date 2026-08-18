@@ -59,6 +59,12 @@ export function useNotificationSocket({
           case NotificationType.CONVERSATION_CLOSED:
             new Notification('✅ Conversation Closed', { ...baseOptions, body: data.message });
             break;
+          case NotificationType.NEGATIVE_SENTIMENT:
+            new Notification('⚠️ Negative Sentiment Detected', {
+              ...baseOptions,
+              body: data.message,
+            });
+            break;
           default:
             break;
         }

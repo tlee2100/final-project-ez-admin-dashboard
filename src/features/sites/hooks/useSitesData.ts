@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useList, useUpdate, useDelete } from '@refinedev/core';
+import type { HttpError } from '@refinedev/core';
 import type { Site, SitesFilter } from '../types/site.types';
 
 // ── Default filter state ─────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ export function useSitesData() {
     // Status filter — passed to data provider
     filters:
       filter.status !== 'all'
-        ? [{ field: 'enabled', operator: 'eq' as const, value: filter.status === 'active' }]
+        ? [{ field: 'isAiActive', operator: 'eq' as const, value: filter.status === 'active' }]
         : [],
     // Load all for now; add pagination later
     pagination: { pageSize: 100, currentPage: 1 },
@@ -81,22 +82,45 @@ export function useSitesData() {
   );
 
   const deleteSite = useCallback(
-    (siteId: string) => {
-      deleteSiteMutate({
-        resource: 'sites',
-        id: siteId,
-      });
+    (
+      siteId: string,
+      options?: { onSuccess?: () => void; onError?: (error: HttpError) => void },
+    ) => {
+      deleteSiteMutate(
+        {
+          resource: 'sites',
+          id: siteId,
+          successNotification: false,
+          errorNotification: false,
+        },
+        {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        },
+      );
     },
     [deleteSiteMutate],
   );
 
   const updateSiteData = useCallback(
-    (siteId: string, values: Partial<Site>) => {
-      updateSite({
-        resource: 'sites',
-        id: siteId,
-        values,
-      });
+    (
+      siteId: string,
+      values: Partial<Site>,
+      options?: { onSuccess?: () => void; onError?: (error: HttpError) => void },
+    ) => {
+      updateSite(
+        {
+          resource: 'sites',
+          id: siteId,
+          values,
+          successNotification: false,
+          errorNotification: false,
+        },
+        {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        },
+      );
     },
     [updateSite],
   );

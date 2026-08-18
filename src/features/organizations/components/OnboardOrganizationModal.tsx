@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, App } from 'antd';
-import { CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import { CopyOutlined, CheckOutlined, MailOutlined } from '@ant-design/icons';
 
 interface OnboardOrganizationModalProps {
   open: boolean;
@@ -13,7 +13,7 @@ interface OnboardOrganizationModalProps {
     notes?: string;
     adminName: string;
     email: string;
-  }) => Promise<{ initialPassword?: string }>;
+  }) => Promise<{ initialPassword?: string; activationEmailQueued?: boolean }>;
   isSubmitting?: boolean;
 }
 
@@ -37,6 +37,7 @@ export function OnboardOrganizationModal({
   const [form] = Form.useForm();
   const [isSlugTouched, setIsSlugTouched] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [activationEmailSent, setActivationEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const [internalLoading, setInternalLoading] = useState(false);
   const { message } = App.useApp();
@@ -71,6 +72,8 @@ export function OnboardOrganizationModal({
 
       if (res.initialPassword) {
         setCreatedPassword(res.initialPassword);
+      } else if (res.activationEmailQueued) {
+        setActivationEmailSent(true);
       } else {
         message.success('Organization onboarded successfully!');
         handleClose();
@@ -87,6 +90,7 @@ export function OnboardOrganizationModal({
     form.resetFields();
     setIsSlugTouched(false);
     setCreatedPassword(null);
+    setActivationEmailSent(false);
     setCopied(false);
     onCancel();
   };
@@ -158,12 +162,33 @@ export function OnboardOrganizationModal({
         </div>
       )}
 
+      {activationEmailSent && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <MailOutlined style={{ fontSize: 48, color: '#2563eb', marginBottom: 16 }} />
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 12px 0', color: '#111827' }}>
+            Organization Onboarded!
+          </h2>
+          <p style={{ color: '#4b5563', fontSize: 14, marginBottom: 24 }}>
+            The organization was created successfully. An invitation email has been sent to the
+            Admin Owner to activate their account.
+          </p>
+          <Button
+            type="primary"
+            onClick={handleClose}
+            size="large"
+            style={{ borderRadius: 8, background: '#2563eb' }}
+          >
+            Done
+          </Button>
+        </div>
+      )}
+
       <Form
         form={form}
         layout="vertical"
         onFinish={handleFinish}
         style={{
-          display: createdPassword ? 'none' : 'flex',
+          display: createdPassword || activationEmailSent ? 'none' : 'flex',
           flexDirection: 'column',
           height: '100%',
         }}

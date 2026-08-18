@@ -3,15 +3,17 @@ import type {
   KBDocument,
   VectorStorageStats,
   DocFileType,
-  CrawlerConfig,
   KBSettings,
 } from '../types/knowledge-base.types';
-import { initialCrawlerConfig, initialKBSettings } from '../mock/knowledgeBaseMockData';
 import {
   fetchSiteDocumentsApi,
   uploadSiteDocumentApi,
   deleteSiteDocumentApi,
   fetchKBStatsApi,
+  fetchKBSettingsApi,
+  updateKBSettingsApi,
+  reindexDocumentApi,
+  reindexOutdatedDocumentsApi,
 } from '../services/knowledge-base.api';
 import { useSession } from 'next-auth/react';
 import { useNotification } from '@/src/contexts/NotificationContext';
@@ -27,8 +29,18 @@ export function useKnowledgeBase(siteId: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [crawlerConfig] = useState<CrawlerConfig>(initialCrawlerConfig);
-  const [settings, setSettings] = useState<KBSettings>(initialKBSettings);
+  const [settings, setSettings] = useState<KBSettings>({
+    chunkSize: 800,
+    chunkOverlap: 100,
+    embeddingModel: 'text-embedding-3-small',
+    vectorStoreBackend: 'pgvector',
+    similarityThreshold: 0.5,
+    topKResults: 4,
+    outdatedDocumentsCount: 0,
+  });
+  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
+  const [isSettingsSaving, setIsSettingsSaving] = useState(false);
+  const [isBulkReindexing, setIsBulkReindexing] = useState(false);
 
   // Filters, Pagination & Sorting
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +116,9 @@ export function useKnowledgeBase(siteId: string) {
       setDocuments(res.documents);
       setTotalDocs(res.total);
       void refreshStats();
+      void fetchKBSettingsApi(siteId)
+        .then((liveSettings) => setSettings((current) => ({ ...current, ...liveSettings })))
+        .catch(() => undefined);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unable to load documents from backend';
       setError(msg);
@@ -112,6 +127,50 @@ export function useKnowledgeBase(siteId: string) {
       setIsLoading(false);
     }
   }, [siteId, page, limit, selectedType, debouncedSearchQuery, sortOption, refreshStats, message]);
+
+  const refreshSettings = useCallback(async () => {
+    if (!siteId) return;
+    setIsSettingsLoading(true);
+    try {
+      const liveSettings = await fetchKBSettingsApi(siteId);
+      setSettings((current) => ({
+        ...current,
+        ...liveSettings,
+        embeddingModel: 'text-embedding-3-small',
+        vectorStoreBackend: 'pgvector',
+      }));
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Unable to load KB settings');
+    } finally {
+      setIsSettingsLoading(false);
+    }
+  }, [siteId, message]);
+
+  useEffect(() => {
+    let ignore = false;
+    fetchKBSettingsApi(siteId)
+      .then((liveSettings) => {
+        if (!ignore) {
+          setSettings((current) => ({
+            ...current,
+            ...liveSettings,
+            embeddingModel: 'text-embedding-3-small',
+            vectorStoreBackend: 'pgvector',
+          }));
+        }
+      })
+      .catch((err: unknown) => {
+        if (!ignore) {
+          message.error(err instanceof Error ? err.message : 'Unable to load KB settings');
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsSettingsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [siteId, message]);
 
   useEffect(() => {
     let ignore = false;
@@ -171,10 +230,19 @@ export function useKnowledgeBase(siteId: string) {
       error?: string;
     }) => {
       if (payload && payload.documentId) {
-        if (payload.type === 'document-ready' || payload.status === 'ready') {
+        if (
+          payload.type === 'document-ready' ||
+          payload.type === 'document-reindex-ready' ||
+          payload.status === 'ready'
+        ) {
           message.destroy('processing_docs');
           void refreshDocuments();
-        } else if (payload.type === 'document-failed' || payload.status === 'failed') {
+          void refreshSettings();
+        } else if (
+          payload.type === 'document-failed' ||
+          payload.type === 'document-reindex-failed' ||
+          payload.status === 'failed'
+        ) {
           message.destroy('processing_docs');
           const fileNameStr = payload.filename ? `'${payload.filename}'` : 'Document';
           const errorMsgStr = payload.error ? `: ${payload.error}` : '';
@@ -189,7 +257,7 @@ export function useKnowledgeBase(siteId: string) {
     return () => {
       socket.off('document-status-changed', handleStatusChanged);
     };
-  }, [refreshDocuments, session?.accessToken, getSocket, message]);
+  }, [refreshDocuments, refreshSettings, session?.accessToken, getSocket, message]);
 
   // Actions connecting to Backend APIs
   const handleAddFile = async (files: File[]) => {
@@ -250,16 +318,47 @@ export function useKnowledgeBase(siteId: string) {
     }
   };
 
-  const handleAddUrl = (url: string) => {
-    if (!url.trim()) return;
-    message.info('URL ingest feature will be connected to the Crawler Service in the next phase.');
+  const saveSettings = async (nextSettings: KBSettings) => {
+    if (!siteId) return;
+    setIsSettingsSaving(true);
+    try {
+      const saved = await updateKBSettingsApi(siteId, {
+        chunkSize: nextSettings.chunkSize,
+        chunkOverlap: nextSettings.chunkOverlap,
+        similarityThreshold: nextSettings.similarityThreshold,
+        topKResults: nextSettings.topKResults,
+      });
+      setSettings((current) => ({ ...current, ...saved }));
+      message.success('Knowledge base settings saved');
+      await refreshDocuments();
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Unable to save KB settings');
+    } finally {
+      setIsSettingsSaving(false);
+    }
   };
 
-  const handleAddSitemap = (sitemapUrl: string) => {
-    if (!sitemapUrl.trim()) return;
-    message.info(
-      'Sitemap ingest feature will be connected to the Sitemap Crawler Service in the next phase.',
-    );
+  const reindexDocument = async (documentId: string) => {
+    try {
+      await reindexDocumentApi(siteId, documentId);
+      message.success('Document queued for re-indexing');
+      await refreshDocuments();
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Unable to re-index document');
+    }
+  };
+
+  const reindexAllOutdated = async () => {
+    setIsBulkReindexing(true);
+    try {
+      const result = await reindexOutdatedDocumentsApi(siteId);
+      message.success(`${result.queued} document(s) queued for re-indexing`);
+      await Promise.all([refreshDocuments(), refreshSettings()]);
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Unable to re-index documents');
+    } finally {
+      setIsBulkReindexing(false);
+    }
   };
 
   return {
@@ -269,9 +368,13 @@ export function useKnowledgeBase(siteId: string) {
     error,
     refreshDocuments,
     stats,
-    crawlerConfig,
     settings,
-    setSettings,
+    isSettingsLoading,
+    isSettingsSaving,
+    isBulkReindexing,
+    saveSettings,
+    reindexDocument,
+    reindexAllOutdated,
     searchQuery,
     setSearchQuery,
     selectedType,
@@ -288,8 +391,6 @@ export function useKnowledgeBase(siteId: string) {
     previewDoc,
     setPreviewDoc,
     handleAddFile,
-    handleAddUrl,
-    handleAddSitemap,
     handleDeleteDocument,
   };
 }

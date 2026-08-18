@@ -6,11 +6,14 @@ import type { Site } from '@/src/features/sites/types/site.types';
 import { getSiteDetailInfo } from '@/src/features/sites/mock/sitesDetailMockData';
 import { SiteDetailHeader } from '@/src/features/sites/components/detail/SiteDetailHeader';
 import { SiteDetailStats } from '@/src/features/sites/components/detail/SiteDetailStats';
+import { TabConfiguration } from '@/src/features/sites/components/configuration/TabConfiguration';
 import { TabPreview } from '@/src/features/sites/components/detail/TabPreview';
 import { TabTestChatbot } from '@/src/features/sites/components/detail/TabTestChatbot';
 import { TabConversations } from '@/src/features/sites/components/detail/TabConversations';
 import { TabKnowledgeBase } from '@/src/features/sites/components/detail/TabKnowledgeBase';
 import { TabAgentManagement } from '@/src/features/sites/components/detail/TabAgentManagement';
+import { TabBooking } from '@/src/features/sites/components/detail/TabBooking';
+import { TabTimeoutSettings } from '@/src/features/sites/components/detail/TabTimeoutSettings';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useLiveChats } from '@/src/features/live-chats/hooks/useLiveChats';
 import '@/src/features/sites/components/detail/sites-detail.css';
@@ -18,12 +21,19 @@ import '@/src/features/sites/components/detail/sites-detail.css';
 interface PageProps {
   params: Promise<{ id: string }>;
 }
-
-type TabKey = 'preview' | 'test' | 'conversations' | 'knowledge-base' | 'agents';
+type TabKey =
+  | 'configuration'
+  | 'preview'
+  | 'test'
+  | 'timeout-settings'
+  | 'conversations'
+  | 'knowledge-base'
+  | 'agents'
+  | 'booking';
 
 export default function SiteDetailPage({ params }: PageProps) {
   const { id: siteId } = use(params);
-  const [activeTab, setActiveTab] = useState<TabKey>('preview');
+  const [activeTab, setActiveTab] = useState<TabKey>('configuration');
   const { isSuperAdmin, isAdmin } = useCurrentRole();
   const canManage = isSuperAdmin || isAdmin;
 
@@ -37,7 +47,7 @@ export default function SiteDetailPage({ params }: PageProps) {
   const isLoading = query.isLoading;
 
   // Fetch real live chat data
-  const { conversations, stats: chatStats } = useLiveChats(siteId);
+  const { stats: chatStats } = useLiveChats(siteId);
 
   if (isLoading) {
     return (
@@ -85,8 +95,18 @@ export default function SiteDetailPage({ params }: PageProps) {
       {/* Stats row */}
       <SiteDetailStats stats={detailInfo} />
 
-      {/* Tab Switcher */}
+      {/* Tab Switcher Nav */}
       <div className="site-detail-tabs-nav" role="tablist">
+        {canManage && (
+          <button
+            className={`site-detail-tab-btn ${activeTab === 'configuration' ? 'active' : ''}`}
+            onClick={() => setActiveTab('configuration')}
+            role="tab"
+            aria-selected={activeTab === 'configuration'}
+          >
+            Configuration
+          </button>
+        )}
         <button
           className={`site-detail-tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
           onClick={() => setActiveTab('preview')}
@@ -113,6 +133,16 @@ export default function SiteDetailPage({ params }: PageProps) {
         </button>
         {canManage && (
           <button
+            className={`site-detail-tab-btn ${activeTab === 'timeout-settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('timeout-settings')}
+            role="tab"
+            aria-selected={activeTab === 'timeout-settings'}
+          >
+            Timeout Settings
+          </button>
+        )}
+        {canManage && (
+          <button
             className={`site-detail-tab-btn ${activeTab === 'knowledge-base' ? 'active' : ''}`}
             onClick={() => setActiveTab('knowledge-base')}
             role="tab"
@@ -131,14 +161,32 @@ export default function SiteDetailPage({ params }: PageProps) {
             Agent Management
           </button>
         )}
+        {canManage && (
+          <button
+            className={`site-detail-tab-btn ${activeTab === 'booking' ? 'active' : ''}`}
+            onClick={() => setActiveTab('booking')}
+            role="tab"
+            aria-selected={activeTab === 'booking'}
+          >
+            Booking Settings
+          </button>
+        )}
       </div>
 
       {/* Tab Body */}
       <div className="site-detail-tab-body">
+        {activeTab === 'configuration' && canManage && (
+          <TabConfiguration key={site.id} site={site} />
+        )}
         {activeTab === 'preview' && <TabPreview key={site.id} siteId={site.id} />}
-        {activeTab === 'test' && <TabTestChatbot key={site.id} stats={detailInfo} />}
+        {activeTab === 'test' && (
+          <TabTestChatbot key={site.id} siteId={site.id} stats={detailInfo} />
+        )}
         {activeTab === 'conversations' && (
           <TabConversations key={site.id} siteId={site.id} siteName={site.name} />
+        )}
+        {activeTab === 'timeout-settings' && canManage && (
+          <TabTimeoutSettings key={site.id} site={site} />
         )}
         {activeTab === 'knowledge-base' && canManage && (
           <TabKnowledgeBase key={site.id} site={site} />
@@ -146,6 +194,7 @@ export default function SiteDetailPage({ params }: PageProps) {
         {activeTab === 'agents' && canManage && (
           <TabAgentManagement key={site.id} siteId={site.id} siteName={site.name} />
         )}
+        {activeTab === 'booking' && canManage && <TabBooking key={site.id} site={site} />}
       </div>
     </div>
   );

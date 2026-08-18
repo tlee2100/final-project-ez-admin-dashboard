@@ -7,6 +7,7 @@ export enum NotificationType {
   BOOKING_CANCELLED = 'BOOKING_CANCELLED',
   SYSTEM = 'SYSTEM',
   NEW_MESSAGE = 'NEW_MESSAGE',
+  NEGATIVE_SENTIMENT = 'NEGATIVE_SENTIMENT',
 }
 
 export interface NotificationItem {
