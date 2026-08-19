@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Tooltip } from 'antd';
 
-import type { BookingRecord } from '../types/booking.types';
+import type { BookingRecord, BlockoutRecord } from '../types/booking.types';
 
 interface BookingCalendarViewProps {
   data: BookingRecord[];
@@ -15,6 +15,9 @@ interface BookingCalendarViewProps {
   onEmptySlotClick?: (staffId: string, time: string) => void;
   selectedDate: dayjs.Dayjs;
   holdingSlots?: { resourceId?: string; startAt: string; endAt: string }[];
+  bookingEnabled?: boolean;
+  blockouts?: BlockoutRecord[];
+  onDeleteBlockout?: (blockout: BlockoutRecord) => void;
 }
 
 export function BookingCalendarView({
@@ -28,6 +31,9 @@ export function BookingCalendarView({
   onBookingClick,
   onEmptySlotClick,
   holdingSlots = [],
+  bookingEnabled = true,
+  blockouts = [],
+  onDeleteBlockout,
 }: BookingCalendarViewProps) {
   const now = dayjs();
   const currentDayOfWeek = selectedDate.day() === 0 ? 7 : selectedDate.day();
@@ -239,8 +245,82 @@ export function BookingCalendarView({
                       (() => {
                         const [slotHour, slotMin] = time.split(':').map(Number);
                         const slotDateTime = selectedDate.clone().hour(slotHour).minute(slotMin);
+                        const slotEndDateTime = slotDateTime.clone().add(slotDuration, 'minute');
                         const isPastSlot = isPastDate || (isToday && slotDateTime.isBefore(now));
-                        const isUnavailable = isPastSlot || isInactiveDay;
+                        const isUnavailable = !bookingEnabled || isPastSlot || isInactiveDay;
+
+                        // Check if this slot overlaps with an active blockout
+                        const activeBlockout = blockouts.find((bo) => {
+                          const boStart = dayjs(bo.startAt);
+                          const boEnd = dayjs(bo.endAt);
+                          const matchesResource = !bo.resourceId || bo.resourceId === s.id;
+                          return (
+                            matchesResource &&
+                            slotDateTime.isBefore(boEnd) &&
+                            slotEndDateTime.isAfter(boStart)
+                          );
+                        });
+
+                        if (activeBlockout) {
+                          const isWholeSalon = !activeBlockout.resourceId;
+                          return (
+                            <Tooltip
+                              title={
+                                <div>
+                                  <div style={{ fontWeight: 600 }}>🔒 Blocked Time</div>
+                                  <div>
+                                    {activeBlockout.reason ||
+                                      (isWholeSalon ? 'Entire Salon Closed' : `${s.name} on Leave`)}
+                                  </div>
+                                  <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }}>
+                                    {dayjs(activeBlockout.startAt).format('DD/MM HH:mm')} -{' '}
+                                    {dayjs(activeBlockout.endAt).format('DD/MM HH:mm')}
+                                  </div>
+                                  {onDeleteBlockout && (
+                                    <div
+                                      style={{
+                                        marginTop: 6,
+                                        color: '#f87171',
+                                        fontWeight: 600,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      Click to remove blockout ✕
+                                    </div>
+                                  )}
+                                </div>
+                              }
+                            >
+                              <div
+                                onClick={() => onDeleteBlockout && onDeleteBlockout(activeBlockout)}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#fee2e2',
+                                  border: '1px dashed #f87171',
+                                  borderRadius: 4,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 4,
+                                  cursor: onDeleteBlockout ? 'pointer' : 'not-allowed',
+                                  color: '#991b1b',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  padding: '0 4px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <span>🔒</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {activeBlockout.reason || (isWholeSalon ? 'Closed' : 'Leave')}
+                                </span>
+                              </div>
+                            </Tooltip>
+                          );
+                        }
 
                         // Check if this specific slot is currently being held
                         const isHolding = holdingSlots.some((hold) => {
@@ -277,9 +357,11 @@ export function BookingCalendarView({
                         return isUnavailable ? (
                           <Tooltip
                             title={
-                              isInactiveDay
-                                ? 'Staff not available on this day'
-                                : 'Cannot book in the past'
+                              !bookingEnabled
+                                ? 'Booking is disabled for this site'
+                                : isInactiveDay
+                                  ? 'Staff not available on this day'
+                                  : 'Cannot book in the past'
                             }
                           >
                             <div

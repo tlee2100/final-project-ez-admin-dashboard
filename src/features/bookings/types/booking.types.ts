@@ -40,3 +40,34 @@ export interface BookingConfig {
   serviceDetails?: { id: string; name: string }[];
   [key: string]: unknown;
 }
+
+export interface BlockoutRecord {
+  id: string;
+  siteId: string;
+  resourceId?: string | null;
+  resource?: { id: string; name: string } | null;
+  startAt: string;
+  endAt: string;
+  reason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+export interface ManualBookingFormData {
+  date: { format: (formatStr: string) => string };
+  timeSlot: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  serviceId: string;
+  staffId: string;
+  notes?: string;
+}
+
+export interface CreateBlockoutFormData {
+  resourceId?: string | null;
+  startAt: string;
+  endAt: string;
+  reason?: string | null;
+}

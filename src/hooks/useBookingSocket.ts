@@ -33,6 +33,16 @@ export function useBookingSocket({
     return `${resourceId}_${startAt}_${endAt}`;
   };
 
+  const onSlotHeldRef = useRef(onSlotHeld);
+  const onSlotConfirmedRef = useRef(onSlotConfirmed);
+  const onSlotReleasedRef = useRef(onSlotReleased);
+
+  useEffect(() => {
+    onSlotHeldRef.current = onSlotHeld;
+    onSlotConfirmedRef.current = onSlotConfirmed;
+    onSlotReleasedRef.current = onSlotReleased;
+  }, [onSlotHeld, onSlotConfirmed, onSlotReleased]);
+
   const connect = useCallback(() => {
     if (!enabled || !siteId) return;
     const token = session?.accessToken;
@@ -47,7 +57,7 @@ export function useBookingSocket({
     socket.on(
       'booking_slot_held',
       (data: { resourceId: string; startAt: string; endAt: string }) => {
-        onSlotHeld(data);
+        onSlotHeldRef.current(data);
 
         // Implement the Frontend Local Timeout workaround
         const key = getSlotKey(data.startAt, data.endAt, data.resourceId);
@@ -56,7 +66,7 @@ export function useBookingSocket({
         }
 
         const timeout = setTimeout(() => {
-          onSlotReleased(data);
+          onSlotReleasedRef.current(data);
           timeoutRefs.current.delete(key);
         }, 600 * 1000); // 10 minutes
 
@@ -67,7 +77,7 @@ export function useBookingSocket({
     socket.on(
       'booking_slot_confirmed',
       (data: { resourceId: string; startAt: string; endAt: string }) => {
-        onSlotConfirmed(data);
+        onSlotConfirmedRef.current(data);
         const key = getSlotKey(data.startAt, data.endAt, data.resourceId);
         if (timeoutRefs.current.has(key)) {
           clearTimeout(timeoutRefs.current.get(key));
@@ -79,7 +89,7 @@ export function useBookingSocket({
     socket.on(
       'booking_slot_released',
       (data: { resourceId: string; startAt: string; endAt: string }) => {
-        onSlotReleased(data);
+        onSlotReleasedRef.current(data);
         const key = getSlotKey(data.startAt, data.endAt, data.resourceId);
         if (timeoutRefs.current.has(key)) {
           clearTimeout(timeoutRefs.current.get(key));
@@ -102,7 +112,7 @@ export function useBookingSocket({
     });
 
     socketRef.current = socket;
-  }, [enabled, siteId, session?.accessToken, onSlotHeld, onSlotConfirmed, onSlotReleased]);
+  }, [enabled, siteId, session?.accessToken]);
 
   const disconnect = useCallback(() => {
     socketRef.current?.off('booking_slot_held');

@@ -9,6 +9,16 @@ interface UseBookingManagerOptions {
   onBookingConfirmed: () => void;
 }
 
+const isMatchingSlot = (
+  a: { resourceId?: string; startAt: string; endAt: string },
+  b: { resourceId?: string; startAt: string; endAt: string },
+) => {
+  const sameResource = (a.resourceId || '') === (b.resourceId || '');
+  const sameStart = new Date(a.startAt).getTime() === new Date(b.startAt).getTime();
+  const sameEnd = new Date(a.endAt).getTime() === new Date(b.endAt).getTime();
+  return sameResource && sameStart && sameEnd;
+};
+
 export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBookingManagerOptions) {
   const [sessionId] = useState<string>(() => crypto.randomUUID());
 
@@ -43,40 +53,17 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     enabled: !!activeSiteId,
     onSlotHeld: (slot) => {
       setHoldingSlots((prev) => {
-        const exists = prev.some(
-          (s) =>
-            s.startAt === slot.startAt &&
-            s.endAt === slot.endAt &&
-            s.resourceId === slot.resourceId,
-        );
+        const exists = prev.some((s) => isMatchingSlot(s, slot));
         if (exists) return prev;
         return [...prev, { ...slot, status: 'HOLDING' as const }];
       });
     },
     onSlotConfirmed: (slot) => {
-      setHoldingSlots((prev) =>
-        prev.filter(
-          (s) =>
-            !(
-              s.startAt === slot.startAt &&
-              s.endAt === slot.endAt &&
-              s.resourceId === slot.resourceId
-            ),
-        ),
-      );
+      setHoldingSlots((prev) => prev.filter((s) => !isMatchingSlot(s, slot)));
       onBookingConfirmed();
     },
     onSlotReleased: (slot) => {
-      setHoldingSlots((prev) =>
-        prev.filter(
-          (s) =>
-            !(
-              s.startAt === slot.startAt &&
-              s.endAt === slot.endAt &&
-              s.resourceId === slot.resourceId
-            ),
-        ),
-      );
+      setHoldingSlots((prev) => prev.filter((s) => !isMatchingSlot(s, slot)));
     },
   });
 
@@ -86,10 +73,7 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     // If already holding a different slot, release the old one first
     if (currentHoldRef.current) {
       const oldHold = currentHoldRef.current;
-      const isSameSlot =
-        oldHold.resourceId === (slot.resourceId || '') &&
-        oldHold.startAt === slot.startAt &&
-        oldHold.endAt === slot.endAt;
+      const isSameSlot = isMatchingSlot(oldHold, slot);
 
       if (!isSameSlot) {
         await handleReleaseHold();
@@ -113,6 +97,19 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
         endAt: slot.endAt,
       };
 
+      // Optimistically add to local holdingSlots immediately
+      const newHoldSlot: AvailableSlot = {
+        resourceId: slot.resourceId || '',
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: 'HOLDING',
+      };
+      setHoldingSlots((prev) => {
+        const exists = prev.some((s) => isMatchingSlot(s, newHoldSlot));
+        if (exists) return prev;
+        return [...prev, newHoldSlot];
+      });
+
       const expiry = new Date();
       expiry.setMinutes(expiry.getMinutes() + 10);
       setHoldExpiry(expiry);
@@ -130,6 +127,9 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
 
     currentHoldRef.current = null;
     setHoldExpiry(null);
+
+    // Optimistically remove from holdingSlots immediately
+    setHoldingSlots((prev) => prev.filter((s) => !isMatchingSlot(s, hold)));
 
     try {
       await apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, DatePicker, Button, Typography, Spin } from 'antd';
 import dayjs from 'dayjs';
-import { AvailableSlot } from '../types/booking.types';
+import { AvailableSlot, ManualBookingFormData } from '../types/booking.types';
 
 const { Title, Text } = Typography;
 
 interface ManualBookingModalProps {
   open: boolean;
   onCancel: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSuccess: (bookingData: any) => boolean | void | Promise<boolean | void>;
+  onSuccess: (bookingData: ManualBookingFormData) => boolean | void | Promise<boolean | void>;
   siteId: string;
   siteServices: { id: string; name: string }[];
   siteStaff: { id: string; name: string }[];
