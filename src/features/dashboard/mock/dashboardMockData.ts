@@ -88,14 +88,10 @@ export const mockDashboardData: DashboardData = {
     ],
   },
 
-  userFeedback: {
-    excellent: 55,
-    good: 38,
-    average: 18,
-    poor: 10,
-    noRating: 5,
-    averageScore: 4.2,
-  },
+  userFeedback: [
+    { label: 'Helpful', value: 85, color: '#10b981' },
+    { label: 'Not Helpful', value: 15, color: '#ef4444' },
+  ],
 
   recentActivity: [
     {

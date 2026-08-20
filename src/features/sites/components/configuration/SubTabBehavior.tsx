@@ -107,11 +107,11 @@ export function SubTabBehavior({ site, onSave }: SubTabBehaviorProps) {
           <div className="rate-limit-box">
             <span className="rate-limit-label">LLM Model</span>
             <Select
-              value={site.llmModel || 'deepseek-v4-flash'}
+              value={site.llmModel || 'qwen3.7-flash'}
               disabled
               style={{ width: '100%', marginTop: 4 }}
               options={[
-                { value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
+                { value: 'qwen3.7-flash', label: 'qwen3.7-flash' },
                 { value: 'gpt-4o', label: 'GPT-4o' },
               ]}
             />

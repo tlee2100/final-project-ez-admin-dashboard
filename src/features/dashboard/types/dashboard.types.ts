@@ -28,14 +28,13 @@ export interface ContainmentData {
   agentHandoff: number;
 }
 
-export interface UserFeedbackData {
-  excellent: number;
-  good: number;
-  average: number;
-  poor: number;
-  noRating: number;
-  averageScore: number;
+export interface UserFeedbackItem {
+  label: string;
+  value: number;
+  color?: string;
 }
+
+export type UserFeedbackData = UserFeedbackItem[];
 
 export interface ActivityItem {
   id: string;
