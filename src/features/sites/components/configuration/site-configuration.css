@@ -215,26 +215,40 @@
 }
 
 .api-key-input-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .api-key-input-label {
-  font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
 }
 
 .api-key-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.api-key-input-wrapper:focus-within {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .api-key-input {
@@ -242,13 +256,20 @@
   background: transparent;
   border: none;
   outline: none;
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 14px;
-  color: #111827;
+  color: #0f172a;
 }
 
 .api-key-input::placeholder {
-  color: #9ca3af;
+  color: #94a3b8;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
 .security-alert-box {
