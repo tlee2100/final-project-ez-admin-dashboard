@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  UndoOutlined,
-  CheckSquareOutlined,
-  BorderOutlined,
-  ExperimentOutlined,
-} from '@ant-design/icons';
+import { CheckSquareOutlined, BorderOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { apiRequest, API_BASE_URL } from '@/src/lib/api.client';
 import type { SiteDetailInfo, MockKBFile } from '../../mock/sitesDetailMockData';
 
@@ -25,8 +20,6 @@ interface KBResponse {
 }
 
 export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
-  // Session key for resetting iframe sandbox
-  const [sessionKey, setSessionKey] = useState<number>(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Real KB state
@@ -43,30 +36,27 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
           const docs: MockKBFile[] = response.data.map((doc) => ({
             name: doc.filename,
             size: `${(doc.fileSizeBytes / 1024).toFixed(1)} KB`,
-            type: doc.fileType,
+            type: doc.fileType?.toUpperCase() || 'TXT',
           }));
           setKbDocuments(docs);
           setSelectedKB(docs.map((d) => d.name));
         }
-      } catch (err) {
-        console.error('Failed to fetch KB documents:', err);
+      } catch {
+        // Fallback to stats if fetch fails
         if (isMounted) {
-          setKbDocuments(stats.kbDocuments);
-          setSelectedKB(stats.kbDocuments.map((d) => d.name));
+          const fallbackDocs: MockKBFile[] = stats.kbDocuments || [];
+          setKbDocuments(fallbackDocs);
+          setSelectedKB(fallbackDocs.map((d) => d.name));
         }
       }
     };
-    void fetchDocuments();
+
+    fetchDocuments();
+
     return () => {
       isMounted = false;
     };
   }, [siteId, stats.kbDocuments]);
-
-  const handleResetConversation = useCallback(() => {
-    // Post reset message to iframe widget or refresh session key
-    iframeRef.current?.contentWindow?.postMessage({ type: 'EZ_CHAT_RESET' }, '*');
-    setSessionKey((prev) => prev + 1);
-  }, []);
 
   const handleSendSampleQuestion = useCallback((question: string) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -80,9 +70,7 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
   const backendBaseUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '').replace(/\/api\/?$/, '');
   const iframeSrc = `${chatWidgetUrl}/?siteId=${encodeURIComponent(
     siteId,
-  )}&backendUrl=${encodeURIComponent(
-    backendBaseUrl,
-  )}&testMode=true&openDefault=true&t=${sessionKey}`;
+  )}&backendUrl=${encodeURIComponent(backendBaseUrl)}&testMode=true&openDefault=true`;
 
   return (
     <div className="test-chatbot-container">
@@ -96,16 +84,12 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
               Sandbox Mode (Embedded Widget • Zero DB)
             </span>
           </div>
-          <button className="test-chat-reset-btn" onClick={handleResetConversation} type="button">
-            <UndoOutlined /> Reset Conversation
-          </button>
         </div>
 
         {/* Embedded Chat Widget Iframe */}
         <div className="test-chat-iframe-container">
           <iframe
             ref={iframeRef}
-            key={sessionKey}
             src={iframeSrc}
             title="Chatbot Test Sandbox"
             className="test-chat-iframe"
