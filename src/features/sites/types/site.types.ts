@@ -64,6 +64,12 @@ export interface Site {
   memorySummarization?: boolean;
   sentimentDetection?: boolean;
   llmModel?: string;
+
+  // BYOK — Bring Your Own Key (SEC-001 / CE-004)
+  /** True when the site is actively using its custom OpenAI key */
+  useCustomOpenAiKey?: boolean;
+  /** True when the site has an encrypted custom key stored in the database */
+  hasCustomApiKey?: boolean;
   industryTemplateId?: string;
 }
 
