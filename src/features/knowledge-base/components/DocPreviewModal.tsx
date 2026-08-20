@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CloseOutlined,
   FileTextOutlined,
@@ -17,12 +17,8 @@ import {
   FontSizeOutlined,
 } from '@ant-design/icons';
 import { Tag, Spin, Tooltip, message, Segmented } from 'antd';
-import type {
-  KBDocument,
-  DocumentChunkItem,
-  DocumentChunksResponse,
-} from '../types/knowledge-base.types';
-import { fetchDocumentChunksApi } from '../services/knowledge-base.api';
+import type { KBDocument, DocumentChunksResponse } from '../types/knowledge-base.types';
+import { useCustom } from '@refinedev/core';
 
 interface DocPreviewModalProps {
   doc: KBDocument | null;
@@ -31,54 +27,28 @@ interface DocPreviewModalProps {
 }
 
 export function DocPreviewModal({ doc, siteId, onClose }: DocPreviewModalProps) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [docDetail, setDocDetail] = useState<DocumentChunksResponse['document'] | null>(null);
-  const [chunks, setChunks] = useState<DocumentChunkItem[]>([]);
+  const { query } = useCustom<DocumentChunksResponse>({
+    url: doc && siteId ? `/sites/${siteId}/kb/sources/${doc.id}/chunks` : '',
+    method: 'get',
+    queryOptions: {
+      enabled: !!siteId && !!doc?.id,
+    },
+  });
+
+  const loading = query.isLoading && query.isFetching;
+  const error =
+    query.error instanceof Error ? query.error.message : query.error ? String(query.error) : null;
+  const docDetail = query.data?.data?.document || null;
+  const chunks = query.data?.data?.chunks;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'content' | 'original'>('content');
 
-  useEffect(() => {
-    if (!doc || !siteId) return;
-
-    let isMounted = true;
-
-    const fetchContent = () => {
-      setLoading(true);
-      setError(null);
-
-      fetchDocumentChunksApi(siteId, doc.id)
-        .then((res) => {
-          if (isMounted) {
-            setChunks(res.chunks || []);
-            setDocDetail(res.document);
-          }
-        })
-        .catch((err: unknown) => {
-          if (isMounted) {
-            const msg = err instanceof Error ? err.message : 'Failed to fetch document content';
-            setError(msg);
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setLoading(false);
-          }
-        });
-    };
-
-    fetchContent();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [doc, siteId]);
-
   // Reconstruct the full document content from all chunks in order
   const fullDocumentText = useMemo(() => {
-    if (!chunks.length) return '';
-    return chunks
+    if (!chunks || !chunks.length) return '';
+    return [...chunks]
       .sort((a, b) => a.chunkIndex - b.chunkIndex)
       .map((c) => c.content)
       .join('\n\n');

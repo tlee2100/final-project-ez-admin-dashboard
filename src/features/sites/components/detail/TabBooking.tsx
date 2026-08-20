@@ -19,8 +19,11 @@ import {
   InputNumber,
   Modal,
 } from 'antd';
-import { WarningOutlined } from '@ant-design/icons';
+import { WarningOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiRequest } from '@/src/lib/api.client';
+import { CreateBlockoutModal } from '@/src/features/bookings/components/CreateBlockoutModal';
+import { useBlockouts } from '@/src/features/bookings/hooks/useBlockouts';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -72,38 +75,44 @@ export function TabBooking({ site }: TabBookingProps) {
   ]);
   const daysOptions = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        setLoading(true);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = await apiRequest<any>(`/admin/sites/${site.id}/bookings/booking-config`);
+  const [resourceDetails, setResourceDetails] = useState<{ id: string; name: string }[]>([]);
+  const [isBlockoutModalOpen, setIsBlockoutModalOpen] = useState(false);
+  const { blockouts, handleCreateBlockout, confirmDeleteBlockout } = useBlockouts(site.id);
 
-        setBookingEnabled(data.bookingEnabled);
-        setIndustryTemplate(data.industryTemplate || 'salon');
-        setTimezone(data.timezone || 'Asia/Ho_Chi_Minh');
-        const savedDuration = String(data.slotDuration || 30);
-        setSlotDuration(savedDuration);
-        setOriginalSlotDuration(savedDuration);
-        setStartTime(data.startTime || '09:00');
-        setEndTime(data.endTime || '20:00');
+  const fetchConfig = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await apiRequest<any>(`/admin/sites/${site.id}/bookings/booking-config`);
 
-        const dayStrings = (data.availableDays || [1, 2, 3, 4, 5, 6]).map(
-          (d: number) => DAYS_MAP[d - 1],
-        );
-        setAvailableDays(dayStrings);
+      setBookingEnabled(data.bookingEnabled);
+      setIndustryTemplate(data.industryTemplate || 'salon');
+      setTimezone(data.timezone || 'Asia/Ho_Chi_Minh');
+      const savedDuration = String(data.slotDuration || 30);
+      setSlotDuration(savedDuration);
+      setOriginalSlotDuration(savedDuration);
+      setStartTime(data.startTime || '09:00');
+      setEndTime(data.endTime || '20:00');
 
-        setServices(data.services || []);
-        setStaff(data.resources || []);
-      } catch (error: unknown) {
-        message.error('Failed to load booking configuration');
-      } finally {
-        setLoading(false);
-      }
-    };
+      const dayStrings = (data.availableDays || [1, 2, 3, 4, 5, 6]).map(
+        (d: number) => DAYS_MAP[d - 1],
+      );
+      setAvailableDays(dayStrings);
 
-    fetchConfig();
+      setServices(data.services || []);
+      setStaff(data.resources || []);
+      setResourceDetails(data.resourceDetails || []);
+    } catch {
+      message.error('Failed to load booking configuration');
+    } finally {
+      setLoading(false);
+    }
   }, [site.id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchConfig();
+  }, [fetchConfig]);
 
   const handleAddService = () => {
     if (newService.trim() && !services.includes(newService.trim())) {
@@ -434,29 +443,152 @@ export function TabBooking({ site }: TabBookingProps) {
           </div>
         </div>
 
-        <Divider style={{ margin: '8px 0' }} />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <Button
+        {/* Block-Out Times & Staff Leave */}
+        <Divider style={{ margin: '24px 0 16px 0' }} />
+        <div>
+          <div
             style={{
-              height: 40,
-              padding: '0 24px',
-              background: '#f3f4f6',
-              border: 'none',
-              fontWeight: 500,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 16,
             }}
           >
-            Cancel
-          </Button>
-          <Button
-            type="primary"
-            loading={saving}
-            onClick={handleSave}
-            style={{ height: 40, padding: '0 24px', background: '#2563eb', fontWeight: 500 }}
-          >
-            Save Configuration
-          </Button>
+            <div>
+              <Title level={5} style={{ fontSize: 14, margin: '0 0 4px 0' }}>
+                🔒 Block-Out Times & Staff Leave
+              </Title>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Mark specific dates or hours as unavailable (holidays, closures, or staff leave).
+              </Text>
+            </div>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={() => setIsBlockoutModalOpen(true)}
+              style={{
+                borderRadius: 8,
+                borderColor: '#fca5a5',
+                color: '#dc2626',
+                background: '#fff5f5',
+                fontWeight: 500,
+              }}
+            >
+              Add Block-Out
+            </Button>
+          </div>
+
+          {blockouts.length === 0 ? (
+            <div
+              style={{
+                padding: '20px',
+                background: '#f9fafb',
+                borderRadius: 8,
+                border: '1px dashed #e5e7eb',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: 13,
+              }}
+            >
+              No active block-outs configured for this site. Click <strong>Add Block-Out</strong> to
+              block dates or hours.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {blockouts.map((b) => {
+                const isWholeSalon = !b.resourceId;
+                const startDay = dayjs(b.startAt);
+                const endDay = dayjs(b.endAt);
+                const isAllDay =
+                  startDay.format('HH:mm') === '00:00' &&
+                  (endDay.format('HH:mm') === '23:59' || endDay.format('HH:mm') === '00:00');
+                const dateDisplay = isAllDay
+                  ? `${startDay.format('DD/MM/YYYY')} (Full Day)`
+                  : `${startDay.format('DD/MM/YYYY HH:mm')} - ${endDay.format('DD/MM/YYYY HH:mm')}`;
+
+                return (
+                  <div
+                    key={b.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: '#fef2f2',
+                      border: '1px solid #fee2e2',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 18 }}>🔒</span>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#991b1b' }}>
+                          {b.reason || (isWholeSalon ? 'Entire Salon Closure' : 'Staff Leave')}
+                          <Tag
+                            color={isWholeSalon ? 'red' : 'purple'}
+                            style={{ marginLeft: 8, fontSize: 11, borderRadius: 10 }}
+                          >
+                            {isWholeSalon ? 'Entire Salon' : b.resource?.name || 'Staff'}
+                          </Tag>
+                        </div>
+                        <div
+                          style={{ fontSize: 12, color: '#7f1d1d', opacity: 0.85, marginTop: 2 }}
+                        >
+                          {dateDisplay}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => confirmDeleteBlockout(b)}
+                      style={{ color: '#ef4444' }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+      </div>
+
+      <CreateBlockoutModal
+        open={isBlockoutModalOpen}
+        onCancel={() => setIsBlockoutModalOpen(false)}
+        onSubmit={async (data) => {
+          const success = await handleCreateBlockout(data);
+          if (success) setIsBlockoutModalOpen(false);
+          return success;
+        }}
+        siteStaff={resourceDetails}
+      />
+
+      <Divider style={{ margin: '24px 0 16px 0' }} />
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        <Button
+          onClick={fetchConfig}
+          disabled={saving}
+          style={{
+            height: 40,
+            padding: '0 24px',
+            background: '#f3f4f6',
+            border: 'none',
+            fontWeight: 500,
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="primary"
+          loading={saving}
+          onClick={handleSave}
+          style={{ height: 40, padding: '0 24px', background: '#2563eb', fontWeight: 500 }}
+        >
+          Save Configuration
+        </Button>
       </div>
       <style>{`
         .custom-select-bg .ant-select-selector {

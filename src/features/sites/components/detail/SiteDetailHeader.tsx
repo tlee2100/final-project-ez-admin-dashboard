@@ -25,11 +25,17 @@ export function SiteDetailHeader({ site }: SiteDetailHeaderProps) {
   const widgetScriptUrl =
     process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL ||
     'https://widget.intern2026.zodinet.tech/ez-chat-widget.js';
+  const widgetScriptVersion = process.env.NEXT_PUBLIC_WIDGET_VERSION || '20260819';
 
-  const embedCode = useMemo(
-    () => `<script src="${widgetScriptUrl}" data-site-id="${site.id}"></script>`,
-    [site.id, widgetScriptUrl],
-  );
+  const embedCode = useMemo(() => {
+    const versionedWidgetScriptUrl = /[?&]v=/.test(widgetScriptUrl)
+      ? widgetScriptUrl
+      : `${widgetScriptUrl}${widgetScriptUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(
+          widgetScriptVersion,
+        )}`;
+
+    return `<script src="${versionedWidgetScriptUrl}" data-site-id="${site.id}"></script>`;
+  }, [site.id, widgetScriptUrl, widgetScriptVersion]);
 
   const handleCopy = async () => {
     try {

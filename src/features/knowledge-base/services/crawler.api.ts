@@ -1,3 +1,4 @@
+import { useDataProvider } from '@refinedev/core';
 import type {
   CrawlerConfigDto,
   CrawlerOverviewDto,
@@ -6,78 +7,112 @@ import type {
   CrawlRunItemStatus,
   CrawlRunPageDto,
 } from '../types/knowledge-base.types';
-import { kbApiRequest } from './knowledge-base.api';
 
-export function fetchCrawlerOverviewApi(siteId: string) {
-  return kbApiRequest<CrawlerOverviewDto>(`/sites/${siteId}/kb/crawler`, {
-    method: 'GET',
-  });
-}
+export function useCrawlerApi() {
+  const dataProvider = useDataProvider();
 
-export function updateCrawlerConfigApi(
-  siteId: string,
-  payload: { sitemapUrl: string; autoSyncEnabled: boolean },
-) {
-  return kbApiRequest<CrawlerConfigDto>(`/sites/${siteId}/kb/crawler`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-}
+  const fetchCrawlerOverviewApi = async (siteId: string) => {
+    const { data } = await dataProvider().custom!<CrawlerOverviewDto>({
+      url: `/sites/${siteId}/kb/crawler`,
+      method: 'get',
+    });
+    return data;
+  };
 
-export function startSitemapCrawlApi(siteId: string) {
-  return kbApiRequest<{ runId: string; status: string }>(`/sites/${siteId}/kb/crawl`, {
-    method: 'POST',
-  });
-}
+  const updateCrawlerConfigApi = async (
+    siteId: string,
+    payload: { sitemapUrl: string; autoSyncEnabled: boolean },
+  ) => {
+    const { data } = await dataProvider().custom!<CrawlerConfigDto>({
+      url: `/sites/${siteId}/kb/crawler`,
+      method: 'put',
+      payload,
+    });
+    return data;
+  };
 
-export function ingestUrlApi(siteId: string, url: string) {
-  return kbApiRequest<{ runId: string; status: string }>(`/sites/${siteId}/kb/upload/url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  });
-}
+  const startSitemapCrawlApi = async (siteId: string) => {
+    const { data } = await dataProvider().custom!<{ runId: string; status: string }>({
+      url: `/sites/${siteId}/kb/crawl`,
+      method: 'post',
+    });
+    return data;
+  };
 
-export function fetchCrawlRunsApi(siteId: string, page = 1, limit = 20) {
-  return kbApiRequest<CrawlerPaginatedResponse<CrawlRunDto>>(
-    `/sites/${siteId}/kb/crawls?page=${page}&limit=${limit}`,
-    { method: 'GET' },
-  );
-}
+  const ingestUrlApi = async (siteId: string, url: string) => {
+    const { data } = await dataProvider().custom!<{ runId: string; status: string }>({
+      url: `/sites/${siteId}/kb/upload/url`,
+      method: 'post',
+      payload: { url },
+    });
+    return data;
+  };
 
-export function fetchCrawlRunApi(siteId: string, runId: string) {
-  return kbApiRequest<CrawlRunDto>(`/sites/${siteId}/kb/crawls/${runId}`, {
-    method: 'GET',
-  });
-}
+  const fetchCrawlRunsApi = async (siteId: string, page = 1, limit = 20) => {
+    const { data } = await dataProvider().custom!<CrawlerPaginatedResponse<CrawlRunDto>>({
+      url: `/sites/${siteId}/kb/crawls`,
+      method: 'get',
+      query: {
+        page: String(page),
+        limit: String(limit),
+      },
+    });
+    return data;
+  };
 
-export function fetchCrawlRunPagesApi(
-  siteId: string,
-  runId: string,
-  params?: { status?: CrawlRunItemStatus; search?: string; page?: number; limit?: number },
-) {
-  const query = new URLSearchParams();
-  query.set('page', String(params?.page ?? 1));
-  query.set('limit', String(params?.limit ?? 100));
-  if (params?.status) query.set('status', params.status);
-  if (params?.search) query.set('search', params.search);
-  return kbApiRequest<CrawlerPaginatedResponse<CrawlRunPageDto>>(
-    `/sites/${siteId}/kb/crawls/${runId}/pages?${query.toString()}`,
-    { method: 'GET' },
-  );
-}
+  const fetchCrawlRunApi = async (siteId: string, runId: string) => {
+    const { data } = await dataProvider().custom!<CrawlRunDto>({
+      url: `/sites/${siteId}/kb/crawls/${runId}`,
+      method: 'get',
+    });
+    return data;
+  };
 
-export function retryFailedCrawlApi(siteId: string, runId: string) {
-  return kbApiRequest<{ runId: string; status: string }>(
-    `/sites/${siteId}/kb/crawls/${runId}/retry-failed`,
-    { method: 'POST' },
-  );
-}
+  const fetchCrawlRunPagesApi = async (
+    siteId: string,
+    runId: string,
+    params?: { status?: CrawlRunItemStatus; search?: string; page?: number; limit?: number },
+  ) => {
+    const query: Record<string, string> = {
+      page: String(params?.page ?? 1),
+      limit: String(params?.limit ?? 100),
+    };
+    if (params?.status) query.status = params.status;
+    if (params?.search) query.search = params.search;
 
-export function recrawlSourceApi(siteId: string, documentId: string) {
-  return kbApiRequest<{ runId: string; status: string }>(
-    `/sites/${siteId}/kb/sources/${documentId}/recrawl`,
-    { method: 'POST' },
-  );
+    const { data } = await dataProvider().custom!<CrawlerPaginatedResponse<CrawlRunPageDto>>({
+      url: `/sites/${siteId}/kb/crawls/${runId}/pages`,
+      method: 'get',
+      query,
+    });
+    return data;
+  };
+
+  const retryFailedCrawlApi = async (siteId: string, runId: string) => {
+    const { data } = await dataProvider().custom!<{ runId: string; status: string }>({
+      url: `/sites/${siteId}/kb/crawls/${runId}/retry-failed`,
+      method: 'post',
+    });
+    return data;
+  };
+
+  const recrawlSourceApi = async (siteId: string, documentId: string) => {
+    const { data } = await dataProvider().custom!<{ runId: string; status: string }>({
+      url: `/sites/${siteId}/kb/sources/${documentId}/recrawl`,
+      method: 'post',
+    });
+    return data;
+  };
+
+  return {
+    fetchCrawlerOverviewApi,
+    updateCrawlerConfigApi,
+    startSitemapCrawlApi,
+    ingestUrlApi,
+    fetchCrawlRunsApi,
+    fetchCrawlRunApi,
+    fetchCrawlRunPagesApi,
+    retryFailedCrawlApi,
+    recrawlSourceApi,
+  };
 }

@@ -20,6 +20,15 @@ export interface BookingRecord {
   [key: string]: unknown;
 }
 
+export type SlotStatus = 'AVAILABLE' | 'HOLDING' | 'BOOKED';
+export interface AvailableSlot {
+  startAt: string;
+  endAt: string;
+  status: SlotStatus;
+  resourceId?: string;
+  availableResources?: { resourceId: string; resourceName: string }[];
+}
+
 export interface BookingConfig {
   bookingEnabled: boolean;
   slotDuration: number;
@@ -30,4 +39,35 @@ export interface BookingConfig {
   resourceDetails?: { id: string; name: string }[];
   serviceDetails?: { id: string; name: string }[];
   [key: string]: unknown;
+}
+
+export interface BlockoutRecord {
+  id: string;
+  siteId: string;
+  resourceId?: string | null;
+  resource?: { id: string; name: string } | null;
+  startAt: string;
+  endAt: string;
+  reason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+export interface ManualBookingFormData {
+  date: { format: (formatStr: string) => string };
+  timeSlot: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  serviceId: string;
+  staffId: string;
+  notes?: string;
+}
+
+export interface CreateBlockoutFormData {
+  resourceId?: string | null;
+  startAt: string;
+  endAt: string;
+  reason?: string | null;
 }

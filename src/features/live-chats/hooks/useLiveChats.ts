@@ -91,6 +91,29 @@ export function useLiveChats(siteId?: string) {
     filters.push({ field: 'lastActivityAt', operator: 'lte', value: dateRange.end });
   }
 
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+
+  // Reset page when filters change
+  const handleSetHandlingFilter = useCallback((filter: HandlingStatus | 'CLOSED' | '') => {
+    setHandlingFilter(filter);
+    setPage(1);
+  }, []);
+
+  const handleSetAgentId = useCallback((id: string) => {
+    setAgentId(id);
+    setPage(1);
+  }, []);
+
+  const handleSetDateRange = useCallback((range: DateRangeFilter) => {
+    setDateRange(range);
+    setPage(1);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [siteId]);
+
   const { query: listQuery } = useList<Conversation>({
     resource: 'chat/conversations/active',
     pagination: { currentPage: page, pageSize },
@@ -98,11 +121,37 @@ export function useLiveChats(siteId?: string) {
     filters,
   });
 
-  const conversations = listQuery.data?.data ?? [];
+  const queryData = listQuery.data?.data;
   const total = listQuery.data?.total ?? 0;
   const error = listQuery.error ? listQuery.error.message : null;
-  const isLoading = listQuery.isLoading;
+  const isFetching = listQuery.isLoading || listQuery.isFetching;
   const refetch = listQuery.refetch;
+
+  // Update accumulated list when queryData or page changes
+  useEffect(() => {
+    if (!queryData) return;
+
+    if (page === 1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setConversations(queryData);
+    } else {
+      setConversations((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newItems = queryData.filter((c) => !existingIds.has(c.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [queryData, page]);
+
+  const hasMore = conversations.length < total;
+  const isLoading = page === 1 && isFetching && conversations.length === 0;
+  const isLoadingMore = page > 1 && isFetching;
+
+  const loadMore = useCallback(() => {
+    if (!isFetching && hasMore) {
+      setPage((prev) => prev + 1);
+    }
+  }, [isFetching, hasMore]);
 
   // WebSocket for real-time inbox updates
   useEffect(() => {
@@ -146,15 +195,18 @@ export function useLiveChats(siteId?: string) {
     stats,
     page,
     pageSize,
+    hasMore,
+    isLoadingMore,
+    loadMore,
     handlingFilter,
     agentId,
     dateRange,
     isLoading,
     error,
     setPage,
-    setHandlingFilter,
-    setAgentId,
-    setDateRange,
+    setHandlingFilter: handleSetHandlingFilter,
+    setAgentId: handleSetAgentId,
+    setDateRange: handleSetDateRange,
     refresh: refetch,
   };
 }
