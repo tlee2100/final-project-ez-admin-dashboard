@@ -56,9 +56,13 @@ export default function LiveChatsPage() {
   const [selectedSiteId, setSelectedSiteId] = React.useState<string | undefined>();
   const {
     conversations,
+    total,
     stats,
     handlingFilter,
     isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
     error,
     setHandlingFilter,
     agentId,
@@ -308,6 +312,36 @@ export default function LiveChatsPage() {
           })
         )}
       </div>
+
+      {/* ── Load More Button ── */}
+      {hasMore && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 24,
+            marginBottom: 32,
+          }}
+        >
+          <Button
+            size="large"
+            onClick={loadMore}
+            loading={isLoadingMore}
+            style={{
+              minWidth: 200,
+              height: 42,
+              borderRadius: 8,
+              fontWeight: 600,
+              borderColor: '#d1d5db',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+            }}
+          >
+            {isLoadingMore ? 'Loading...' : `Load More Chats (${conversations.length} of ${total})`}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

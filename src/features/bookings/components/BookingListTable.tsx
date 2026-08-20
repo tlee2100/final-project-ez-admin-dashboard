@@ -1,9 +1,7 @@
-import React from 'react';
 import { Table, Tag, Dropdown, MenuProps, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { MoreOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-
 import type { BookingRecord } from '../types/booking.types';
 
 interface BookingListTableProps {
