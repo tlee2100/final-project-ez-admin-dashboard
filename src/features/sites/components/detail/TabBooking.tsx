@@ -33,6 +33,21 @@ interface TabBookingProps {
 
 const DAYS_MAP = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+export const SALON_PRESET_SERVICES = [
+  'Haircut (Women)',
+  'Haircut (Men)',
+  'Hair Wash & Blow Dry',
+  'Hair Styling',
+  'Hair Coloring',
+  'Hair Perm & Straightening',
+  'Hair & Scalp Treatment',
+  'Facial Skincare',
+  'Manicure & Pedicure',
+  'Nail Art',
+  'Full Body Massage',
+  'Head Spa & Relax',
+];
+
 const generateTimeOptions = () => {
   const options = [];
   for (let h = 0; h < 24; h++) {
@@ -235,7 +250,7 @@ export function TabBooking({ site }: TabBookingProps) {
           Booking Configuration
         </Title>
         <Text type="secondary">
-          Enable appointments for this site and configure the Salon booking catalog
+          Enable appointments for this site and configure the booking template and resources
         </Text>
       </div>
 
@@ -283,13 +298,13 @@ export function TabBooking({ site }: TabBookingProps) {
               <Radio value="salon">
                 <span style={{ fontWeight: 500 }}>Salon</span>
                 <div style={{ color: '#9ca3af', fontSize: 13 }}>
-                  Services catalog + staff assignment (Required)
+                  Services catalog + staff assignment (Stylists, Therapists)
                 </div>
               </Radio>
-              <Radio value="general" disabled>
-                <span style={{ fontWeight: 500, color: '#9ca3af' }}>General</span>
-                <div style={{ color: '#d1d5db', fontSize: 13 }}>
-                  Generic free-text service — Coming later (Stretch)
+              <Radio value="general">
+                <span style={{ fontWeight: 500 }}>General</span>
+                <div style={{ color: '#9ca3af', fontSize: 13 }}>
+                  Resource-based assignment (Rooms, Courts, Machines) + custom notes
                 </div>
               </Radio>
             </Space>
@@ -298,49 +313,74 @@ export function TabBooking({ site }: TabBookingProps) {
 
         {/* Services */}
         <div>
-          <Title level={5} style={{ fontSize: 14, marginBottom: 12 }}>
-            Services
+          <Title level={5} style={{ fontSize: 14, marginBottom: 8 }}>
+            Services {industryTemplate === 'salon' ? '(Preset Salon Catalog)' : '(Custom Services)'}
           </Title>
-          <div style={{ marginBottom: 12 }}>
-            {services.map((service) => (
-              <Tag
-                key={service}
-                closable
-                onClose={() => handleRemoveService(service)}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 14,
-                  background: '#f3f4f6',
-                  border: 'none',
-                  borderRadius: 16,
-                }}
-              >
-                {service}
-              </Tag>
-            ))}
-          </div>
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              placeholder="Add a service (e.g., Haircut Women)"
-              value={newService}
-              onChange={(e) => setNewService(e.target.value)}
-              onPressEnter={handleAddService}
-              style={{ background: '#f9fafb', border: '1px solid #e5e7eb', height: 40 }}
-            />
-            <Button
-              type="primary"
-              onClick={handleAddService}
-              style={{ height: 40, background: '#bfdbfe', color: '#1e40af', border: 'none' }}
-            >
-              Add service
-            </Button>
-          </Space.Compact>
+          {industryTemplate === 'salon' ? (
+            <div>
+              <div style={{ marginBottom: 12, fontSize: 13, color: '#6b7280' }}>
+                Select the services offered by your salon from the predefined template catalog.
+                Manual custom additions are not permitted for salon templates.
+              </div>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                placeholder="Select services from the salon catalog"
+                value={services}
+                onChange={(selected) => setServices(selected)}
+                options={SALON_PRESET_SERVICES.map((s) => ({ value: s, label: s }))}
+              />
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom: 12, fontSize: 13, color: '#6b7280' }}>
+                Add custom services or booking purposes for your site. Each service will be assigned
+                a unique ID in your catalog.
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                {services.map((service) => (
+                  <Tag
+                    key={service}
+                    closable
+                    onClose={() => handleRemoveService(service)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 14,
+                      background: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: 16,
+                    }}
+                  >
+                    {service}
+                  </Tag>
+                ))}
+              </div>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  placeholder="Add a custom service (e.g., Badminton Court, Meeting Room A, Equipment Rental)"
+                  value={newService}
+                  onChange={(e) => setNewService(e.target.value)}
+                  onPressEnter={handleAddService}
+                  style={{ background: '#f9fafb', border: '1px solid #e5e7eb', height: 40 }}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleAddService}
+                  style={{ height: 40, background: '#bfdbfe', color: '#1e40af', border: 'none' }}
+                >
+                  Add service
+                </Button>
+              </Space.Compact>
+            </div>
+          )}
         </div>
 
         {/* Staff / Resources */}
         <div>
           <Title level={5} style={{ fontSize: 14, marginBottom: 12 }}>
-            Staff / Resources
+            {industryTemplate === 'general'
+              ? 'Resources (Rooms / Courts / Machines)'
+              : 'Staff / Stylists'}
           </Title>
           <div style={{ marginBottom: 12 }}>
             {staff.map((s) => (
@@ -363,7 +403,11 @@ export function TabBooking({ site }: TabBookingProps) {
           </div>
           <Space.Compact style={{ width: '100%' }}>
             <Input
-              placeholder="Add staff (e.g., Stylist Lan)"
+              placeholder={
+                industryTemplate === 'general'
+                  ? 'Add resource (e.g., Room 101, Court A, 3D Printer #2)'
+                  : 'Add staff (e.g., Stylist Lan)'
+              }
               value={newStaff}
               onChange={(e) => setNewStaff(e.target.value)}
               onPressEnter={handleAddStaff}
@@ -374,7 +418,7 @@ export function TabBooking({ site }: TabBookingProps) {
               onClick={handleAddStaff}
               style={{ height: 40, background: '#bfdbfe', color: '#1e40af', border: 'none' }}
             >
-              Add staff
+              {industryTemplate === 'general' ? 'Add resource' : 'Add staff'}
             </Button>
           </Space.Compact>
         </div>

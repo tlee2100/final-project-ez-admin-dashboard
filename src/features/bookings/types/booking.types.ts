@@ -1,3 +1,5 @@
+import type dayjs from 'dayjs';
+
 // Raw booking entity as returned by the backend API (nestjs-paginate)
 export interface BookingRecord {
   id: string;
@@ -31,6 +33,7 @@ export interface AvailableSlot {
 
 export interface BookingConfig {
   bookingEnabled: boolean;
+  industryTemplate?: string;
   slotDuration: number;
   timezone: string;
   startTime: string;
@@ -54,15 +57,29 @@ export interface BlockoutRecord {
   [key: string]: unknown;
 }
 
+export interface SelectedCalendarSlot {
+  staffId: string;
+  staffName: string;
+  time: string;
+  date: dayjs.Dayjs;
+}
+
 export interface ManualBookingFormData {
-  date: { format: (formatStr: string) => string };
-  timeSlot: string;
+  date?: dayjs.Dayjs;
+  timeSlot?: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  serviceId: string;
-  staffId: string;
+  serviceId?: string;
+  serviceIds?: string[];
+  staffId?: string;
   notes?: string;
+  slots?: Array<{
+    resourceId: string;
+    date: string;
+    timeSlot: string;
+    serviceId?: string;
+  }>;
 }
 
 export interface CreateBlockoutFormData {

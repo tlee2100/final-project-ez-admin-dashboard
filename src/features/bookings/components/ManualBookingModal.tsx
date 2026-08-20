@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, DatePicker, Button, Typography, Spin } from 'antd';
+import { Modal, Form, Input, Select, DatePicker, Button, Typography, Spin, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { AvailableSlot, ManualBookingFormData } from '../types/booking.types';
+import { bookingApi } from '../services/booking.api';
+import type {
+  AvailableSlot,
+  BookingConfig,
+  ManualBookingFormData,
+  SelectedCalendarSlot,
+} from '../types/booking.types';
 
 const { Title, Text } = Typography;
 
@@ -10,20 +16,20 @@ interface ManualBookingModalProps {
   onCancel: () => void;
   onSuccess: (bookingData: ManualBookingFormData) => boolean | void | Promise<boolean | void>;
   siteId: string;
-  siteServices: { id: string; name: string }[];
-  siteStaff: { id: string; name: string }[];
+  config?: BookingConfig | null;
+  industryTemplateId?: string;
+  siteServices?: { id: string; name: string }[];
+  siteStaff?: { id: string; name: string }[];
   initialData?: { staffId?: string; timeSlot?: string } | null;
+  selectedSlots?: SelectedCalendarSlot[];
   selectedDate: dayjs.Dayjs;
-  startTime: string;
-  endTime: string;
-  slotDuration: number;
-  fetchAvailableSlots: (
+  fetchAvailableSlots?: (
     siteId: string,
     startDate: string,
     endDate: string,
     resourceId: string,
   ) => Promise<AvailableSlot[]>;
-  onHoldSlot: (slot: AvailableSlot) => Promise<boolean>;
+  onHoldSlot: (slot: AvailableSlot | AvailableSlot[]) => Promise<boolean>;
   holdExpiry: Date | null;
   onHoldExpired: () => void;
   onReleaseHold: () => Promise<void>;
@@ -34,12 +40,15 @@ export function ManualBookingModal({
   onCancel,
   onSuccess,
   siteId,
-  siteServices,
-  siteStaff,
+  config,
+  industryTemplateId = config?.industryTemplate || 'general',
+  siteServices = config?.serviceDetails || [],
+  siteStaff = config?.resourceDetails || [],
   initialData,
+  selectedSlots = [],
   selectedDate,
-
-  fetchAvailableSlots,
+  fetchAvailableSlots = (sId, startDate, endDate, resourceId) =>
+    bookingApi.getAvailableSlots(sId, { startDate, endDate, resourceId }),
   onHoldSlot,
   holdExpiry,
   onHoldExpired,
@@ -50,8 +59,19 @@ export function ManualBookingModal({
   const [isFetchingSlots, setIsFetchingSlots] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
+  const isMultiSlot = selectedSlots && selectedSlots.length > 0;
+  const isSalon = industryTemplateId === 'salon';
+
   const selectedFormDate = Form.useWatch('date', form);
   const selectedStaffId = Form.useWatch('staffId', form);
+  const selectedTimeSlots = Form.useWatch('timeSlot', form);
+  const selectedTimeSlotsArr: string[] = Array.isArray(selectedTimeSlots)
+    ? selectedTimeSlots
+    : selectedTimeSlots
+      ? [selectedTimeSlots]
+      : [];
+
+  const totalSlots = isMultiSlot ? selectedSlots.length : Math.max(1, selectedTimeSlotsArr.length);
 
   // Validate Vietnamese phone number: 0 + 9-10 digits
   const phoneValidator = (_: unknown, value: string) => {
@@ -65,21 +85,29 @@ export function ManualBookingModal({
 
   React.useEffect(() => {
     if (open) {
-      form.setFieldsValue({
-        date: selectedDate || dayjs(),
-        staffId: initialData?.staffId || undefined,
-        timeSlot: initialData?.timeSlot || undefined,
-      });
+      if (isMultiSlot) {
+        form.setFieldsValue({
+          date: selectedSlots[0]?.date || selectedDate || dayjs(),
+          staffId: selectedSlots[0]?.staffId || undefined,
+          timeSlot: selectedSlots.map((s) => s.time),
+        });
+      } else {
+        form.setFieldsValue({
+          date: selectedDate || dayjs(),
+          staffId: initialData?.staffId || undefined,
+          timeSlot: initialData?.timeSlot ? [initialData.timeSlot] : undefined,
+        });
+      }
     } else {
       form.resetFields();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAvailableSlots([]);
     }
-  }, [open, initialData, selectedDate, form]);
+  }, [open, initialData, selectedDate, selectedSlots, isMultiSlot, form]);
 
   useEffect(() => {
     const fetchSlots = async () => {
-      if (!selectedFormDate || !selectedStaffId || !siteId) {
+      if (isMultiSlot || !selectedFormDate || !selectedStaffId || !siteId) {
         setAvailableSlots([]);
         return;
       }
@@ -104,10 +132,10 @@ export function ManualBookingModal({
       }
     };
 
-    if (open) {
+    if (open && !isMultiSlot) {
       fetchSlots();
     }
-  }, [selectedFormDate, selectedStaffId, siteId, open, fetchAvailableSlots]);
+  }, [selectedFormDate, selectedStaffId, siteId, open, isMultiSlot, fetchAvailableSlots]);
 
   useEffect(() => {
     if (!holdExpiry) {
@@ -130,10 +158,20 @@ export function ManualBookingModal({
     return () => clearInterval(interval);
   }, [holdExpiry, onHoldExpired]);
 
-  const handleTimeSlotChange = async (value: string) => {
-    const selectedSlot = availableSlots.find((s) => dayjs(s.startAt).format('HH:mm') === value);
-    if (selectedSlot) {
-      const success = await onHoldSlot(selectedSlot);
+  const handleTimeSlotChange = async (value: string | string[]) => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    if (values.length === 0) {
+      if (holdExpiry) {
+        await onReleaseHold();
+      }
+      return;
+    }
+
+    const slotsToHold = availableSlots.filter((s) =>
+      values.includes(dayjs(s.startAt).format('HH:mm')),
+    );
+    if (slotsToHold.length > 0) {
+      const success = await onHoldSlot(slotsToHold);
       if (!success) {
         form.setFieldValue('timeSlot', undefined);
       }
@@ -142,7 +180,58 @@ export function ManualBookingModal({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFinish = async (values: any) => {
-    const success = await onSuccess(values);
+    let serviceIds: string[] | undefined = undefined;
+    let singleServiceId: string | undefined = undefined;
+
+    if (Array.isArray(values.serviceId)) {
+      serviceIds = values.serviceId;
+      singleServiceId = values.serviceId[0];
+    } else if (values.serviceId) {
+      serviceIds = [values.serviceId];
+      singleServiceId = values.serviceId;
+    }
+
+    let slotsPayload:
+      | Array<{
+          resourceId: string;
+          date: string;
+          timeSlot: string;
+          serviceId?: string;
+        }>
+      | undefined = undefined;
+
+    if (isMultiSlot) {
+      slotsPayload = selectedSlots.map((s, idx) => ({
+        resourceId: s.staffId,
+        date: dayjs(s.date).format('YYYY-MM-DD'),
+        timeSlot: s.time,
+        serviceId: serviceIds ? serviceIds[idx] : undefined,
+      }));
+    } else if (selectedTimeSlotsArr.length > 1) {
+      const formattedDate = values.date
+        ? values.date.format('YYYY-MM-DD')
+        : dayjs().format('YYYY-MM-DD');
+      slotsPayload = selectedTimeSlotsArr.map((time, idx) => ({
+        resourceId: values.staffId,
+        date: formattedDate,
+        timeSlot: time,
+        serviceId: serviceIds ? serviceIds[idx] : undefined,
+      }));
+    }
+
+    const singleTimeSlot = isMultiSlot
+      ? selectedSlots[0]?.time
+      : selectedTimeSlotsArr[0] || values.timeSlot;
+
+    const bookingPayload: ManualBookingFormData = {
+      ...values,
+      timeSlot: singleTimeSlot,
+      serviceId: singleServiceId,
+      serviceIds,
+      slots: slotsPayload,
+    };
+
+    const success = await onSuccess(bookingPayload);
     if (success !== false) {
       form.resetFields();
     }
@@ -155,21 +244,51 @@ export function ManualBookingModal({
         <div>
           <div style={{ fontSize: 20, fontWeight: 600 }}>Create New Booking</div>
           <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
-            Manual walk-in or phone booking — auto-confirmed
+            {isMultiSlot
+              ? `Creating booking for ${totalSlots} selected slot${totalSlots > 1 ? 's' : ''}`
+              : 'Manual walk-in or phone booking — auto-confirmed'}
           </Text>
         </div>
       }
       onCancel={onCancel}
       footer={null}
-      width={500}
+      width={540}
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 24 }}>
+      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 20 }}>
+        {/* If multi-slot, show selected slots summary */}
+        {isMultiSlot && (
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: 8,
+              marginBottom: 20,
+            }}
+          >
+            <Text strong style={{ display: 'block', marginBottom: 8, color: '#334155' }}>
+              Selected Time Slots ({totalSlots} slots):
+            </Text>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {selectedSlots.map((s, idx) => (
+                <Tag
+                  color="blue"
+                  key={`${s.staffId}-${s.time}-${idx}`}
+                  style={{ padding: '4px 8px', fontSize: 13 }}
+                >
+                  <strong>{s.staffName}</strong>: {s.time} ({dayjs(s.date).format('DD/MM/YYYY')})
+                </Tag>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Title level={5} style={{ marginBottom: 16 }}>
           Customer Info
         </Title>
 
         <Form.Item name="customerName" label="Name" rules={[{ required: true }]}>
-          <Input placeholder="Tân Lê" />
+          <Input placeholder="Nguyen Van A" />
         </Form.Item>
 
         <Form.Item
@@ -189,85 +308,128 @@ export function ManualBookingModal({
           <Input.TextArea placeholder="Any special requests..." rows={3} />
         </Form.Item>
 
-        <Title level={5} style={{ marginTop: 32, marginBottom: 16 }}>
+        <Title level={5} style={{ marginTop: 28, marginBottom: 16 }}>
           Booking Details
         </Title>
 
-        <Form.Item name="serviceId" label="Service" rules={[{ required: true }]}>
-          <Select placeholder="Select service">
-            {siteServices.map((s) => (
-              <Select.Option key={s.id} value={s.id}>
-                {s.name}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item name="staffId" label="Staff" rules={[{ required: true }]}>
-          <Select
-            placeholder="Select staff"
-            onChange={async () => {
-              if (holdExpiry) {
-                await onReleaseHold();
-              }
-              form.setFieldValue('timeSlot', undefined);
-            }}
+        {siteServices && siteServices.length > 0 && (
+          <Form.Item
+            name="serviceId"
+            label={totalSlots > 1 ? `Services (${totalSlots} slots)` : 'Service'}
+            rules={[
+              {
+                required: isSalon,
+                message: 'Service is required for salon',
+              },
+              ...(isSalon && totalSlots > 1
+                ? [
+                    {
+                      validator: (_: unknown, value: string[]) => {
+                        if (!value || value.length !== totalSlots) {
+                          return Promise.reject(
+                            new Error(
+                              `Please select exactly ${totalSlots} services for ${totalSlots} slots.`,
+                            ),
+                          );
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]
+                : []),
+            ]}
           >
-            {siteStaff.map((s) => (
-              <Select.Option key={s.id} value={s.id}>
-                {s.name}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item name="date" label="Date" rules={[{ required: true }]}>
-          <DatePicker
-            style={{ width: '100%' }}
-            format="DD/MM/YYYY"
-            disabledDate={(current) => current && current < dayjs().startOf('day')}
-            onChange={async () => {
-              if (holdExpiry) {
-                await onReleaseHold();
-              }
-              form.setFieldValue('timeSlot', undefined);
-            }}
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="timeSlot"
-          label="Time Slot"
-          rules={[{ required: true }]}
-          extra={
-            !selectedFormDate || !selectedStaffId
-              ? 'Please select a date and staff first'
-              : `${availableSlots.length} slots available for this date & staff`
-          }
-        >
-          <Select
-            placeholder="Select time"
-            loading={isFetchingSlots}
-            notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
-            disabled={!selectedFormDate || !selectedStaffId}
-            onChange={handleTimeSlotChange}
-          >
-            {availableSlots.map((slot) => {
-              const time = dayjs(slot.startAt).format('HH:mm');
-              const isHolding = slot.status === 'HOLDING';
-              return (
-                <Select.Option
-                  key={time}
-                  value={time}
-                  disabled={isHolding}
-                  style={isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined}
-                >
-                  {isHolding ? `${time} - Being booked... 🕒` : time}
+            <Select
+              mode={totalSlots > 1 ? 'multiple' : undefined}
+              placeholder={totalSlots > 1 ? 'Select services' : 'Select service'}
+              allowClear
+            >
+              {siteServices.map((s) => (
+                <Select.Option key={s.id} value={s.id}>
+                  {s.name}
                 </Select.Option>
-              );
-            })}
-          </Select>
-        </Form.Item>
+              ))}
+            </Select>
+          </Form.Item>
+        )}
+
+        {!isMultiSlot && (
+          <>
+            <Form.Item name="staffId" label="Staff / Resource" rules={[{ required: true }]}>
+              <Select
+                placeholder="Select staff or resource"
+                onChange={async () => {
+                  if (holdExpiry) {
+                    await onReleaseHold();
+                  }
+                  form.setFieldValue('timeSlot', undefined);
+                }}
+              >
+                {siteStaff.map((s) => (
+                  <Select.Option key={s.id} value={s.id}>
+                    {s.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item name="date" label="Date" rules={[{ required: true }]}>
+              <DatePicker
+                style={{ width: '100%' }}
+                format="DD/MM/YYYY"
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+                onChange={async () => {
+                  if (holdExpiry) {
+                    await onReleaseHold();
+                  }
+                  form.setFieldValue('timeSlot', undefined);
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="timeSlot"
+              label={
+                selectedTimeSlotsArr.length > 1
+                  ? `Time Slots (${selectedTimeSlotsArr.length} selected)`
+                  : 'Time Slot'
+              }
+              rules={[{ required: true, message: 'Please select at least one time slot' }]}
+              extra={
+                !selectedFormDate || !selectedStaffId
+                  ? 'Please select a date and staff/resource first'
+                  : `${availableSlots.length} slots available for this date & staff/resource`
+              }
+            >
+              <Select
+                mode="multiple"
+                placeholder="Select time slot(s)"
+                loading={isFetchingSlots}
+                notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
+                disabled={!selectedFormDate || !selectedStaffId}
+                onChange={handleTimeSlotChange}
+                allowClear
+              >
+                {availableSlots.map((slot) => {
+                  const time = dayjs(slot.startAt).format('HH:mm');
+                  const isHolding = slot.status === 'HOLDING';
+                  return (
+                    <Select.Option
+                      key={time}
+                      value={time}
+                      disabled={isHolding}
+                      style={
+                        isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined
+                      }
+                    >
+                      {isHolding ? `${time} - Being booked... 🕒` : time}
+                    </Select.Option>
+                  );
+                })}
+              </Select>
+            </Form.Item>
+          </>
+        )}
 
         {timeLeft !== null && timeLeft > 0 && (
           <div
@@ -298,7 +460,7 @@ export function ManualBookingModal({
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
           <Button onClick={onCancel}>Cancel</Button>
-          <Button type="primary" htmlType="submit" disabled={!holdExpiry}>
+          <Button type="primary" htmlType="submit" disabled={!isMultiSlot && !holdExpiry}>
             Create Booking
           </Button>
         </div>

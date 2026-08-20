@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
-import { Tooltip } from 'antd';
+import { Tooltip, Button } from 'antd';
 
 import type { BookingRecord, BlockoutRecord } from '../types/booking.types';
 
@@ -13,6 +13,15 @@ interface BookingCalendarViewProps {
   availableDays?: number[];
   onBookingClick: (booking: BookingRecord) => void;
   onEmptySlotClick?: (staffId: string, time: string) => void;
+  selectedSlots?: Array<{
+    staffId: string;
+    staffName: string;
+    time: string;
+    date: dayjs.Dayjs;
+  }>;
+  onSlotSelect?: (staffId: string, staffName: string, time: string) => void;
+  onClearSelectedSlots?: () => void;
+  onConfirmSelectedSlots?: () => void;
   selectedDate: dayjs.Dayjs;
   holdingSlots?: { resourceId?: string; startAt: string; endAt: string }[];
   bookingEnabled?: boolean;
@@ -30,6 +39,10 @@ export function BookingCalendarView({
   selectedDate,
   onBookingClick,
   onEmptySlotClick,
+  selectedSlots = [],
+  onSlotSelect,
+  onClearSelectedSlots,
+  onConfirmSelectedSlots,
   holdingSlots = [],
   bookingEnabled = true,
   blockouts = [],
@@ -354,6 +367,45 @@ export function BookingCalendarView({
                           );
                         }
 
+                        // Check if this slot is selected by admin in multi-slot mode
+                        const isSelected = selectedSlots.some(
+                          (slot) =>
+                            slot.staffId === s.id &&
+                            slot.time === time &&
+                            slot.date.isSame(selectedDate, 'day'),
+                        );
+
+                        if (isSelected) {
+                          return (
+                            <Tooltip title={`Selected: ${s.name} at ${time} (Click to deselect)`}>
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#dbeafe',
+                                  border: '2px solid #2563eb',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#1d4ed8',
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  boxShadow: 'inset 0 0 0 1px #2563eb',
+                                }}
+                                onClick={() =>
+                                  onSlotSelect
+                                    ? onSlotSelect(s.id, s.name, time)
+                                    : onEmptySlotClick && onEmptySlotClick(s.id, time)
+                                }
+                              >
+                                ✓ {time}
+                              </div>
+                            </Tooltip>
+                          );
+                        }
+
                         return isUnavailable ? (
                           <Tooltip
                             title={
@@ -385,7 +437,11 @@ export function BookingCalendarView({
                                 cursor: 'pointer',
                                 borderRadius: 4,
                               }}
-                              onClick={() => onEmptySlotClick && onEmptySlotClick(s.id, time)}
+                              onClick={() =>
+                                onSlotSelect
+                                  ? onSlotSelect(s.id, s.name, time)
+                                  : onEmptySlotClick && onEmptySlotClick(s.id, time)
+                              }
                             />
                           </Tooltip>
                         );
@@ -398,6 +454,62 @@ export function BookingCalendarView({
           );
         })}
       </div>
+
+      {/* Floating Action Bar when slots are selected */}
+      {selectedSlots.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: '#1e293b',
+            color: '#fff',
+            padding: '12px 24px',
+            borderRadius: 12,
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 20,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🗓️</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>
+              Selected <strong style={{ color: '#60a5fa' }}>{selectedSlots.length}</strong> time
+              slot{selectedSlots.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Button
+              size="middle"
+              onClick={onClearSelectedSlots}
+              style={{
+                borderRadius: 6,
+                backgroundColor: 'transparent',
+                color: '#e2e8f0',
+                borderColor: '#475569',
+              }}
+            >
+              Clear Selection
+            </Button>
+            <Button
+              type="primary"
+              size="middle"
+              onClick={onConfirmSelectedSlots}
+              style={{
+                backgroundColor: '#2563eb',
+                borderColor: '#2563eb',
+                borderRadius: 6,
+                fontWeight: 600,
+              }}
+            >
+              Create Booking ({selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''})
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

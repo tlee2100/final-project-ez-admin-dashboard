@@ -26,7 +26,16 @@ export function useAnalyticsData() {
                 weekly: { label: string; value: number }[];
                 monthly: { label: string; value: number }[];
               };
+              userFeedback?: { label: string; value: number; color?: string }[];
             }>('/analytics/dashboard');
+
+            const helpfulItem = analyticsRes.userFeedback?.find((d) => d.label === 'Helpful');
+            const unhelpfulItem = analyticsRes.userFeedback?.find((d) => d.label === 'Not Helpful');
+            const helpfulCount = helpfulItem?.value ?? 0;
+            const unhelpfulCount = unhelpfulItem?.value ?? 0;
+            const totalFeedback = helpfulCount + unhelpfulCount;
+            const helpfulRatio =
+              totalFeedback > 0 ? Math.round((helpfulCount / totalFeedback) * 100) : 0;
 
             const realOverviewStats = [
               {
@@ -60,14 +69,14 @@ export function useAnalyticsData() {
                 iconBg: '#ede9fe',
               },
               {
-                id: 'csat-score',
-                title: 'CSAT Score (Mock)',
-                value: '4.2/5',
-                trend: 0.2,
+                id: 'helpful-ratio',
+                title: 'Helpful Ratio',
+                value: totalFeedback > 0 ? `${helpfulRatio}%` : 'N/A',
+                trend: 2,
                 trendDirection: 'up' as const,
                 icon: 'like',
-                iconColor: '#f59e0b',
-                iconBg: '#fef3c7',
+                iconColor: '#10b981',
+                iconBg: '#d1fae5',
               },
             ];
 
@@ -79,6 +88,7 @@ export function useAnalyticsData() {
                 chatActivity: analyticsRes.chatActivity || mockAnalyticsData.overview.chatActivity,
                 containmentRate:
                   analyticsRes.containmentRate || mockAnalyticsData.overview.containmentRate,
+                userFeedback: analyticsRes.userFeedback || mockAnalyticsData.overview.userFeedback,
               },
             });
             return;

@@ -1,21 +1,51 @@
 import type { Key } from 'react';
 import { apiRequest } from '@/src/lib/api.client';
-import type { BlockoutRecord, BookingRecord, CreateBlockoutFormData } from '../types/booking.types';
+import type {
+  AvailableSlot,
+  BlockoutRecord,
+  BookingRecord,
+  CreateBlockoutFormData,
+} from '../types/booking.types';
 
 export const bookingApi = {
+  /**
+   * Fetch available booking slots for a given date range and resource
+   */
+  async getAvailableSlots(
+    siteId: string,
+    params: { startDate: string; endDate: string; resourceId?: string },
+  ): Promise<AvailableSlot[]> {
+    const query = new URLSearchParams();
+    query.append('startDate', params.startDate);
+    query.append('endDate', params.endDate);
+    if (params.resourceId) query.append('resourceId', params.resourceId);
+
+    const data = await apiRequest<{ slots: AvailableSlot[] }>(
+      `/admin/sites/${siteId}/bookings/available-slots?${query.toString()}`,
+    );
+    return data?.slots || [];
+  },
+
   /**
    * Create a new booking
    */
   async createBooking(
     siteId: string,
     payload: {
-      startAt: string;
-      endAt: string;
+      startAt?: string;
+      endAt?: string;
       customerName: string;
       customerPhone: string;
       customerEmail?: string;
-      serviceId: string;
-      staffId: string;
+      serviceId?: string;
+      serviceIds?: string[];
+      staffId?: string;
+      slots?: Array<{
+        resourceId: string;
+        date: string;
+        timeSlot: string;
+        serviceId?: string;
+      }>;
       notes?: string;
       timezone: string;
       sessionId: string;

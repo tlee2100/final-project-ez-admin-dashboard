@@ -70,6 +70,7 @@ export interface Site {
   useCustomOpenAiKey?: boolean;
   /** True when the site has an encrypted custom key stored in the database */
   hasCustomApiKey?: boolean;
+  industryTemplateId?: string;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────
