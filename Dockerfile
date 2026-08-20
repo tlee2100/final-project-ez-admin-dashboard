@@ -6,6 +6,8 @@ RUN HUSKY=0 npm install
 FROM node:24.12.0-alpine AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WIDGET_SCRIPT_URL
+ARG NEXT_PUBLIC_WIDGET_VERSION
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
