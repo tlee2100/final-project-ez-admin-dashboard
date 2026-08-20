@@ -64,6 +64,7 @@ export interface Site {
   memorySummarization?: boolean;
   sentimentDetection?: boolean;
   llmModel?: string;
+  industryTemplateId?: string;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────

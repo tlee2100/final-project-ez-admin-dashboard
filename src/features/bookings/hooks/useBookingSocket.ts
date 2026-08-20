@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { notifyAuthExpired } from '@/src/lib/api.client';
 import { useSession } from 'next-auth/react';
-import { AvailableSlot } from '../features/bookings/types/booking.types';
+import type { AvailableSlot } from '../types/booking.types';
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 

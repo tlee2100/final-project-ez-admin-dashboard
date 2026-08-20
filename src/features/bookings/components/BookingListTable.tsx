@@ -1,12 +1,12 @@
 import { Table, Tag, Dropdown, MenuProps, Button } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import type { TableProps, ColumnsType } from 'antd/es/table';
 import { MoreOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import type { useTableReturnType } from '@refinedev/antd';
 import type { BookingRecord } from '../types/booking.types';
 
 interface BookingListTableProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tableProps: any;
+  tableProps: useTableReturnType<BookingRecord>['tableProps'];
   onRowClick: (record: BookingRecord) => void;
   onUpdateStatus: (id: string, status: string) => void;
   selectedRowKeys?: React.Key[];
@@ -116,7 +116,7 @@ export function BookingListTable({
   return (
     <div className="booking-table-container">
       <Table
-        {...tableProps}
+        {...(tableProps as unknown as TableProps<BookingRecord>)}
         columns={columns}
         rowKey="id"
         rowSelection={
