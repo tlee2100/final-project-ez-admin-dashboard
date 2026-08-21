@@ -71,6 +71,10 @@ export interface Site {
   /** True when the site has an encrypted custom key stored in the database */
   hasCustomApiKey?: boolean;
   industryTemplateId?: string;
+  // New features
+  isAiActive?: boolean;
+  humanHandoff?: boolean;
+  emailTranscript?: boolean;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────
