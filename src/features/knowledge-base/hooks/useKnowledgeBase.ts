@@ -126,6 +126,14 @@ export function mapBackendDocToKBDoc(doc: BackendDocumentDto): KBDocument {
   };
 }
 
+const SORT_BY_MAP: Record<SortOption, string> = {
+  date_desc: 'uploadedAt:DESC',
+  date_asc: 'uploadedAt:ASC',
+  name_asc: 'filename:ASC',
+  name_desc: 'filename:DESC',
+  size_desc: 'fileSizeBytes:DESC',
+};
+
 export function useKnowledgeBase(siteId: string) {
   const { getSocket } = useNotification();
   const { message } = App.useApp();
@@ -173,9 +181,9 @@ export function useKnowledgeBase(siteId: string) {
       query: {
         page: String(page),
         limit: String(limit),
-        ...(selectedType !== 'all' ? { type: selectedType } : {}),
+        ...(selectedType !== 'all' ? { 'filter.fileType': `$eq:${selectedType}` } : {}),
         ...(debouncedSearchQuery ? { search: debouncedSearchQuery } : {}),
-        sortBy: sortOption,
+        sortBy: SORT_BY_MAP[sortOption] || 'uploadedAt:DESC',
       },
     },
     queryOptions: {
