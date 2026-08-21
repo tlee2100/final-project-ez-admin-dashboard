@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { AppSidebar } from '../AppSidebar/AppSidebar';
 import { AppHeader } from '../AppHeader/AppHeader';
 import './DashboardLayout.css';
@@ -12,20 +12,34 @@ interface DashboardLayoutProps {
 
 const SIDEBAR_COLLAPSED_KEY = 'ez_sidebar_collapsed';
 
-export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-      if (stored !== null) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          // ignore parse error
-        }
-      }
-    }
+function subscribeToSidebar(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener('sidebar-toggle', callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('sidebar-toggle', callback);
+  };
+}
+
+function getSidebarSnapshot(): boolean {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    return stored !== null ? JSON.parse(stored) : false;
+  } catch {
     return false;
-  });
+  }
+}
+
+function getSidebarServerSnapshot(): boolean {
+  return false;
+}
+
+export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
+  const collapsed = useSyncExternalStore(
+    subscribeToSidebar,
+    getSidebarSnapshot,
+    getSidebarServerSnapshot,
+  );
 
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,11 +62,13 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
   }, []);
 
   const handleToggle = () => {
-    setCollapsed((prev: boolean) => {
-      const next = !prev;
+    try {
+      const next = !collapsed;
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(next));
-      return next;
-    });
+      window.dispatchEvent(new Event('sidebar-toggle'));
+    } catch {
+      // ignore
+    }
   };
 
   const handleMobileToggle = () => {
