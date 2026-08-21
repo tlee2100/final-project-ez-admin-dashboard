@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Switch, App, Select } from 'antd';
+import { Switch, App, AutoComplete } from 'antd';
 import { useUpdate } from '@refinedev/core';
 import type { Site } from '../../types/site.types';
 
@@ -23,6 +23,7 @@ export function SubTabBehavior({ site, onSave }: SubTabBehaviorProps) {
   );
 
   // ── 2. AI Model Settings State ──
+  const [llmModel, setLlmModel] = useState<string>(site.llmModel || 'qwen3.7-flash');
   const [maxTokens, setMaxTokens] = useState<number>(site.maxTokensPerResponse ?? 1000);
   const [systemPrompt, setSystemPrompt] = useState<string>(site.systemPromptOverride || '');
 
@@ -34,6 +35,7 @@ export function SubTabBehavior({ site, onSave }: SubTabBehaviorProps) {
     const updatedPayload: Partial<Site> = {
       useCurrentPageContent,
       sentimentDetection,
+      llmModel: llmModel.trim() || 'qwen3.7-flash',
       maxTokensPerResponse: maxTokens,
       systemPromptOverride: systemPrompt.trim() === '' ? null : systemPrompt.trim(),
     };
@@ -106,14 +108,19 @@ export function SubTabBehavior({ site, onSave }: SubTabBehaviorProps) {
         <div className="behavior-model-grid">
           <div className="rate-limit-box">
             <span className="rate-limit-label">LLM Model</span>
-            <Select
-              value={site.llmModel || 'qwen3.7-flash'}
-              disabled
+            <AutoComplete
+              value={llmModel}
+              onChange={(value) => setLlmModel(value)}
               style={{ width: '100%', marginTop: 4 }}
               options={[
-                { value: 'qwen3.7-flash', label: 'qwen3.7-flash' },
-                { value: 'gpt-4o', label: 'GPT-4o' },
+                { value: 'qwen3.7-flash', label: 'qwen3.7-flash (Qwen 3.7 Flash - Mặc định)' },
               ]}
+              placeholder="e.g. qwen3.7-flash, gpt-4o, deepseek-chat..."
+              filterOption={(inputValue, option) =>
+                (option?.value?.toUpperCase().indexOf(inputValue.toUpperCase()) ?? -1) !== -1 ||
+                (typeof option?.label === 'string' &&
+                  option.label.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1)
+              }
             />
           </div>
 
