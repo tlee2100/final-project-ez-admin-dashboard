@@ -53,6 +53,7 @@ jobs:
           tags: ${{ steps.image.outputs.image }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_CHAT_WIDGET_URL=${{ vars.NEXT_PUBLIC_CHAT_WIDGET_URL }}
 
   deploy:
     name: Deploy

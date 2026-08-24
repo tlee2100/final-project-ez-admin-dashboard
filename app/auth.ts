@@ -84,8 +84,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      // Return previous token if the access token has not expired yet
-      if (Date.now() < (token.accessTokenExpires as number)) {
+      // Return previous token if the access token has not expired yet (with 60s buffer window)
+      const REFRESH_BUFFER_MS = 60 * 1000;
+      if (Date.now() < (token.accessTokenExpires as number) - REFRESH_BUFFER_MS) {
         return token;
       }
 

@@ -120,12 +120,7 @@ export const combinedDataProvider: DataProvider = {
   }: UpdateParams<_TVariables>): Promise<UpdateResponse<TData>> => {
     const endpoint = meta?.url ?? `/${resource}/${id}`;
 
-    // Flatten logic for specific DTO updates if any are passed
     const bodyParams = { ...variables } as Record<string, unknown>;
-    if (resource === 'sites' && 'enabled' in bodyParams) {
-      bodyParams.isAiActive = bodyParams.enabled;
-      delete bodyParams.enabled;
-    }
 
     try {
       const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
@@ -151,10 +146,6 @@ export const combinedDataProvider: DataProvider = {
     const endpoint = meta?.url ?? `/${resource}`;
 
     const bodyParams = { ...variables } as Record<string, unknown>;
-    if (resource === 'sites' && 'enabled' in bodyParams) {
-      bodyParams.isAiActive = bodyParams.enabled;
-      delete bodyParams.enabled;
-    }
 
     try {
       const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(

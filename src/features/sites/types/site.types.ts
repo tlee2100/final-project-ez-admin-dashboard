@@ -77,6 +77,10 @@ export interface Site {
   /** Safe masked representation of the custom key (e.g. sk-proj-••••...3a9b) */
   keyMask?: string | null;
   industryTemplateId?: string;
+  // New features
+  isAiActive?: boolean;
+  humanHandoff?: boolean;
+  emailTranscript?: boolean;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────
