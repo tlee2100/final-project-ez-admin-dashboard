@@ -59,6 +59,7 @@ export function BookingDetailsDrawer({
     endTime: string;
     slotCount: number;
     staffName?: string;
+    notes?: string;
   }> = [];
 
   const rawSlots = booking.templateFields?.slots;
@@ -73,8 +74,14 @@ export function BookingDetailsDrawer({
       const staffName = slot.staffName || booking.resource?.name;
       const slotStart = slot.timeSlot || baseStart.add(idx * slotMins, 'minute').format('HH:mm');
       const slotEnd = baseStart.add((idx + 1) * slotMins, 'minute').format('HH:mm');
+      const slotNote = slot.notes;
 
-      if (current && current.serviceName === sName && current.staffName === staffName) {
+      if (
+        current &&
+        current.serviceName === sName &&
+        current.staffName === staffName &&
+        current.notes === slotNote
+      ) {
         current.slotCount += 1;
         current.endTime = slotEnd;
       } else {
@@ -85,6 +92,7 @@ export function BookingDetailsDrawer({
           endTime: slotEnd,
           slotCount: 1,
           staffName,
+          notes: slotNote,
         };
       }
     });
@@ -176,7 +184,9 @@ export function BookingDetailsDrawer({
               )}
             </Space>
             {booking.notes && (
-              <div style={{ marginTop: 12, fontSize: 13, color: '#4b5563' }}>
+              <div
+                style={{ marginTop: 12, fontSize: 13, color: '#4b5563', whiteSpace: 'pre-wrap' }}
+              >
                 <Text type="secondary">Notes: </Text>
                 {booking.notes}
               </div>
@@ -243,7 +253,7 @@ export function BookingDetailsDrawer({
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
+                  gap: 10,
                   backgroundColor: '#f8fafc',
                   padding: '10px 12px',
                   borderRadius: 8,
@@ -255,24 +265,48 @@ export function BookingDetailsDrawer({
                     key={idx}
                     style={{
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      flexDirection: 'column',
+                      gap: 4,
                       fontSize: 13,
                     }}
                   >
-                    <div>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                        {item.startTime} - {item.endTime}
-                      </span>
-                      {item.slotCount > 1 && (
-                        <span style={{ color: '#64748b', fontSize: 12, marginLeft: 6 }}>
-                          ({item.slotCount} slots)
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>
+                          {item.startTime} - {item.endTime}
                         </span>
-                      )}
+                        {item.slotCount > 1 && (
+                          <span style={{ color: '#64748b', fontSize: 12, marginLeft: 6 }}>
+                            ({item.slotCount} slots)
+                          </span>
+                        )}
+                      </div>
+                      <Tag color="cyan" style={{ margin: 0, fontWeight: 500 }}>
+                        {item.serviceName}
+                      </Tag>
                     </div>
-                    <Tag color="cyan" style={{ margin: 0, fontWeight: 500 }}>
-                      {item.serviceName}
-                    </Tag>
+                    {item.notes && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: '#475569',
+                          backgroundColor: '#ffffff',
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          border: '1px solid #e2e8f0',
+                          width: 'fit-content',
+                        }}
+                      >
+                        <span style={{ color: '#64748b' }}>Slot note: </span>
+                        {item.notes}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

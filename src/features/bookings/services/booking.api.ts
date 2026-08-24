@@ -69,16 +69,18 @@ export const bookingApi = {
   },
 
   /**
-   * Cancel multiple bookings at once
+   * Cancel multiple bookings at once in a single consolidated request
    */
-  async bulkCancel(siteId: string, bookingIds: Key[]): Promise<void> {
-    await Promise.all(
-      bookingIds.map((id) =>
-        apiRequest(`/admin/sites/${siteId}/bookings/${String(id)}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'cancelled' }),
-        }),
-      ),
+  async bulkCancel(
+    siteId: string,
+    bookingIds: Key[],
+  ): Promise<{ success: boolean; cancelledCount: number }> {
+    return apiRequest<{ success: boolean; cancelledCount: number }>(
+      `/admin/sites/${siteId}/bookings/bulk-cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ bookingIds: bookingIds.map(String) }),
+      },
     );
   },
 

@@ -26,6 +26,7 @@ export interface BookingRecord {
       serviceName?: string;
       resourceId?: string;
       staffName?: string;
+      notes?: string;
     }>;
     serviceNames?: string[];
     serviceIds?: string[];
@@ -96,6 +97,7 @@ export interface ManualBookingFormData {
     date: string;
     timeSlot: string;
     serviceId?: string;
+    notes?: string;
   }>;
 }
 
