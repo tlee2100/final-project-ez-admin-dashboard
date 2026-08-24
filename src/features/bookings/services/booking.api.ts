@@ -4,6 +4,7 @@ import type {
   AvailableSlot,
   BlockoutRecord,
   BookingRecord,
+  BookingConfig,
   CreateBlockoutFormData,
 } from '../types/booking.types';
 
@@ -115,6 +116,26 @@ export const bookingApi = {
   async deleteBlockout(siteId: string, blockoutId: string): Promise<void> {
     await apiRequest(`/admin/sites/${siteId}/bookings/blockouts/${blockoutId}`, {
       method: 'DELETE',
+    });
+  },
+
+  /**
+   * Fetch booking configuration for a site
+   */
+  async getBookingConfig(siteId: string): Promise<BookingConfig> {
+    return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`);
+  },
+
+  /**
+   * Update booking configuration for a site
+   */
+  async updateBookingConfig(
+    siteId: string,
+    payload: Partial<BookingConfig> | Record<string, unknown>,
+  ): Promise<BookingConfig> {
+    return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     });
   },
 };

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Alert, App, Result } from 'antd';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LockOutlined, CheckCircleFilled, WarningOutlined } from '@ant-design/icons';
-import { apiRequest } from '@/src/lib/api.client';
+import { activateAccountApi } from '@/src/services/auth.service';
 import styles from './login.module.css';
 
 interface SetPasswordValues {
@@ -34,14 +34,10 @@ export function SetPasswordForm() {
     setLoading(true);
 
     try {
-      await apiRequest<{ message: string }>('/auth/activate-account', {
-        method: 'POST',
-        body: JSON.stringify({
-          token,
-          newPassword: values.newPassword,
-          confirmNewPassword: values.confirmNewPassword,
-        }),
-        requiresAuth: false,
+      await activateAccountApi({
+        token,
+        newPassword: values.newPassword,
+        confirmNewPassword: values.confirmNewPassword,
       });
 
       setIsSuccess(true);
