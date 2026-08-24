@@ -54,6 +54,8 @@ export interface BookingConfig {
   startTime: string;
   endTime: string;
   availableDays?: number[];
+  services?: string[];
+  resources?: string[];
   resourceDetails?: { id: string; name: string }[];
   serviceDetails?: { id: string; name: string }[];
   [key: string]: unknown;

@@ -117,7 +117,7 @@ export function TabConfiguration({
 
       {/* ── Sub-Tab Active Body ── */}
       <div className="site-config-subtab-body">
-        {activeSubTab === 'general' && <SubTabGeneral />}
+        {activeSubTab === 'general' && <SubTabGeneral site={site} />}
         {activeSubTab === 'appearance' && <SubTabAppearance site={site} />}
         {activeSubTab === 'behavior' && <SubTabBehavior site={site} />}
         {activeSubTab === 'security' && <SubTabSecurity site={site} onSave={onUpdateSite} />}

@@ -70,7 +70,17 @@ export interface Site {
   useCustomOpenAiKey?: boolean;
   /** True when the site has an encrypted custom key stored in the database */
   hasCustomApiKey?: boolean;
+  /** Operational/validation status of the custom key */
+  customKeyStatus?: 'unknown' | 'valid' | 'invalid';
+  /** Custom provider Base URL (e.g. https://api.openai.com/v1) */
+  customBaseUrl?: string | null;
+  /** Safe masked representation of the custom key (e.g. sk-proj-••••...3a9b) */
+  keyMask?: string | null;
   industryTemplateId?: string;
+  // New features
+  isAiActive?: boolean;
+  humanHandoff?: boolean;
+  emailTranscript?: boolean;
 }
 
 // ── Filter / Sort State ──────────────────────────────────────────────────────

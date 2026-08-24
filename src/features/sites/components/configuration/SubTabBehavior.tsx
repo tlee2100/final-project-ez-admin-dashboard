@@ -113,9 +113,15 @@ export function SubTabBehavior({ site, onSave }: SubTabBehaviorProps) {
               onChange={(value) => setLlmModel(value)}
               style={{ width: '100%', marginTop: 4 }}
               options={[
-                { value: 'qwen3.7-flash', label: 'qwen3.7-flash (Qwen 3.7 Flash - Mặc định)' },
+                { value: 'qwen3.7-flash', label: 'qwen3.7-flash (Qwen 3.7 Flash — Default)' },
+                { value: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI — Fast & Cost-effective)' },
+                { value: 'gpt-4o', label: 'gpt-4o (OpenAI — High Intelligence)' },
+                { value: 'deepseek-chat', label: 'deepseek-chat (DeepSeek Official)' },
+                { value: 'deepseek-reasoner', label: 'deepseek-reasoner (DeepSeek R1 Reasoning)' },
+                { value: 'claude-3-5-sonnet', label: 'claude-3-5-sonnet (Anthropic Claude)' },
+                { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash (Google Gemini)' },
               ]}
-              placeholder="e.g. qwen3.7-flash, gpt-4o, deepseek-chat..."
+              placeholder="e.g. qwen3.7-flash, gpt-4o-mini, deepseek-chat..."
               filterOption={(inputValue, option) =>
                 (option?.value?.toUpperCase().indexOf(inputValue.toUpperCase()) ?? -1) !== -1 ||
                 (typeof option?.label === 'string' &&
