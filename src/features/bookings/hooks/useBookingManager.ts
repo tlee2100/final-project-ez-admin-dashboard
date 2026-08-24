@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { message } from 'antd';
 import { apiRequest } from '@/src/lib/api.client';
 import type { AvailableSlot } from '../types/booking.types';
+import { bookingApi } from '../services/booking.api';
 import { useBookingSocket } from './useBookingSocket';
 
 interface UseBookingManagerOptions {
@@ -24,36 +25,29 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
 
   const [holdingSlots, setHoldingSlots] = useState<AvailableSlot[]>([]);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
-  // Track the slots currently held by THIS browser session
+
+  // Keep a ref to the currently held slot(s) for cleanup on unmount
   const currentHoldsRef = useRef<Array<{ resourceId: string; startAt: string; endAt: string }>>([]);
 
-  // Fetch initial holds on mount so other admins' holds are visible from the start
-  useEffect(() => {
-    if (!activeSiteId) return;
-    const fetchHolds = async () => {
-      try {
-        const holds = await apiRequest<AvailableSlot[]>(
-          `/admin/sites/${activeSiteId}/bookings/holds`,
-          {
-            method: 'GET',
-          },
-        );
-        setHoldingSlots(holds);
-      } catch (error) {
-        console.error('Failed to fetch initial holds', error);
-      }
-    };
-    fetchHolds();
-  }, [activeSiteId]);
-
+  // Subscribe to real-time slot held / released events via WebSocket
   useBookingSocket({
     siteId: activeSiteId,
     enabled: !!activeSiteId,
     onSlotHeld: (slot) => {
       setHoldingSlots((prev) => {
+        const isSelfHold = currentHoldsRef.current.some((h) => isMatchingSlot(h, slot));
+        if (isSelfHold) return prev;
         const exists = prev.some((s) => isMatchingSlot(s, slot));
         if (exists) return prev;
-        return [...prev, { ...slot, status: 'HOLDING' as const }];
+        return [
+          ...prev,
+          {
+            resourceId: slot.resourceId,
+            startAt: slot.startAt,
+            endAt: slot.endAt,
+            status: 'HOLDING',
+          },
+        ];
       });
     },
     onSlotConfirmed: (slot) => {
@@ -70,24 +64,21 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     const slots = Array.isArray(slotOrSlots) ? slotOrSlots : [slotOrSlots];
     if (slots.length === 0) return true;
 
-    // If already holding slots that are not in the new list, release them
+    // If already holding slots that are not in the new list, release them in a single request
     if (currentHoldsRef.current.length > 0) {
       const oldHolds = currentHoldsRef.current;
       const holdsToRelease = oldHolds.filter((oldH) => !slots.some((s) => isMatchingSlot(oldH, s)));
       if (holdsToRelease.length > 0) {
-        await Promise.all(
-          holdsToRelease.map((hold) =>
-            apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
-              method: 'DELETE',
-              body: JSON.stringify({
-                resourceId: hold.resourceId,
-                startAt: hold.startAt,
-                endAt: hold.endAt,
-                sessionId,
-              }),
-            }).catch(() => {}),
-          ),
-        );
+        await bookingApi
+          .releaseHolds(activeSiteId, {
+            sessionId,
+            slots: holdsToRelease.map((h) => ({
+              resourceId: h.resourceId,
+              startAt: h.startAt,
+              endAt: h.endAt,
+            })),
+          })
+          .catch(() => {});
         setHoldingSlots((prev) =>
           prev.filter((s) => !holdsToRelease.some((h) => isMatchingSlot(s, h))),
         );
@@ -112,19 +103,15 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     });
 
     try {
-      await Promise.all(
-        slots.map((slot) =>
-          apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
-            method: 'POST',
-            body: JSON.stringify({
-              resourceId: slot.resourceId || '',
-              startAt: slot.startAt,
-              endAt: slot.endAt,
-              sessionId,
-            }),
-          }),
-        ),
-      );
+      // Send a single consolidated request to hold all slots
+      await bookingApi.holdSlots(activeSiteId, {
+        sessionId,
+        slots: slots.map((s) => ({
+          resourceId: s.resourceId || '',
+          startAt: s.startAt,
+          endAt: s.endAt,
+        })),
+      });
 
       currentHoldsRef.current = slots.map((s) => ({
         resourceId: s.resourceId || '',
@@ -146,7 +133,7 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     }
   };
 
-  // Called when admin closes the modal — releases all holds immediately
+  // Called when admin closes the modal — releases all holds immediately in a single request
   const handleReleaseHold = async () => {
     const holds = currentHoldsRef.current;
     if (!activeSiteId || holds.length === 0) return;
@@ -158,19 +145,14 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     setHoldingSlots((prev) => prev.filter((s) => !holds.some((h) => isMatchingSlot(s, h))));
 
     try {
-      await Promise.all(
-        holds.map((hold) =>
-          apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-              resourceId: hold.resourceId,
-              startAt: hold.startAt,
-              endAt: hold.endAt,
-              sessionId,
-            }),
-          }),
-        ),
-      );
+      await bookingApi.releaseHolds(activeSiteId, {
+        sessionId,
+        slots: holds.map((h) => ({
+          resourceId: h.resourceId,
+          startAt: h.startAt,
+          endAt: h.endAt,
+        })),
+      });
     } catch (error) {
       console.error('Failed to release hold', error);
     }
@@ -181,18 +163,18 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     const handleBeforeUnload = () => {
       const holds = currentHoldsRef.current;
       if (activeSiteId && holds.length > 0) {
-        for (const hold of holds) {
-          apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-              resourceId: hold.resourceId,
-              startAt: hold.startAt,
-              endAt: hold.endAt,
-              sessionId,
-            }),
-            keepalive: true,
-          }).catch(() => {});
-        }
+        apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
+          method: 'DELETE',
+          body: JSON.stringify({
+            sessionId,
+            slots: holds.map((h) => ({
+              resourceId: h.resourceId,
+              startAt: h.startAt,
+              endAt: h.endAt,
+            })),
+          }),
+          keepalive: true,
+        }).catch(() => {});
       }
     };
 

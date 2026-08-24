@@ -138,4 +138,48 @@ export const bookingApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Hold one or multiple slots in a single consolidated request
+   */
+  async holdSlots(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+        serviceId?: string;
+      }>;
+    },
+  ): Promise<{ success: boolean; sessionId?: string }> {
+    return apiRequest<{ success: boolean; sessionId?: string }>(
+      `/admin/sites/${siteId}/bookings/hold`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  /**
+   * Release held slots in a single consolidated request
+   */
+  async releaseHolds(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots?: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+      }>;
+    },
+  ): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/admin/sites/${siteId}/bookings/hold`, {
+      method: 'DELETE',
+      body: JSON.stringify(payload),
+    });
+  },
 };
