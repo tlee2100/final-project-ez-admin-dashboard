@@ -5,7 +5,7 @@ import { useList, useOne, useInvalidate } from '@refinedev/core';
 import { Table, Button, Select, Spin, Popconfirm, Tag, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
-import { apiRequest } from '@/src/lib/api.client';
+import { siteApi } from '../services/site.api';
 
 interface AgentManagementPanelProps {
   siteId: string | null;
@@ -58,11 +58,12 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
   const isSiteLoading = siteQuery.isLoading;
   const assignedAgents = (siteQuery.data?.data?.agents as unknown as UserRecord[]) || [];
 
-  // Filter out agents that are already assigned to this site
+  // Candidate agents that can be added
   const availableAgents = allAgents.filter(
     (agent) => !assignedAgents.some((assigned) => assigned.id === agent.id),
   );
 
+  // Filtered by search
   const filteredAgents = availableAgents.filter(
     (agent) =>
       agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,10 +77,7 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
 
     try {
       const assignPromises = selectedAgentIds.map((agentId) =>
-        apiRequest(`/sites/${siteId}/agents`, {
-          method: 'POST',
-          body: JSON.stringify({ agentId }),
-        }),
+        siteApi.assignAgent(siteId, agentId),
       );
 
       await Promise.all(assignPromises);
@@ -106,9 +104,7 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
     if (!siteId) return;
     setIsMutating(true);
     try {
-      await apiRequest(`/sites/${siteId}/agents/${agentId}`, {
-        method: 'DELETE',
-      });
+      await siteApi.removeAgent(siteId, agentId);
 
       message.success('Agent removed successfully!');
 

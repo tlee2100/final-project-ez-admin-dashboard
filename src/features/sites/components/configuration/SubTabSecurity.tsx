@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Switch, App, Popconfirm, Tag } from 'antd';
+import { Switch, App, Popconfirm, Tag, AutoComplete } from 'antd';
 import { useUpdate } from '@refinedev/core';
 import {
   WarningOutlined,
@@ -10,14 +10,27 @@ import {
   EyeInvisibleOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
+  CloseCircleOutlined,
+  LoadingOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import type { Site } from '../../types/site.types';
-import { apiRequest } from '@/src/lib/api.client';
+import { siteSecurityApi } from '../../services/site.api';
 
 interface SubTabSecurityProps {
   site: Site;
   onSave?: (updatedData: Partial<Site>) => void;
 }
+
+const MODEL_PRESETS = [
+  { value: 'qwen3.7-flash', label: 'qwen3.7-flash (Qwen 3.7 Flash — Default)' },
+  { value: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI — Fast & Cost-effective)' },
+  { value: 'gpt-4o', label: 'gpt-4o (OpenAI — High Intelligence)' },
+  { value: 'deepseek-chat', label: 'deepseek-chat (DeepSeek Official)' },
+  { value: 'deepseek-reasoner', label: 'deepseek-reasoner (DeepSeek R1 Reasoning)' },
+  { value: 'claude-3-5-sonnet', label: 'claude-3-5-sonnet (Anthropic Claude)' },
+  { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash (Google Gemini)' },
+];
 
 function sanitizeDomain(input: string): string {
   let clean = input.trim().toLowerCase();
@@ -50,15 +63,35 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
   });
   const [newDomainInput, setNewDomainInput] = useState<string>('');
 
-  // ── 2. API Key Management State (SEC-001 / CE-004 — BYOK) ──
+  // ── 2. AI Provider & API Key State (BYOK) ──
   const [hasCustomKey, setHasCustomKey] = useState<boolean>(
     site.hasCustomApiKey ?? site.useCustomOpenAiKey ?? false,
   );
   const [useCustomKey, setUseCustomKey] = useState<boolean>(site.useCustomOpenAiKey ?? false);
+  const [customKeyStatus, setCustomKeyStatus] = useState<'unknown' | 'valid' | 'invalid'>(
+    site.customKeyStatus ?? 'unknown',
+  );
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>(site.customBaseUrl || '');
+  const [llmModel, setLlmModel] = useState<string>(site.llmModel || 'qwen3.7-flash');
+  const [keyMask, setKeyMask] = useState<string | null>(site.keyMask || null);
+
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [savingApiKey, setSavingApiKey] = useState<boolean>(false);
   const [removingApiKey, setRemovingApiKey] = useState<boolean>(false);
+  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+
+  const [testResult, setTestResult] = useState<{
+    valid: boolean;
+    latencyMs?: number;
+    text: string;
+    type: 'success' | 'error' | 'warning';
+  } | null>(null);
+
+  const [validationFeedback, setValidationFeedback] = useState<{
+    type: 'checking' | 'success' | 'warning' | 'error' | null;
+    text: string;
+  }>({ type: null, text: '' });
 
   // ── 3. Rate Limiting State ──
   const [maxMessagesPerSession, setMaxMessagesPerSession] = useState<number>(
@@ -132,26 +165,114 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     );
   };
 
-  // ── Handler: Save custom API key (BYOK) ──────────────────────────────────
+  // ── Handler: Test connection on-demand ──────────────────────────────────
+  const handleTestConnection = async () => {
+    if (!hasCustomKey && !apiKeyInput.trim()) {
+      message.warning('Please enter an API key to test the connection.');
+      return;
+    }
+
+    setTestingConnection(true);
+    setTestResult(null);
+    setValidationFeedback({ type: null, text: '' });
+
+    try {
+      const res = await siteSecurityApi.testConnection(site.id, {
+        apiKey: apiKeyInput.trim() || undefined,
+        customBaseUrl: customBaseUrl.trim() || undefined,
+        llmModel: llmModel.trim() || undefined,
+      });
+
+      if (res.valid) {
+        setCustomKeyStatus('valid');
+        setTestResult({
+          valid: true,
+          latencyMs: res.latencyMs,
+          type: res.warning ? 'warning' : 'success',
+          text: res.warning
+            ? `${res.warning} (Latency: ${res.latencyMs}ms)`
+            : `Connection verified successfully! Latency: ${res.latencyMs}ms (${res.endpointTested})`,
+        });
+        message.success(`Connection verified (${res.latencyMs}ms)`);
+      } else {
+        setCustomKeyStatus(res.customKeyStatus ?? 'invalid');
+        setTestResult({
+          valid: false,
+          latencyMs: res.latencyMs,
+          type: 'error',
+          text: res.error || 'Connection test failed with provider endpoint.',
+        });
+        message.error(`Test failed: ${res.error || 'Connection error'}`);
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setTestResult({
+        valid: false,
+        type: 'error',
+        text: errMsg,
+      });
+      message.error(`Connection test failed: ${errMsg}`);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  // ── Handler: Save custom API key & AI provider settings (BYOK) ───────────
   const handleSaveApiKey = async () => {
-    if (!apiKeyInput.trim()) {
-      message.error('Please enter your OpenAI API key before saving.');
+    if (!apiKeyInput.trim() && !hasCustomKey) {
+      message.error('Please enter your API key before saving.');
       return;
     }
 
     setSavingApiKey(true);
+    setTestResult(null);
+    setValidationFeedback({
+      type: 'checking',
+      text: 'Verifying credentials & model with provider endpoint...',
+    });
+
     try {
-      await apiRequest<{ useCustomOpenAiKey: boolean }>(`/sites/${site.id}/api-key`, {
-        method: 'PUT',
-        body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
+      const res = await siteSecurityApi.saveApiKey(site.id, {
+        apiKey: apiKeyInput.trim() || undefined,
+        customBaseUrl: customBaseUrl.trim() || undefined,
+        llmModel: llmModel.trim() || undefined,
       });
 
       setHasCustomKey(true);
       setUseCustomKey(true);
+      setCustomKeyStatus(res.customKeyStatus ?? 'valid');
+      if (res.keyMask) setKeyMask(res.keyMask);
       setApiKeyInput('');
-      message.success('Custom OpenAI key saved and encrypted successfully.');
+
+      if (res.warning) {
+        setValidationFeedback({
+          type: 'warning',
+          text: res.warning,
+        });
+        message.warning(res.warning);
+      } else {
+        setValidationFeedback({
+          type: 'success',
+          text: 'API credentials & model verified and saved successfully.',
+        });
+        message.success('Custom API credentials verified and saved successfully.');
+      }
+
+      onSave?.({
+        useCustomOpenAiKey: true,
+        hasCustomApiKey: true,
+        customKeyStatus: res.customKeyStatus ?? 'valid',
+        customBaseUrl: res.customBaseUrl ?? (customBaseUrl.trim() || null),
+        keyMask: res.keyMask ?? keyMask,
+        llmModel: res.llmModel ?? (llmModel.trim() || undefined),
+      });
     } catch (err) {
-      message.error(`Failed to save API key: ${err instanceof Error ? err.message : String(err)}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setValidationFeedback({
+        type: 'error',
+        text: errMsg,
+      });
+      message.error(`Failed to save settings: ${errMsg}`);
     } finally {
       setSavingApiKey(false);
     }
@@ -160,15 +281,25 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
   // ── Handler: Remove custom API key ───────────────────────────────────────
   const handleRemoveApiKey = async () => {
     setRemovingApiKey(true);
+    setTestResult(null);
+    setValidationFeedback({ type: null, text: '' });
     try {
-      await apiRequest<{ useCustomOpenAiKey: boolean }>(`/sites/${site.id}/api-key`, {
-        method: 'DELETE',
-      });
+      await siteSecurityApi.removeApiKey(site.id);
 
       setHasCustomKey(false);
       setUseCustomKey(false);
+      setCustomKeyStatus('unknown');
+      setKeyMask(null);
+      setCustomBaseUrl('');
       setApiKeyInput('');
       message.success('Custom key removed from database. Reverting to shared master key.');
+      onSave?.({
+        useCustomOpenAiKey: false,
+        hasCustomApiKey: false,
+        customKeyStatus: 'unknown',
+        customBaseUrl: null,
+        keyMask: null,
+      });
     } catch (err) {
       message.error(
         `Failed to remove API key: ${err instanceof Error ? err.message : String(err)}`,
@@ -312,45 +443,107 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
         </div>
       </div>
 
-      {/* ── 2. API Key Management Section (SEC-001 / CE-004 — BYOK) ── */}
+      {/* ── 2. AI Model & API Key Management Section (BYOK) ── */}
       <div className="security-section">
-        <h3 className="security-section-title" style={{ marginBottom: 16 }}>
-          API Key Management
-        </h3>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div>
+            <h3 className="security-section-title" style={{ marginBottom: 4 }}>
+              AI Model & Custom API Key (BYOK)
+            </h3>
+            <p className="security-section-desc" style={{ margin: 0 }}>
+              Configure your own API Key, Provider Endpoint (Base URL), and LLM Model for this site
+            </p>
+          </div>
 
-        {/* Current key status badge */}
-        <div style={{ marginBottom: 16 }}>
-          {useCustomKey && hasCustomKey ? (
-            <Tag
-              icon={<CheckCircleOutlined />}
-              color="success"
-              style={{ fontSize: 13, padding: '2px 10px' }}
-            >
-              Custom key active
-            </Tag>
-          ) : hasCustomKey ? (
-            <Tag color="warning" style={{ fontSize: 13, padding: '2px 10px' }}>
-              Using shared master key (Custom key paused)
-            </Tag>
-          ) : (
-            <Tag color="default" style={{ fontSize: 13, padding: '2px 10px' }}>
-              Using shared master key
-            </Tag>
-          )}
+          {/* Current key status badge + Quick Test Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {useCustomKey && hasCustomKey ? (
+              customKeyStatus === 'valid' ? (
+                <Tag
+                  icon={<CheckCircleOutlined />}
+                  color="success"
+                  style={{ fontSize: 13, padding: '2px 10px' }}
+                >
+                  Custom key active (Verified)
+                </Tag>
+              ) : customKeyStatus === 'invalid' ? (
+                <Tag
+                  icon={<CloseCircleOutlined />}
+                  color="error"
+                  style={{ fontSize: 13, padding: '2px 10px' }}
+                >
+                  Custom key failed (Fallback to shared master key)
+                </Tag>
+              ) : (
+                <Tag
+                  icon={<WarningOutlined />}
+                  color="warning"
+                  style={{ fontSize: 13, padding: '2px 10px' }}
+                >
+                  Custom key active (Unverified)
+                </Tag>
+              )
+            ) : hasCustomKey ? (
+              <Tag color="warning" style={{ fontSize: 13, padding: '2px 10px' }}>
+                Using shared master key (Custom key paused)
+              </Tag>
+            ) : (
+              <Tag color="default" style={{ fontSize: 13, padding: '2px 10px' }}>
+                Using shared master key
+              </Tag>
+            )}
+
+            {useCustomKey && (
+              <button
+                type="button"
+                style={{
+                  height: 28,
+                  padding: '0 12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: testingConnection ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => void handleTestConnection()}
+                disabled={testingConnection || savingApiKey}
+                title="Test connection to AI provider with current credentials"
+              >
+                {testingConnection ? <LoadingOutlined spin /> : <ApiOutlined />}
+                {testingConnection ? 'Testing…' : 'Test Connection'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Toggle Switch Row */}
         <div className="api-key-header-row">
           <div className="api-key-title-group">
-            <span className="api-key-label">Use Custom OpenAI Key</span>
+            <span className="api-key-label">Use Custom AI Provider & Key</span>
             <span className="api-key-subtext">
-              Use your own OpenAI API key instead of the shared one
+              Route this site&apos;s AI conversations through your own API Key &amp; Provider
+              Endpoint
             </span>
           </div>
           <Switch
             checked={useCustomKey}
             onChange={(checked) => handleToggleSwitch(checked)}
-            aria-label="Use Custom OpenAI Key Toggle"
+            aria-label="Use Custom AI Provider Toggle"
           />
         </div>
 
@@ -359,53 +552,208 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
           className="api-key-input-box"
           style={{ opacity: useCustomKey ? 1 : 0.6, transition: 'opacity 0.2s ease' }}
         >
-          <span className="api-key-input-label">
-            {hasCustomKey
-              ? 'Enter new OpenAI API Key (leave blank to keep current)'
-              : 'OpenAI API Key'}
-          </span>
-          <div className="api-key-input-wrapper">
-            <input
-              type={showApiKey ? 'text' : 'password'}
-              className="api-key-input"
-              placeholder={
-                hasCustomKey ? '(key securely stored — enter new key to overwrite)' : 'sk-proj-...'
-              }
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              disabled={!useCustomKey}
-            />
-            {useCustomKey && (
-              <button
-                type="button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#6b7280',
-                  cursor: 'pointer',
-                  fontSize: 14,
+          {/* Field 1: API Key */}
+          <div style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <span className="api-key-input-label" style={{ margin: 0 }}>
+                {hasCustomKey ? 'API Key (leave blank to keep current)' : 'Custom API Key'}
+              </span>
+              {hasCustomKey && keyMask && (
+                <span style={{ fontSize: 12, color: '#4b5563' }}>
+                  Current key:{' '}
+                  <Tag color="blue" style={{ fontFamily: 'monospace', margin: 0 }}>
+                    {keyMask}
+                  </Tag>
+                </span>
+              )}
+            </div>
+            <div className="api-key-input-wrapper">
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                className="api-key-input"
+                placeholder={
+                  hasCustomKey
+                    ? '(key securely stored — enter new key to overwrite)'
+                    : 'sk-proj-... or sk-...'
+                }
+                value={apiKeyInput}
+                onChange={(e) => {
+                  setApiKeyInput(e.target.value);
+                  if (validationFeedback.type) {
+                    setValidationFeedback({ type: null, text: '' });
+                  }
+                  if (testResult) {
+                    setTestResult(null);
+                  }
                 }}
-                onClick={() => setShowApiKey(!showApiKey)}
-                title={showApiKey ? 'Hide API Key' : 'Show API Key'}
-              >
-                {showApiKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-              </button>
-            )}
+                disabled={!useCustomKey || savingApiKey}
+              />
+              {useCustomKey && (
+                <button
+                  type="button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                  }}
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                >
+                  {showApiKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Save / Remove buttons — only visible when custom key is enabled */}
+          {/* Field 2: Custom Base URL (Optional) */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 6 }}>
+              <span className="api-key-input-label" style={{ margin: 0 }}>
+                Provider Base URL{' '}
+                <span style={{ color: '#9ca3af', fontWeight: 400 }}>(Optional)</span>
+              </span>
+            </div>
+            <input
+              type="text"
+              className="domain-input-field"
+              style={{ width: '100%', height: 38, borderRadius: 8, fontSize: 13 }}
+              placeholder="Leave empty to use server default (e.g. https://api.openai.com/v1, https://api.ai-box.vn/v1)"
+              value={customBaseUrl}
+              onChange={(e) => setCustomBaseUrl(e.target.value)}
+              disabled={!useCustomKey || savingApiKey}
+            />
+            <span style={{ fontSize: 11, color: '#6b7280', marginTop: 4, display: 'block' }}>
+              Compatible with OpenAI official (<code>https://api.openai.com/v1</code>), AI-Box (
+              <code>https://api.ai-box.vn/v1</code>), Azure OpenAI, or self-hosted proxy.
+            </span>
+          </div>
+
+          {/* Field 3: LLM Model Selector */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 6 }}>
+              <span className="api-key-input-label" style={{ margin: 0 }}>
+                LLM Model
+              </span>
+            </div>
+            <AutoComplete
+              value={llmModel}
+              onChange={(value) => setLlmModel(value)}
+              options={MODEL_PRESETS}
+              placeholder="e.g. qwen3.7-flash, gpt-4o-mini, deepseek-chat..."
+              style={{ width: '100%' }}
+              disabled={!useCustomKey || savingApiKey}
+              filterOption={(inputValue, option) =>
+                (option?.value?.toUpperCase().indexOf(inputValue.toUpperCase()) ?? -1) !== -1 ||
+                (typeof option?.label === 'string' &&
+                  option.label.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1)
+              }
+            />
+          </div>
+
+          {/* Inline Validation / Verification Feedback */}
+          {(validationFeedback.type || testResult) && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '8px 12px',
+                borderRadius: 6,
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background:
+                  testResult?.type === 'error' || validationFeedback.type === 'error'
+                    ? '#fef2f2'
+                    : testResult?.type === 'warning' || validationFeedback.type === 'warning'
+                      ? '#fffbeb'
+                      : '#f0fdf4',
+                border:
+                  testResult?.type === 'error' || validationFeedback.type === 'error'
+                    ? '1px solid #fecaca'
+                    : testResult?.type === 'warning' || validationFeedback.type === 'warning'
+                      ? '1px solid #fde68a'
+                      : '1px solid #bbf7d0',
+              }}
+            >
+              {validationFeedback.type === 'checking' && (
+                <span style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <LoadingOutlined spin /> {validationFeedback.text}
+                </span>
+              )}
+              {validationFeedback.type === 'success' && !testResult && (
+                <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircleOutlined /> {validationFeedback.text}
+                </span>
+              )}
+              {validationFeedback.type === 'warning' && !testResult && (
+                <span style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <WarningOutlined /> {validationFeedback.text}
+                </span>
+              )}
+              {validationFeedback.type === 'error' && !testResult && (
+                <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CloseCircleOutlined /> {validationFeedback.text}
+                </span>
+              )}
+              {testResult && (
+                <span
+                  style={{
+                    color:
+                      testResult.type === 'error'
+                        ? '#dc2626'
+                        : testResult.type === 'warning'
+                          ? '#d97706'
+                          : '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {testResult.type === 'error' ? (
+                    <CloseCircleOutlined />
+                  ) : testResult.type === 'warning' ? (
+                    <WarningOutlined />
+                  ) : (
+                    <CheckCircleOutlined />
+                  )}
+                  {testResult.text}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons — only visible when custom key is enabled */}
           {useCustomKey && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                marginTop: 16,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
               <button
                 type="button"
                 className="domain-add-btn"
                 style={{
                   flex: 1,
+                  minWidth: 180,
                   height: 40,
                   padding: '0 24px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: 8,
                   color: '#ffffff',
                   background: '#3b82f6',
                   borderRadius: 8,
@@ -416,13 +764,40 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                   transition: 'background 0.15s ease, transform 0.1s ease',
                 }}
                 onClick={() => void handleSaveApiKey()}
-                disabled={savingApiKey}
+                disabled={savingApiKey || testingConnection}
               >
-                {savingApiKey ? 'Saving…' : 'Save API Key'}
+                {savingApiKey && <LoadingOutlined spin />}
+                {savingApiKey ? 'Verifying & Saving…' : 'Validate & Save Settings'}
               </button>
+
+              <button
+                type="button"
+                style={{
+                  height: 40,
+                  padding: '0 18px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  color: '#2563eb',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: testingConnection ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => void handleTestConnection()}
+                disabled={testingConnection || savingApiKey}
+              >
+                {testingConnection ? <LoadingOutlined spin /> : <ApiOutlined />}
+                {testingConnection ? 'Testing…' : 'Test Connection'}
+              </button>
+
               {hasCustomKey && (
                 <Popconfirm
-                  title="Remove Custom Key"
+                  title="Remove Custom AI Credentials"
                   description="Are you sure? This will permanently delete the custom key from the database and revert this site to using the shared master key."
                   onConfirm={() => void handleRemoveApiKey()}
                   okText="Yes, remove"
@@ -433,7 +808,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                     type="button"
                     style={{
                       height: 40,
-                      padding: '0 20px',
+                      padding: '0 18px',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -460,7 +835,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                         e.currentTarget.style.borderColor = '#fecaca';
                       }
                     }}
-                    disabled={removingApiKey}
+                    disabled={removingApiKey || savingApiKey || testingConnection}
                   >
                     <DeleteOutlined style={{ fontSize: 14 }} />
                     {removingApiKey ? 'Removing…' : 'Remove Key'}
@@ -475,10 +850,12 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
         <div className="security-alert-box">
           <WarningOutlined className="security-alert-icon" />
           <div className="security-alert-content">
-            <span className="security-alert-title">API keys are stored securely</span>
+            <span className="security-alert-title">
+              API credentials are encrypted & securely isolated
+            </span>
             <span className="security-alert-message">
-              Your API key is AES-256-GCM encrypted before storage and never exposed to client-side
-              code. The plaintext key is not retrievable after saving.
+              Your API key is verified against the provider endpoint before storage and encrypted
+              with AES-256-GCM. It is never exposed in plaintext to client-side code.
             </span>
           </div>
         </div>
