@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Site } from '@/src/features/sites/types/site.types';
 import {
   Card,
@@ -80,18 +80,21 @@ export function TabBooking({ site }: TabBookingProps) {
   const { blockouts, handleCreateBlockout, confirmDeleteBlockout } = useBlockouts(site.id);
   const [isBlockoutModalOpen, setIsBlockoutModalOpen] = useState(false);
 
+  const [services, setServices] = useState<string[]>([]);
+  const [staff, setStaff] = useState<string[]>([]);
   const [newServiceInput, setNewServiceInput] = useState('');
   const [newStaffInput, setNewStaffInput] = useState('');
 
   // Watch form fields needed for dynamic UI rendering
   const bookingEnabled = Form.useWatch('bookingEnabled', form) ?? true;
   const industryTemplate = Form.useWatch('industryTemplate', form) || 'salon';
-  const services: string[] = Form.useWatch('services', form) || [];
-  const staff: string[] = Form.useWatch('staff', form) || [];
 
-  // Synchronize form values whenever config updates
-  useEffect(() => {
+  const [prevConfig, setPrevConfig] = useState(config);
+  if (config !== prevConfig) {
+    setPrevConfig(config);
     if (config) {
+      setServices(config.services || []);
+      setStaff(config.resources || []);
       const dayStrings = (config.availableDays || [1, 2, 3, 4, 5, 6]).map(
         (d: number) => DAYS_MAP[d - 1],
       );
@@ -107,36 +110,38 @@ export function TabBooking({ site }: TabBookingProps) {
         availableDays: dayStrings,
       });
     }
-  }, [config, form]);
+  }
 
   const handleAddService = () => {
     const trimmed = newServiceInput.trim();
     if (trimmed && !services.includes(trimmed)) {
-      form.setFieldValue('services', [...services, trimmed]);
+      const next = [...services, trimmed];
+      setServices(next);
+      form.setFieldValue('services', next);
       setNewServiceInput('');
     }
   };
 
   const handleRemoveService = (service: string) => {
-    form.setFieldValue(
-      'services',
-      services.filter((s: string) => s !== service),
-    );
+    const next = services.filter((s: string) => s !== service);
+    setServices(next);
+    form.setFieldValue('services', next);
   };
 
   const handleAddStaff = () => {
     const trimmed = newStaffInput.trim();
     if (trimmed && !staff.includes(trimmed)) {
-      form.setFieldValue('staff', [...staff, trimmed]);
+      const next = [...staff, trimmed];
+      setStaff(next);
+      form.setFieldValue('staff', next);
       setNewStaffInput('');
     }
   };
 
   const handleRemoveStaff = (staffMember: string) => {
-    form.setFieldValue(
-      'staff',
-      staff.filter((s: string) => s !== staffMember),
-    );
+    const next = staff.filter((s: string) => s !== staffMember);
+    setStaff(next);
+    form.setFieldValue('staff', next);
   };
 
   const handleSubmit = async (values: BookingFormValues) => {
@@ -152,8 +157,8 @@ export function TabBooking({ site }: TabBookingProps) {
       startTime: values.startTime,
       endTime: values.endTime,
       availableDays: daysNumbers,
-      services: values.services || [],
-      resources: values.staff || [],
+      services: services,
+      resources: staff,
     };
 
     const isDurationChanged = Number(values.slotDuration) !== originalSlotDuration;
@@ -302,6 +307,11 @@ export function TabBooking({ site }: TabBookingProps) {
                     mode="tags"
                     style={{ width: '100%' }}
                     placeholder="Select preset services or type custom service names (press Enter)"
+                    value={services}
+                    onChange={(selected) => {
+                      setServices(selected);
+                      form.setFieldValue('services', selected);
+                    }}
                     options={Array.from(new Set([...SALON_PRESET_SERVICES, ...services])).map(
                       (s) => ({
                         value: s,
@@ -601,7 +611,13 @@ export function TabBooking({ site }: TabBookingProps) {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <Button
-            onClick={fetchConfig}
+            onClick={async () => {
+              const fresh = await fetchConfig();
+              if (fresh) {
+                setServices(fresh.services || []);
+                setStaff(fresh.resources || []);
+              }
+            }}
             disabled={saving}
             style={{
               height: 40,
