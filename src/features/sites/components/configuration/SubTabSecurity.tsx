@@ -238,48 +238,10 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     setTestResult(null);
     setValidationFeedback({
       type: 'checking',
-      text: 'Verifying credentials with provider endpoint...',
+      text: 'Verifying credentials & model with provider endpoint...',
     });
 
     try {
-      // If no new key entered but already has a key, update model & customBaseUrl via site update
-      if (!apiKeyInput.trim() && hasCustomKey) {
-        updateSite(
-          {
-            resource: 'sites',
-            id: site.id,
-            values: {
-              customBaseUrl: customBaseUrl.trim() || undefined,
-              llmModel: llmModel.trim() || 'qwen3.7-flash',
-            },
-          },
-          {
-            onSuccess: () => {
-              setSavingApiKey(false);
-              setValidationFeedback({
-                type: 'success',
-                text: 'AI Provider settings (Base URL & Model) updated successfully.',
-              });
-              message.success('AI Provider settings updated successfully.');
-              onSave?.({
-                customBaseUrl: customBaseUrl.trim() || null,
-                llmModel: llmModel.trim() || 'qwen3.7-flash',
-              });
-            },
-            onError: (err) => {
-              setSavingApiKey(false);
-              const errMsg = err?.message || 'Failed to update settings';
-              setValidationFeedback({
-                type: 'error',
-                text: errMsg,
-              });
-              message.error(errMsg);
-            },
-          },
-        );
-        return;
-      }
-
       const res = await apiRequest<{
         useCustomOpenAiKey: boolean;
         customKeyStatus: 'unknown' | 'valid' | 'invalid';
@@ -290,7 +252,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
       }>(`/sites/${site.id}/api-key`, {
         method: 'PUT',
         body: JSON.stringify({
-          apiKey: apiKeyInput.trim(),
+          apiKey: apiKeyInput.trim() || undefined,
           customBaseUrl: customBaseUrl.trim() || undefined,
           llmModel: llmModel.trim() || undefined,
         }),
@@ -311,7 +273,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
       } else {
         setValidationFeedback({
           type: 'success',
-          text: 'API credentials & model settings verified and saved successfully.',
+          text: 'API credentials & model verified and saved successfully.',
         });
         message.success('Custom API credentials verified and saved successfully.');
       }
