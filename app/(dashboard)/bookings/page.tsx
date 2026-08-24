@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { message, Spin, Empty, Alert } from 'antd';
+import { message, Spin, Empty, Alert, Modal } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
-import { type CrudFilter, useCustom } from '@refinedev/core';
+import { type CrudFilter } from '@refinedev/core';
 import { useAuth } from '@/src/contexts/AuthContext';
 import dayjs from 'dayjs';
 
 import { useSitesData } from '@/src/features/sites/hooks/useSitesData';
+import { useSiteBookingConfig } from '@/src/features/sites/hooks/useSiteBookingConfig';
 import { useDebounce } from '@/src/hooks/useDebounce';
 import { useBookingManager } from '@/src/features/bookings/hooks/useBookingManager';
 import { useBlockouts } from '@/src/features/bookings/hooks/useBlockouts';
 import { bookingApi } from '@/src/features/bookings/services/booking.api';
+import { computeSlotInterval, isSameSlot } from '@/src/features/bookings/utils/booking.utils';
 
 import { BookingHeader } from '@/src/features/bookings/components/BookingHeader';
 import { BookingFilterBar } from '@/src/features/bookings/components/BookingFilterBar';
@@ -23,7 +26,6 @@ import '@/src/features/bookings/components/bookings.css';
 
 import type {
   BookingRecord,
-  BookingConfig,
   AvailableSlot,
   ManualBookingFormData,
   SelectedCalendarSlot,
@@ -43,11 +45,6 @@ export default function BookingsPage() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null);
-  const [initialModalData, setInitialModalData] = useState<{
-    staffId?: string;
-    timeSlot?: string;
-    date?: dayjs.Dayjs;
-  } | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<SelectedCalendarSlot[]>([]);
 
   // ── Filters & Search State ────────────────────────────────────────────────
@@ -60,15 +57,7 @@ export default function BookingsPage() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // ── Site Booking Config ───────────────────────────────────────────────────
-  const { query } = useCustom<BookingConfig>({
-    url: `/admin/sites/${activeSiteId}/bookings/booking-config`,
-    method: 'get',
-    queryOptions: {
-      enabled: !!activeSiteId,
-    },
-  });
-  const config = query.data?.data || null;
-  const isConfigLoading = query.isLoading;
+  const { config, loading: isConfigLoading } = useSiteBookingConfig(activeSiteId);
 
   // ── Refine useTable for Bookings ──────────────────────────────────────────
   const dayStart = currentDate.startOf('day').toISOString();
@@ -129,8 +118,15 @@ export default function BookingsPage() {
         : []),
     ];
     setFilters(filters, 'replace');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayStart, dayEnd, filterStaffId, filterStatus, showCancelled, debouncedSearchQuery]);
+  }, [
+    dayStart,
+    dayEnd,
+    filterStaffId,
+    filterStatus,
+    showCancelled,
+    debouncedSearchQuery,
+    setFilters,
+  ]);
 
   // ── Booking Action Handlers ───────────────────────────────────────────────
   const handleCreateBooking = async (data: ManualBookingFormData): Promise<boolean> => {
@@ -140,11 +136,13 @@ export default function BookingsPage() {
       return false;
     }
     try {
+      const cleanCustomerEmail = data.customerEmail?.trim() || undefined;
+
       if (data.slots && data.slots.length > 0) {
         await bookingApi.createBooking(activeSiteId, {
           customerName: data.customerName,
           customerPhone: data.customerPhone,
-          customerEmail: data.customerEmail,
+          customerEmail: cleanCustomerEmail,
           serviceId: data.serviceId,
           serviceIds: data.serviceIds,
           slots: data.slots,
@@ -153,20 +151,18 @@ export default function BookingsPage() {
           sessionId,
         });
       } else {
-        const formattedDate = data.date
-          ? data.date.format('YYYY-MM-DD')
-          : currentDate.format('YYYY-MM-DD');
-        const startAt = dayjs(`${formattedDate} ${data.timeSlot}`).toISOString();
-        const endAt = dayjs(`${formattedDate} ${data.timeSlot}`)
-          .add(config.slotDuration, 'minute')
-          .toISOString();
+        const { startAt, endAt } = computeSlotInterval(
+          data.date || currentDate,
+          data.timeSlot,
+          config.slotDuration,
+        );
 
         await bookingApi.createBooking(activeSiteId, {
           startAt,
           endAt,
           customerName: data.customerName,
           customerPhone: data.customerPhone,
-          customerEmail: data.customerEmail,
+          customerEmail: cleanCustomerEmail,
           serviceId: data.serviceId,
           serviceIds: data.serviceIds,
           staffId: data.staffId,
@@ -179,7 +175,6 @@ export default function BookingsPage() {
       message.success('Booking created successfully');
       tableQuery.refetch();
       setIsModalOpen(false);
-      setInitialModalData(null);
       setSelectedSlots([]);
       clearHoldExpiry();
       return true;
@@ -196,13 +191,10 @@ export default function BookingsPage() {
     }
 
     setSelectedSlots((prev) => {
-      const exists = prev.some(
-        (s) => s.staffId === staffId && s.time === time && s.date.isSame(currentDate, 'day'),
-      );
+      const target = { staffId, time, date: currentDate };
+      const exists = prev.some((s) => isSameSlot(s, target));
       if (exists) {
-        return prev.filter(
-          (s) => !(s.staffId === staffId && s.time === time && s.date.isSame(currentDate, 'day')),
-        );
+        return prev.filter((s) => !isSameSlot(s, target));
       }
       return [...prev, { staffId, staffName, time, date: currentDate }];
     });
@@ -216,11 +208,7 @@ export default function BookingsPage() {
     if (selectedSlots.length === 0) return;
 
     const slotsToHold: AvailableSlot[] = selectedSlots.map((s) => {
-      const formattedDate = s.date.format('YYYY-MM-DD');
-      const startAt = dayjs(`${formattedDate} ${s.time}`).toISOString();
-      const endAt = dayjs(`${formattedDate} ${s.time}`)
-        .add(config?.slotDuration || 30, 'minute')
-        .toISOString();
+      const { startAt, endAt } = computeSlotInterval(s.date, s.time, config?.slotDuration);
       return {
         resourceId: s.staffId,
         startAt,
@@ -241,12 +229,7 @@ export default function BookingsPage() {
       return;
     }
 
-    const formattedDate = currentDate.format('YYYY-MM-DD');
-    const startAt = dayjs(`${formattedDate} ${time}`).toISOString();
-    const endAt = dayjs(`${formattedDate} ${time}`)
-      .add(config?.slotDuration || 30, 'minute')
-      .toISOString();
-
+    const { startAt, endAt } = computeSlotInterval(currentDate, time, config.slotDuration);
     const staffObj = config.resourceDetails?.find((r) => r.id === staffId);
     const newSlot = { staffId, staffName: staffObj?.name || 'Staff', time, date: currentDate };
 
@@ -279,14 +262,24 @@ export default function BookingsPage() {
 
   const handleBulkCancel = async () => {
     if (!activeSiteId || selectedRowKeys.length === 0) return;
-    try {
-      await bookingApi.bulkCancel(activeSiteId, selectedRowKeys);
-      message.success('Selected bookings cancelled');
-      setSelectedRowKeys([]);
-      tableQuery.refetch();
-    } catch {
-      message.error('Failed to cancel bookings');
-    }
+    Modal.confirm({
+      title: 'Cancel Selected Bookings',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      content: `Are you sure you want to cancel ${selectedRowKeys.length} selected booking(s)?`,
+      okText: 'Yes, Cancel',
+      okType: 'danger',
+      cancelText: 'No, Keep',
+      onOk: async () => {
+        try {
+          await bookingApi.bulkCancel(activeSiteId, selectedRowKeys);
+          message.success('Selected bookings cancelled');
+          setSelectedRowKeys([]);
+          tableQuery.refetch();
+        } catch {
+          message.error('Failed to cancel bookings');
+        }
+      },
+    });
   };
 
   // ── Render States ─────────────────────────────────────────────────────────
@@ -358,7 +351,6 @@ export default function BookingsPage() {
             selectedCount={selectedRowKeys.length}
             onBulkCancel={handleBulkCancel}
             onOpenNewBookingModal={() => {
-              setInitialModalData(null);
               setSelectedSlots([]);
               setIsModalOpen(true);
             }}
@@ -399,7 +391,6 @@ export default function BookingsPage() {
             open={isModalOpen}
             onCancel={async () => {
               setIsModalOpen(false);
-              setInitialModalData(null);
               setSelectedSlots([]);
               await handleReleaseHold();
             }}
@@ -409,7 +400,6 @@ export default function BookingsPage() {
             industryTemplateId={
               config?.industryTemplate || activeSite?.industryTemplateId || 'general'
             }
-            initialData={initialModalData}
             selectedSlots={selectedSlots}
             selectedDate={currentDate}
             onHoldSlot={handleHoldSlot}
@@ -417,7 +407,6 @@ export default function BookingsPage() {
             onHoldExpired={async () => {
               clearHoldExpiry();
               setIsModalOpen(false);
-              setInitialModalData(null);
               setSelectedSlots([]);
             }}
             onReleaseHold={handleReleaseHold}

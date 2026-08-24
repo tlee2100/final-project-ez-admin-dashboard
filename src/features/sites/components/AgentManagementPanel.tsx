@@ -1,129 +1,32 @@
 'use client';
 
-import { useState } from 'react';
-import { useList, useOne, useInvalidate } from '@refinedev/core';
-import { Table, Button, Select, Spin, Popconfirm, Tag, message } from 'antd';
+import { Table, Button, Select, Spin, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useCurrentRole } from '@/src/hooks/useCurrentRole';
-import { apiRequest } from '@/src/lib/api.client';
+import { useSiteAgents, type UserRecord } from '@/src/features/sites/hooks/useSiteAgents';
 
 interface AgentManagementPanelProps {
   siteId: string | null;
   siteName?: string;
 }
 
-interface UserRecord {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
-
 /**
  * Shared agent assign/remove UI + logic. Rendered inside AgentDrawer (sites
- * list) and inside the Agent Management tab (site detail). Inline styles keep
- * it self-contained so it works under both routes' CSS scopes.
+ * list) and inside the Agent Management tab (site detail).
  */
 export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelProps) {
-  const invalidate = useInvalidate();
-  const { isSuperAdmin, isAdmin } = useCurrentRole();
-
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isMutating, setIsMutating] = useState(false);
-
-  const canManage = isSuperAdmin || isAdmin;
-
-  // 1. Fetch all users from backend
-  const { query: usersQuery } = useList({
-    resource: 'users',
-    pagination: { mode: 'server', currentPage: 1, pageSize: 1000 },
-    queryOptions: {
-      enabled: !!siteId && canManage,
-    },
-  });
-
-  const allUsers = (usersQuery.data?.data as unknown as UserRecord[]) || [];
-  const allAgents = allUsers.filter((u) => String(u.role).toLowerCase() === 'agent');
-
-  // 2. Fetch current site details to get assigned agents
-  const { query: siteQuery } = useOne({
-    resource: 'sites',
-    id: siteId || '',
-    queryOptions: {
-      enabled: !!siteId,
-    },
-  });
-
-  const isSiteLoading = siteQuery.isLoading;
-  const assignedAgents = (siteQuery.data?.data?.agents as unknown as UserRecord[]) || [];
-
-  // Filter out agents that are already assigned to this site
-  const availableAgents = allAgents.filter(
-    (agent) => !assignedAgents.some((assigned) => assigned.id === agent.id),
-  );
-
-  const filteredAgents = availableAgents.filter(
-    (agent) =>
-      agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  // 3. Handle assign agents (save)
-  const handleAssignAgents = async () => {
-    if (!siteId || selectedAgentIds.length === 0) return;
-    setIsMutating(true);
-
-    try {
-      const assignPromises = selectedAgentIds.map((agentId) =>
-        apiRequest(`/sites/${siteId}/agents`, {
-          method: 'POST',
-          body: JSON.stringify({ agentId }),
-        }),
-      );
-
-      await Promise.all(assignPromises);
-
-      setSelectedAgentIds([]);
-      setSearchTerm('');
-      message.success('Agent assigned successfully!');
-
-      invalidate({
-        resource: 'sites',
-        invalidates: ['detail', 'list'],
-        id: siteId,
-      });
-    } catch (error) {
-      console.error(error);
-      message.error('An error occurred while assigning the agent.');
-    } finally {
-      setIsMutating(false);
-    }
-  };
-
-  // 4. Handle remove agent
-  const handleRemoveAgent = async (agentId: string) => {
-    if (!siteId) return;
-    setIsMutating(true);
-    try {
-      await apiRequest(`/sites/${siteId}/agents/${agentId}`, {
-        method: 'DELETE',
-      });
-
-      message.success('Agent removed successfully!');
-
-      invalidate({
-        resource: 'sites',
-        invalidates: ['detail', 'list'],
-        id: siteId,
-      });
-    } catch (error) {
-      console.error(error);
-      message.error('An error occurred while removing the agent.');
-    } finally {
-      setIsMutating(false);
-    }
-  };
+  const {
+    canManage,
+    assignedAgents,
+    filteredAgents,
+    selectedAgentIds,
+    setSelectedAgentIds,
+    setSearchTerm,
+    isSiteLoading,
+    isUsersLoading,
+    isMutating,
+    assignAgents,
+    removeAgent,
+  } = useSiteAgents(siteId);
 
   const columns = [
     {
@@ -146,7 +49,7 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
           <Popconfirm
             title="Remove Agent"
             description={`Are you sure you want to remove ${record.name} from this site?`}
-            onConfirm={() => handleRemoveAgent(record.id)}
+            onConfirm={() => removeAgent(record.id)}
             okText="Remove"
             cancelText="Cancel"
             placement="topRight"
@@ -187,7 +90,7 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
               onChange={(values) => setSelectedAgentIds(values)}
               filterOption={false}
               onSearch={(val) => setSearchTerm(val)}
-              notFoundContent={usersQuery.isLoading ? <Spin size="small" /> : 'No agents found'}
+              notFoundContent={isUsersLoading ? <Spin size="small" /> : 'No agents found'}
               options={filteredAgents.map((agent) => ({
                 label: `${agent.name} (${agent.email})`,
                 value: agent.id,
@@ -197,7 +100,7 @@ export function AgentManagementPanel({ siteId, siteName }: AgentManagementPanelP
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={handleAssignAgents}
+              onClick={assignAgents}
               loading={isMutating}
               disabled={selectedAgentIds.length === 0}
               style={{ width: '100%' }}

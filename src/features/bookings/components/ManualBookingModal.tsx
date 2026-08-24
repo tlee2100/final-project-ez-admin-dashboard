@@ -20,7 +20,6 @@ interface ManualBookingModalProps {
   industryTemplateId?: string;
   siteServices?: { id: string; name: string }[];
   siteStaff?: { id: string; name: string }[];
-  initialData?: { staffId?: string; timeSlot?: string } | null;
   selectedSlots?: SelectedCalendarSlot[];
   selectedDate: dayjs.Dayjs;
   fetchAvailableSlots?: (
@@ -44,7 +43,6 @@ export function ManualBookingModal({
   industryTemplateId = config?.industryTemplate || 'general',
   siteServices = config?.serviceDetails || [],
   siteStaff = config?.resourceDetails || [],
-  initialData,
   selectedSlots = [],
   selectedDate,
   fetchAvailableSlots = (sId, startDate, endDate, resourceId) =>
@@ -57,6 +55,7 @@ export function ManualBookingModal({
   const [form] = Form.useForm();
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   const isMultiSlot = selectedSlots && selectedSlots.length > 0;
@@ -90,20 +89,18 @@ export function ManualBookingModal({
           date: selectedSlots[0]?.date || selectedDate || dayjs(),
           staffId: selectedSlots[0]?.staffId || undefined,
           timeSlot: selectedSlots.map((s) => s.time),
+          serviceId: undefined,
+          slotServices: [],
         });
       } else {
         form.setFieldsValue({
           date: selectedDate || dayjs(),
-          staffId: initialData?.staffId || undefined,
-          timeSlot: initialData?.timeSlot ? [initialData.timeSlot] : undefined,
+          staffId: undefined,
+          timeSlot: undefined,
         });
       }
-    } else {
-      form.resetFields();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAvailableSlots([]);
     }
-  }, [open, initialData, selectedDate, selectedSlots, isMultiSlot, form]);
+  }, [open, selectedDate, selectedSlots, isMultiSlot, form]);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -133,16 +130,12 @@ export function ManualBookingModal({
     };
 
     if (open && !isMultiSlot) {
-      fetchSlots();
+      void fetchSlots();
     }
   }, [selectedFormDate, selectedStaffId, siteId, open, isMultiSlot, fetchAvailableSlots]);
 
   useEffect(() => {
-    if (!holdExpiry) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTimeLeft(null);
-      return;
-    }
+    if (!holdExpiry) return;
 
     const interval = setInterval(() => {
       const now = new Date();
@@ -161,15 +154,14 @@ export function ManualBookingModal({
   const handleTimeSlotChange = async (value: string | string[]) => {
     const values = Array.isArray(value) ? value : value ? [value] : [];
     if (values.length === 0) {
-      if (holdExpiry) {
-        await onReleaseHold();
-      }
+      await onReleaseHold();
       return;
     }
 
-    const slotsToHold = availableSlots.filter((s) =>
-      values.includes(dayjs(s.startAt).format('HH:mm')),
-    );
+    const slotsToHold: AvailableSlot[] = values
+      .map((slotStr) => availableSlots.find((s) => s.startAt === slotStr))
+      .filter((s): s is AvailableSlot => !!s);
+
     if (slotsToHold.length > 0) {
       const success = await onHoldSlot(slotsToHold);
       if (!success) {
@@ -178,63 +170,82 @@ export function ManualBookingModal({
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleFinish = async (values: any) => {
-    let serviceIds: string[] | undefined = undefined;
-    let singleServiceId: string | undefined = undefined;
+  const handleFinish = async (values: ManualBookingFormData & { slotServices?: string[] }) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const slotServicesList: string[] = [];
+      if (totalSlots > 1) {
+        for (let i = 0; i < totalSlots; i++) {
+          const sId = values.slotServices?.[i] || values.serviceId;
+          if (sId) slotServicesList.push(sId);
+        }
+      } else if (values.serviceId) {
+        slotServicesList.push(values.serviceId);
+      }
 
-    if (Array.isArray(values.serviceId)) {
-      serviceIds = values.serviceId;
-      singleServiceId = values.serviceId[0];
-    } else if (values.serviceId) {
-      serviceIds = [values.serviceId];
-      singleServiceId = values.serviceId;
+      const singleServiceId = slotServicesList[0] || values.serviceId;
+      const serviceIds = slotServicesList.length > 0 ? slotServicesList : undefined;
+
+      let slotsPayload:
+        | Array<{
+            resourceId: string;
+            date: string;
+            timeSlot: string;
+            serviceId?: string;
+          }>
+        | undefined = undefined;
+
+      if (isMultiSlot) {
+        slotsPayload = selectedSlots.map((s, idx) => ({
+          resourceId: s.staffId,
+          date: dayjs(s.date).format('YYYY-MM-DD'),
+          timeSlot: s.time,
+          serviceId: slotServicesList[idx] || slotServicesList[0],
+        }));
+      } else if (selectedTimeSlotsArr.length > 1) {
+        const formattedDate = values.date
+          ? values.date.format('YYYY-MM-DD')
+          : dayjs().format('YYYY-MM-DD');
+        slotsPayload = selectedTimeSlotsArr.map((time, idx) => ({
+          resourceId: values.staffId || '',
+          date: formattedDate,
+          timeSlot: time,
+          serviceId: slotServicesList[idx] || slotServicesList[0],
+        }));
+      }
+
+      const singleTimeSlot = isMultiSlot
+        ? selectedSlots[0]?.time
+        : selectedTimeSlotsArr[0] || values.timeSlot;
+
+      const bookingPayload: ManualBookingFormData = {
+        ...values,
+        customerEmail: values.customerEmail?.trim() || undefined,
+        timeSlot: singleTimeSlot,
+        serviceId: singleServiceId,
+        serviceIds,
+        slots: slotsPayload,
+      };
+
+      const success = await onSuccess(bookingPayload);
+      if (success !== false) {
+        form.resetFields();
+      }
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-    let slotsPayload:
-      | Array<{
-          resourceId: string;
-          date: string;
-          timeSlot: string;
-          serviceId?: string;
-        }>
-      | undefined = undefined;
-
-    if (isMultiSlot) {
-      slotsPayload = selectedSlots.map((s, idx) => ({
-        resourceId: s.staffId,
-        date: dayjs(s.date).format('YYYY-MM-DD'),
-        timeSlot: s.time,
-        serviceId: serviceIds ? serviceIds[idx] : undefined,
-      }));
-    } else if (selectedTimeSlotsArr.length > 1) {
-      const formattedDate = values.date
-        ? values.date.format('YYYY-MM-DD')
-        : dayjs().format('YYYY-MM-DD');
-      slotsPayload = selectedTimeSlotsArr.map((time, idx) => ({
-        resourceId: values.staffId,
-        date: formattedDate,
-        timeSlot: time,
-        serviceId: serviceIds ? serviceIds[idx] : undefined,
-      }));
+  const handleApplyFirstServiceToAll = () => {
+    const slotServices = form.getFieldValue('slotServices') || {};
+    const firstService = slotServices[0];
+    if (!firstService) return;
+    const nextServices: Record<number, string> = {};
+    for (let i = 0; i < totalSlots; i++) {
+      nextServices[i] = firstService;
     }
-
-    const singleTimeSlot = isMultiSlot
-      ? selectedSlots[0]?.time
-      : selectedTimeSlotsArr[0] || values.timeSlot;
-
-    const bookingPayload: ManualBookingFormData = {
-      ...values,
-      timeSlot: singleTimeSlot,
-      serviceId: singleServiceId,
-      serviceIds,
-      slots: slotsPayload,
-    };
-
-    const success = await onSuccess(bookingPayload);
-    if (success !== false) {
-      form.resetFields();
-    }
+    form.setFieldsValue({ slotServices: nextServices });
   };
 
   return (
@@ -300,7 +311,16 @@ export function ManualBookingModal({
           <Input placeholder="0912345678" />
         </Form.Item>
 
-        <Form.Item name="customerEmail" label="Email">
+        <Form.Item
+          name="customerEmail"
+          label="Email (Optional)"
+          rules={[
+            {
+              type: 'email',
+              message: 'Please enter a valid email address',
+            },
+          ]}
+        >
           <Input placeholder="email@example.com" />
         </Form.Item>
 
@@ -313,44 +333,102 @@ export function ManualBookingModal({
         </Title>
 
         {siteServices && siteServices.length > 0 && (
-          <Form.Item
-            name="serviceId"
-            label={totalSlots > 1 ? `Services (${totalSlots} slots)` : 'Service'}
-            rules={[
-              {
-                required: isSalon,
-                message: 'Service is required for salon',
-              },
-              ...(isSalon && totalSlots > 1
-                ? [
-                    {
-                      validator: (_: unknown, value: string[]) => {
-                        if (!value || value.length !== totalSlots) {
-                          return Promise.reject(
-                            new Error(
-                              `Please select exactly ${totalSlots} services for ${totalSlots} slots.`,
-                            ),
-                          );
-                        }
-                        return Promise.resolve();
-                      },
-                    },
-                  ]
-                : []),
-            ]}
-          >
-            <Select
-              mode={totalSlots > 1 ? 'multiple' : undefined}
-              placeholder={totalSlots > 1 ? 'Select services' : 'Select service'}
-              allowClear
-            >
-              {siteServices.map((s) => (
-                <Select.Option key={s.id} value={s.id}>
-                  {s.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <>
+            {totalSlots > 1 ? (
+              <div style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 10,
+                  }}
+                >
+                  <label style={{ fontWeight: 500 }}>
+                    Services per Slot ({totalSlots} slots)
+                    {isSalon && <span style={{ color: '#ff4d4f', marginLeft: 4 }}>*</span>}
+                  </label>
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={handleApplyFirstServiceToAll}
+                    style={{ padding: 0 }}
+                  >
+                    Apply first service to all slots
+                  </Button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {Array.from({ length: totalSlots }).map((_, idx) => {
+                    let slotLabel = `Slot ${idx + 1}`;
+                    if (isMultiSlot && selectedSlots[idx]) {
+                      slotLabel = `Slot ${idx + 1}: ${selectedSlots[idx].time} (${selectedSlots[idx].staffName})`;
+                    } else if (selectedTimeSlotsArr[idx]) {
+                      slotLabel = `Slot ${idx + 1}: ${selectedTimeSlotsArr[idx]}`;
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          backgroundColor: '#f8fafc',
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          border: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: '#475569',
+                            minWidth: 150,
+                          }}
+                        >
+                          {slotLabel}
+                        </span>
+                        <Form.Item
+                          name={['slotServices', idx]}
+                          rules={[
+                            {
+                              required: isSalon,
+                              message: 'Select service',
+                            },
+                          ]}
+                          style={{ margin: 0, flex: 1 }}
+                        >
+                          <Select
+                            placeholder="Select service"
+                            options={siteServices.map((s) => ({ value: s.id, label: s.name }))}
+                            allowClear
+                          />
+                        </Form.Item>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <Form.Item
+                name="serviceId"
+                label="Service"
+                rules={[
+                  {
+                    required: isSalon,
+                    message: 'Service is required for salon',
+                  },
+                ]}
+              >
+                <Select
+                  placeholder="Select service"
+                  options={siteServices.map((s) => ({ value: s.id, label: s.name }))}
+                  allowClear
+                />
+              </Form.Item>
+            )}
+          </>
         )}
 
         {!isMultiSlot && (
@@ -459,8 +537,15 @@ export function ManualBookingModal({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
-          <Button onClick={onCancel}>Cancel</Button>
-          <Button type="primary" htmlType="submit" disabled={!isMultiSlot && !holdExpiry}>
+          <Button onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isSubmitting}
+            disabled={isSubmitting || (!isMultiSlot && !holdExpiry)}
+          >
             Create Booking
           </Button>
         </div>

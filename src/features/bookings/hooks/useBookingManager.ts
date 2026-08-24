@@ -94,18 +94,37 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
       }
     }
 
-    try {
+    // Optimistically add to local holdingSlots immediately so all slots hold simultaneously
+    setHoldingSlots((prev) => {
+      const updated = [...prev];
       for (const slot of slots) {
-        await apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
-          method: 'POST',
-          body: JSON.stringify({
-            resourceId: slot.resourceId || '',
-            startAt: slot.startAt,
-            endAt: slot.endAt,
-            sessionId,
-          }),
-        });
+        const newHoldSlot: AvailableSlot = {
+          resourceId: slot.resourceId || '',
+          startAt: slot.startAt,
+          endAt: slot.endAt,
+          status: 'HOLDING',
+        };
+        if (!updated.some((s) => isMatchingSlot(s, newHoldSlot))) {
+          updated.push(newHoldSlot);
+        }
       }
+      return updated;
+    });
+
+    try {
+      await Promise.all(
+        slots.map((slot) =>
+          apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
+            method: 'POST',
+            body: JSON.stringify({
+              resourceId: slot.resourceId || '',
+              startAt: slot.startAt,
+              endAt: slot.endAt,
+              sessionId,
+            }),
+          }),
+        ),
+      );
 
       currentHoldsRef.current = slots.map((s) => ({
         resourceId: s.resourceId || '',
@@ -113,28 +132,13 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
         endAt: s.endAt,
       }));
 
-      // Optimistically add to local holdingSlots immediately
-      setHoldingSlots((prev) => {
-        const updated = [...prev];
-        for (const slot of slots) {
-          const newHoldSlot: AvailableSlot = {
-            resourceId: slot.resourceId || '',
-            startAt: slot.startAt,
-            endAt: slot.endAt,
-            status: 'HOLDING',
-          };
-          if (!updated.some((s) => isMatchingSlot(s, newHoldSlot))) {
-            updated.push(newHoldSlot);
-          }
-        }
-        return updated;
-      });
-
       const expiry = new Date();
       expiry.setMinutes(expiry.getMinutes() + 10);
       setHoldExpiry(expiry);
       return true;
     } catch (error: unknown) {
+      // Roll back optimistic hold on failure
+      setHoldingSlots((prev) => prev.filter((s) => !slots.some((slot) => isMatchingSlot(s, slot))));
       message.error(
         (error as Error).message || 'Sorry, someone else just held one of these slots.',
       );
