@@ -15,7 +15,7 @@ import {
   ApiOutlined,
 } from '@ant-design/icons';
 import type { Site } from '../../types/site.types';
-import { apiRequest } from '@/src/lib/api.client';
+import { siteSecurityApi } from '../../services/site.api';
 
 interface SubTabSecurityProps {
   site: Site;
@@ -177,20 +177,10 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     setValidationFeedback({ type: null, text: '' });
 
     try {
-      const res = await apiRequest<{
-        valid: boolean;
-        latencyMs: number;
-        customKeyStatus: 'valid' | 'invalid' | 'unknown';
-        endpointTested: string;
-        warning?: string;
-        error?: string;
-      }>(`/sites/${site.id}/api-key/test`, {
-        method: 'POST',
-        body: JSON.stringify({
-          apiKey: apiKeyInput.trim() || undefined,
-          customBaseUrl: customBaseUrl.trim() || undefined,
-          llmModel: llmModel.trim() || undefined,
-        }),
+      const res = await siteSecurityApi.testConnection(site.id, {
+        apiKey: apiKeyInput.trim() || undefined,
+        customBaseUrl: customBaseUrl.trim() || undefined,
+        llmModel: llmModel.trim() || undefined,
       });
 
       if (res.valid) {
@@ -242,20 +232,10 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     });
 
     try {
-      const res = await apiRequest<{
-        useCustomOpenAiKey: boolean;
-        customKeyStatus: 'unknown' | 'valid' | 'invalid';
-        customBaseUrl?: string | null;
-        keyMask?: string | null;
-        llmModel?: string;
-        warning?: string;
-      }>(`/sites/${site.id}/api-key`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          apiKey: apiKeyInput.trim() || undefined,
-          customBaseUrl: customBaseUrl.trim() || undefined,
-          llmModel: llmModel.trim() || undefined,
-        }),
+      const res = await siteSecurityApi.saveApiKey(site.id, {
+        apiKey: apiKeyInput.trim() || undefined,
+        customBaseUrl: customBaseUrl.trim() || undefined,
+        llmModel: llmModel.trim() || undefined,
       });
 
       setHasCustomKey(true);
@@ -304,12 +284,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     setTestResult(null);
     setValidationFeedback({ type: null, text: '' });
     try {
-      await apiRequest<{ useCustomOpenAiKey: boolean; customKeyStatus: 'unknown' }>(
-        `/sites/${site.id}/api-key`,
-        {
-          method: 'DELETE',
-        },
-      );
+      await siteSecurityApi.removeApiKey(site.id);
 
       setHasCustomKey(false);
       setUseCustomKey(false);

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Site } from '@/src/features/sites/types/site.types';
+import type { BookingConfig } from '@/src/features/bookings/types/booking.types';
 import {
   Card,
   Typography,
@@ -20,9 +21,9 @@ import {
   Modal,
 } from 'antd';
 import { WarningOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { apiRequest } from '@/src/lib/api.client';
 import { CreateBlockoutModal } from '@/src/features/bookings/components/CreateBlockoutModal';
 import { useBlockouts } from '@/src/features/bookings/hooks/useBlockouts';
+import { bookingApi } from '@/src/features/bookings/services/booking.api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -94,40 +95,63 @@ export function TabBooking({ site }: TabBookingProps) {
   const [isBlockoutModalOpen, setIsBlockoutModalOpen] = useState(false);
   const { blockouts, handleCreateBlockout, confirmDeleteBlockout } = useBlockouts(site.id);
 
-  const fetchConfig = React.useCallback(async () => {
+  const applyBookingData = useCallback((data: BookingConfig) => {
+    setBookingEnabled(data.bookingEnabled);
+    setIndustryTemplate(data.industryTemplate || 'salon');
+    setTimezone(data.timezone || 'Asia/Ho_Chi_Minh');
+    const savedDuration = String(data.slotDuration || 30);
+    setSlotDuration(savedDuration);
+    setOriginalSlotDuration(savedDuration);
+    setStartTime(data.startTime || '09:00');
+    setEndTime(data.endTime || '20:00');
+
+    const dayStrings = (data.availableDays || [1, 2, 3, 4, 5, 6]).map(
+      (d: number) => DAYS_MAP[d - 1],
+    );
+    setAvailableDays(dayStrings);
+
+    setServices(data.services || []);
+    setStaff(data.resources || []);
+    setResourceDetails(data.resourceDetails || []);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadBookingConfig = async () => {
+      try {
+        const data = await bookingApi.getBookingConfig(site.id);
+        if (isMounted) {
+          applyBookingData(data);
+        }
+      } catch {
+        if (isMounted) {
+          message.error('Failed to load booking configuration');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadBookingConfig();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [site.id, applyBookingData]);
+
+  const handleCancel = async () => {
     try {
       setLoading(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await apiRequest<any>(`/admin/sites/${site.id}/bookings/booking-config`);
-
-      setBookingEnabled(data.bookingEnabled);
-      setIndustryTemplate(data.industryTemplate || 'salon');
-      setTimezone(data.timezone || 'Asia/Ho_Chi_Minh');
-      const savedDuration = String(data.slotDuration || 30);
-      setSlotDuration(savedDuration);
-      setOriginalSlotDuration(savedDuration);
-      setStartTime(data.startTime || '09:00');
-      setEndTime(data.endTime || '20:00');
-
-      const dayStrings = (data.availableDays || [1, 2, 3, 4, 5, 6]).map(
-        (d: number) => DAYS_MAP[d - 1],
-      );
-      setAvailableDays(dayStrings);
-
-      setServices(data.services || []);
-      setStaff(data.resources || []);
-      setResourceDetails(data.resourceDetails || []);
+      const data = await bookingApi.getBookingConfig(site.id);
+      applyBookingData(data);
     } catch {
-      message.error('Failed to load booking configuration');
+      message.error('Failed to reload booking configuration');
     } finally {
       setLoading(false);
     }
-  }, [site.id]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchConfig();
-  }, [fetchConfig]);
+  };
 
   const handleAddService = () => {
     if (newService.trim() && !services.includes(newService.trim())) {
@@ -168,10 +192,7 @@ export function TabBooking({ site }: TabBookingProps) {
         resources: staff,
       };
 
-      await apiRequest(`/admin/sites/${site.id}/bookings/booking-config`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
+      await bookingApi.updateBookingConfig(site.id, payload);
 
       setOriginalSlotDuration(slotDuration);
       message.success('Booking configuration saved successfully!');
@@ -613,7 +634,7 @@ export function TabBooking({ site }: TabBookingProps) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
         <Button
-          onClick={fetchConfig}
+          onClick={handleCancel}
           disabled={saving}
           style={{
             height: 40,

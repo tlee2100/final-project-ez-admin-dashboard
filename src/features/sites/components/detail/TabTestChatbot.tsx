@@ -2,21 +2,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { CheckSquareOutlined, BorderOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { apiRequest, API_BASE_URL } from '@/src/lib/api.client';
+import { API_BASE_URL } from '@/src/lib/api.client';
+import { siteApi } from '../../services/site.api';
 import type { SiteDetailInfo, MockKBFile } from '../../mock/sitesDetailMockData';
 
 interface TabTestChatbotProps {
   siteId: string;
   stats: SiteDetailInfo;
-}
-
-interface KBResponse {
-  data: {
-    id: string;
-    filename: string;
-    fileSizeBytes: number;
-    fileType: string;
-  }[];
 }
 
 export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
@@ -31,7 +23,7 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
     let isMounted = true;
     const fetchDocuments = async () => {
       try {
-        const response = await apiRequest<KBResponse>(`/sites/${siteId}/kb/sources`);
+        const response = await siteApi.getKBSources(siteId);
         if (isMounted && response?.data) {
           const docs: MockKBFile[] = response.data.map((doc) => ({
             name: doc.filename,

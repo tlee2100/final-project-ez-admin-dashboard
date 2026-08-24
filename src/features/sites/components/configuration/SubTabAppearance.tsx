@@ -13,7 +13,7 @@ import {
 import { UploadOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useUpdate } from '@refinedev/core';
 import { Site } from '@/src/features/sites/types/site.types';
-import { apiRequest } from '@/src/lib/api.client';
+import { siteApi } from '../../services/site.api';
 import { useState } from 'react';
 import { LiveAppearancePreview, AppearancePreviewProps } from './LiveAppearancePreview';
 
@@ -94,13 +94,7 @@ export function SubTabAppearance({ site }: SubTabAppearanceProps) {
     const { file, onSuccess, onError } = options;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file as Blob);
-
-      const response = await apiRequest<{ url: string }>(`/sites/${site.id}/image`, {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await siteApi.uploadImage(site.id, file as Blob);
 
       form.setFieldsValue({ [fieldName]: response.url });
       setLiveSettings((prev: AppearancePreviewProps) => ({ ...prev, [fieldName]: response.url }));
