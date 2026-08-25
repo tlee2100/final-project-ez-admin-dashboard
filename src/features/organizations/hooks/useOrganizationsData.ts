@@ -111,7 +111,7 @@ export function useOrganizationsData() {
       email: string;
     }): Promise<{ initialPassword?: string; activationEmailQueued?: boolean }> => {
       // 1. Create Organization
-      const orgRes = await apiRequest<{ data: { id: string } }>('/organizations', {
+      const orgRes = await apiRequest<{ data?: { id: string }; id?: string }>('/organizations', {
         method: 'POST',
         body: JSON.stringify({
           name: values.name,
@@ -121,7 +121,7 @@ export function useOrganizationsData() {
         }),
       });
 
-      const orgId = orgRes.data?.id || (orgRes as unknown as { id: string }).id;
+      const orgId = orgRes.data?.id || orgRes.id;
 
       // 2. Create Admin Owner User
       let initialPassword: string | undefined = undefined;

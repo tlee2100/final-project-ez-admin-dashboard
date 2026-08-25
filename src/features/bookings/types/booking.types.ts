@@ -39,6 +39,7 @@ export interface BookingRecord {
 }
 
 export type SlotStatus = 'AVAILABLE' | 'HOLDING' | 'BOOKED';
+
 export interface AvailableSlot {
   startAt: string;
   endAt: string;
@@ -62,6 +63,19 @@ export interface BookingConfig {
   [key: string]: unknown;
 }
 
+/** DTO for updating site booking configuration */
+export interface UpdateBookingConfigPayload {
+  bookingEnabled: boolean;
+  industryTemplate: string;
+  timezone: string;
+  slotDuration: number;
+  startTime: string;
+  endTime: string;
+  availableDays: number[];
+  services: string[];
+  resources: string[];
+}
+
 export interface BlockoutRecord {
   id: string;
   siteId: string;
@@ -82,6 +96,32 @@ export interface SelectedCalendarSlot {
   date: dayjs.Dayjs;
 }
 
+/** Slot item inside a multi-slot admin booking request */
+export interface AdminBookingSlotItem {
+  resourceId: string;
+  date: string;
+  timeSlot: string;
+  serviceId?: string;
+  notes?: string;
+}
+
+/** DTO for creating a manual / admin booking */
+export interface CreateAdminBookingPayload {
+  startAt?: string;
+  endAt?: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  serviceId?: string;
+  serviceIds?: string[];
+  staffId?: string;
+  slots?: AdminBookingSlotItem[];
+  notes?: string;
+  timezone: string;
+  sessionId: string;
+}
+
+/** Form data submitted by ManualBookingModal */
 export interface ManualBookingFormData {
   date?: dayjs.Dayjs;
   timeSlot?: string;
@@ -92,13 +132,21 @@ export interface ManualBookingFormData {
   serviceIds?: string[];
   staffId?: string;
   notes?: string;
-  slots?: Array<{
-    resourceId: string;
-    date: string;
-    timeSlot: string;
-    serviceId?: string;
-    notes?: string;
-  }>;
+  slots?: AdminBookingSlotItem[];
+}
+
+/** Form values collected by Ant Design Form in ManualBookingModal */
+export interface ManualBookingFormValues {
+  date?: dayjs.Dayjs | dayjs.Dayjs[] | string;
+  timeSlot?: string | string[];
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  serviceId?: string;
+  staffId?: string;
+  notes?: string;
+  slotServices?: Record<number | string, string> | string[];
+  slotNotes?: Record<number | string, string> | string[];
 }
 
 export interface CreateBlockoutFormData {
@@ -106,4 +154,43 @@ export interface CreateBlockoutFormData {
   startAt: string;
   endAt: string;
   reason?: string | null;
+}
+
+export interface HoldSlotItem {
+  resourceId: string;
+  startAt: string;
+  endAt: string;
+  serviceId?: string;
+}
+
+export interface HoldSlotsPayload {
+  sessionId: string;
+  slots: HoldSlotItem[];
+}
+
+export interface HoldSlotsResponse {
+  success: boolean;
+  sessionId?: string;
+}
+
+export interface ReleaseHoldsPayload {
+  sessionId: string;
+  slots?: Array<{
+    resourceId: string;
+    startAt: string;
+    endAt: string;
+  }>;
+}
+
+export interface ReleaseHoldsResponse {
+  success: boolean;
+}
+
+export interface BulkCancelPayload {
+  bookingIds: string[];
+}
+
+export interface BulkCancelResponse {
+  success: boolean;
+  cancelledCount: number;
 }
