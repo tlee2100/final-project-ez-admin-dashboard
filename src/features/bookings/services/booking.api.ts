@@ -3,8 +3,8 @@ import { apiRequest } from '@/src/lib/api.client';
 import type {
   AvailableSlot,
   BlockoutRecord,
-  BookingRecord,
   BookingConfig,
+  BookingRecord,
   CreateBlockoutFormData,
 } from '../types/booking.types';
 
@@ -69,16 +69,18 @@ export const bookingApi = {
   },
 
   /**
-   * Cancel multiple bookings at once
+   * Cancel multiple bookings at once in a single consolidated request
    */
-  async bulkCancel(siteId: string, bookingIds: Key[]): Promise<void> {
-    await Promise.all(
-      bookingIds.map((id) =>
-        apiRequest(`/admin/sites/${siteId}/bookings/${String(id)}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'cancelled' }),
-        }),
-      ),
+  async bulkCancel(
+    siteId: string,
+    bookingIds: Key[],
+  ): Promise<{ success: boolean; cancelledCount: number }> {
+    return apiRequest<{ success: boolean; cancelledCount: number }>(
+      `/admin/sites/${siteId}/bookings/bulk-cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ bookingIds: bookingIds.map(String) }),
+      },
     );
   },
 
@@ -120,14 +122,14 @@ export const bookingApi = {
   },
 
   /**
-   * Fetch booking configuration for a site
+   * Fetch site booking configuration
    */
   async getBookingConfig(siteId: string): Promise<BookingConfig> {
     return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`);
   },
 
   /**
-   * Update booking configuration for a site
+   * Update site booking configuration
    */
   async updateBookingConfig(
     siteId: string,
@@ -135,6 +137,50 @@ export const bookingApi = {
   ): Promise<BookingConfig> {
     return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`, {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Hold one or multiple slots in a single consolidated request
+   */
+  async holdSlots(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+        serviceId?: string;
+      }>;
+    },
+  ): Promise<{ success: boolean; sessionId?: string }> {
+    return apiRequest<{ success: boolean; sessionId?: string }>(
+      `/admin/sites/${siteId}/bookings/hold`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  /**
+   * Release held slots in a single consolidated request
+   */
+  async releaseHolds(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots?: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+      }>;
+    },
+  ): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/admin/sites/${siteId}/bookings/hold`, {
+      method: 'DELETE',
       body: JSON.stringify(payload),
     });
   },

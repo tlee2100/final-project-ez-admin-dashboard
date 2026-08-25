@@ -24,9 +24,23 @@ export function useBlockouts(siteId: string | null, onBlockoutChanged?: () => vo
   }, [siteId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchBlockouts();
-  }, [fetchBlockouts]);
+    let isMounted = true;
+    if (!siteId) return;
+
+    const load = async () => {
+      try {
+        const data = await bookingApi.getBlockouts(siteId);
+        if (isMounted) setBlockouts(data);
+      } catch (err) {
+        console.error('Failed to fetch blockouts', err);
+      }
+    };
+    void load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [siteId]);
 
   const handleCreateBlockout = async (data: CreateBlockoutFormData): Promise<boolean> => {
     if (!siteId) return false;
