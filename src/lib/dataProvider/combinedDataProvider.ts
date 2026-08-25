@@ -15,7 +15,6 @@ import type {
   GetManyParams,
   CustomParams,
 } from '@refinedev/core';
-import { mockDataProvider } from './mockDataProvider';
 import { API_BASE_URL, apiRequest } from '@/src/lib/api.client';
 
 function requestBody(variables: unknown): BodyInit {
@@ -33,7 +32,7 @@ export const combinedDataProvider: DataProvider = {
   }: GetListParams): Promise<GetListResponse<TData>> => {
     let endpoint = `/${resource}`;
     if (resource === 'bookings' && meta?.siteId) {
-      endpoint = `/admin/sites/${meta.siteId}/bookings`;
+      endpoint = `/admin/bookings/${meta.siteId}`;
     }
 
     const queryParams: string[] = [];
@@ -100,15 +99,11 @@ export const combinedDataProvider: DataProvider = {
     // Support nested endpoints via meta.url
     const endpoint = meta?.url ?? `/${resource}/${id}`;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-      );
-      const data = 'data' in res && res.data ? res.data : res;
-      return { data: data as unknown as TData };
-    } catch {
-      return mockDataProvider.getOne({ resource, id });
-    }
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+    );
+    const data = 'data' in res && res.data ? res.data : res;
+    return { data: data as unknown as TData };
   },
 
   // ── update ───────────────────────────────────────────────────────────────
@@ -122,19 +117,15 @@ export const combinedDataProvider: DataProvider = {
 
     const bodyParams = { ...variables } as Record<string, unknown>;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-        {
-          method: 'PATCH',
-          body: requestBody(bodyParams),
-        },
-      );
-      const item = 'data' in res && res.data ? res.data : res;
-      return { data: item as unknown as TData };
-    } catch {
-      return mockDataProvider.update({ resource, id, variables });
-    }
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+      {
+        method: 'PATCH',
+        body: requestBody(bodyParams),
+      },
+    );
+    const item = 'data' in res && res.data ? res.data : res;
+    return { data: item as unknown as TData };
   },
 
   // ── create ───────────────────────────────────────────────────────────────
@@ -147,30 +138,26 @@ export const combinedDataProvider: DataProvider = {
 
     const bodyParams = { ...variables } as Record<string, unknown>;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-        {
-          method: 'POST',
-          body: requestBody(bodyParams),
-        },
-      );
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+      {
+        method: 'POST',
+        body: requestBody(bodyParams),
+      },
+    );
 
-      // Safely map if the backend explicitly nests user and initialPassword inside the root response
-      if (resource === 'users' && 'user' in res) {
-        return {
-          data: {
-            ...(res.user as object),
-            initialPassword: res.initialPassword,
-          } as unknown as TData,
-        };
-      }
-
-      const item = 'data' in res && res.data ? res.data : res;
-      return { data: item as unknown as TData };
-    } catch {
-      return mockDataProvider.create({ resource, variables });
+    // Safely map if the backend explicitly nests user and initialPassword inside the root response
+    if (resource === 'users' && 'user' in res) {
+      return {
+        data: {
+          ...(res.user as object),
+          initialPassword: res.initialPassword,
+        } as unknown as TData,
+      };
     }
+
+    const item = 'data' in res && res.data ? res.data : res;
+    return { data: item as unknown as TData };
   },
 
   // ── deleteOne ─────────────────────────────────────────────────────────────
@@ -181,12 +168,8 @@ export const combinedDataProvider: DataProvider = {
   }: DeleteOneParams<_TVariables>): Promise<DeleteOneResponse<TData>> => {
     const endpoint = meta?.url ?? `/${resource}/${id}`;
 
-    try {
-      await apiRequest<unknown>(endpoint, { method: 'DELETE' });
-      return { data: { id } as unknown as TData };
-    } catch {
-      return mockDataProvider.deleteOne({ resource, id });
-    }
+    await apiRequest<unknown>(endpoint, { method: 'DELETE' });
+    return { data: { id } as unknown as TData };
   },
 
   // ── getMany ──────────────────────────────────────────────────────────────
@@ -194,15 +177,9 @@ export const combinedDataProvider: DataProvider = {
     resource,
     ids,
   }: GetManyParams): Promise<GetManyResponse<TData>> => {
-    if (resource === 'sites') {
-      const promises = ids.map((id) => apiRequest<Record<string, unknown>>(`/sites/${id}`));
-      const results = await Promise.all(promises);
-      return { data: results as unknown as TData[] };
-    }
-    if (mockDataProvider.getMany) {
-      return mockDataProvider.getMany({ resource, ids });
-    }
-    return { data: [] };
+    const promises = ids.map((id) => apiRequest<Record<string, unknown>>(`/${resource}/${id}`));
+    const results = await Promise.all(promises);
+    return { data: results as unknown as TData[] };
   },
 
   // ── custom ───────────────────────────────────────────────────────────────

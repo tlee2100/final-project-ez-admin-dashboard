@@ -163,7 +163,7 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
     const handleBeforeUnload = () => {
       const holds = currentHoldsRef.current;
       if (activeSiteId && holds.length > 0) {
-        apiRequest(`/admin/sites/${activeSiteId}/bookings/hold`, {
+        apiRequest(`/admin/bookings/${activeSiteId}/hold`, {
           method: 'DELETE',
           body: JSON.stringify({
             sessionId,

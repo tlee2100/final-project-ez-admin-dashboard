@@ -8,8 +8,9 @@ import {
   DeleteOutlined,
   DatabaseOutlined,
   TeamOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { Popconfirm } from 'antd';
+import { Popconfirm, App } from 'antd';
 import type { Site } from '../types/site.types';
 import { getKbStatusMeta } from '../types/site.types';
 import { getRelativeTime } from '../hooks/useSitesData';
@@ -31,8 +32,56 @@ export function SiteCard({
   onDelete,
   onAssignAgent,
 }: SiteCardProps) {
+  const { modal } = App.useApp();
   const relativeTime = getRelativeTime(site.updatedAt);
   const kbStatus = getKbStatusMeta(site.knowledgeBaseStatus);
+
+  const handleConfirmDelete = () => {
+    modal.confirm({
+      title: 'Warning: Permanent Site Deletion',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: 22 }} />,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p style={{ marginBottom: 12, color: '#374151' }}>
+            Are you sure you want to delete <strong>&quot;{site.name}&quot;</strong>?
+          </p>
+          <div
+            style={{
+              background: '#fff1f0',
+              border: '1px solid #ffccc7',
+              borderRadius: 8,
+              padding: '12px 14px',
+              color: '#cf1322',
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              ⚠️ This action is permanent and cannot be undone!
+            </p>
+            <p style={{ margin: '4px 0 0', color: '#595959' }}>
+              Deleting this site will permanently remove all associated information and data,
+              including:
+            </p>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, color: '#595959' }}>
+              <li>Knowledge base documents and vector embeddings</li>
+              <li>Live chat conversations and visitor message transcripts</li>
+              <li>Booking records, time slots, and blockout dates</li>
+              <li>Assigned agent configurations and API keys</li>
+            </ul>
+          </div>
+        </div>
+      ),
+      okText: 'Delete Permanently',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      okButtonProps: { danger: true },
+      width: 520,
+      onOk: () => {
+        onDelete(site.id);
+      },
+    });
+  };
 
   return (
     <div className="site-card">
@@ -98,7 +147,7 @@ export function SiteCard({
               <Popconfirm
                 title="Delete Site"
                 description={`Are you sure you want to delete "${site.name}"?`}
-                onConfirm={() => onDelete(site.id)}
+                onConfirm={handleConfirmDelete}
                 okText="Yes"
                 cancelText="No"
                 placement="topRight"
