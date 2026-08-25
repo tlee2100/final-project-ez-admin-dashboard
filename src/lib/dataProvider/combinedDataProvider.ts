@@ -15,7 +15,6 @@ import type {
   GetManyParams,
   CustomParams,
 } from '@refinedev/core';
-import { mockDataProvider } from './mockDataProvider';
 import { API_BASE_URL, apiRequest } from '@/src/lib/api.client';
 
 function requestBody(variables: unknown): BodyInit {
@@ -100,15 +99,11 @@ export const combinedDataProvider: DataProvider = {
     // Support nested endpoints via meta.url
     const endpoint = meta?.url ?? `/${resource}/${id}`;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-      );
-      const data = 'data' in res && res.data ? res.data : res;
-      return { data: data as unknown as TData };
-    } catch {
-      return mockDataProvider.getOne({ resource, id });
-    }
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+    );
+    const data = 'data' in res && res.data ? res.data : res;
+    return { data: data as unknown as TData };
   },
 
   // ── update ───────────────────────────────────────────────────────────────
@@ -182,15 +177,9 @@ export const combinedDataProvider: DataProvider = {
     resource,
     ids,
   }: GetManyParams): Promise<GetManyResponse<TData>> => {
-    if (resource === 'sites') {
-      const promises = ids.map((id) => apiRequest<Record<string, unknown>>(`/sites/${id}`));
-      const results = await Promise.all(promises);
-      return { data: results as unknown as TData[] };
-    }
-    if (mockDataProvider.getMany) {
-      return mockDataProvider.getMany({ resource, ids });
-    }
-    return { data: [] };
+    const promises = ids.map((id) => apiRequest<Record<string, unknown>>(`/${resource}/${id}`));
+    const results = await Promise.all(promises);
+    return { data: results as unknown as TData[] };
   },
 
   // ── custom ───────────────────────────────────────────────────────────────
