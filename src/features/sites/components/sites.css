@@ -11,6 +11,19 @@
   margin-bottom: 24px;
 }
 
+@media (max-width: 640px) {
+  .sites-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .sites-header .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .sites-header-left {
   display: flex;
   flex-direction: column;
@@ -56,6 +69,26 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 640px) {
+  .sites-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sites-controls-right {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .sites-controls-right > div,
+  .sites-controls-right .sites-btn-icon {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 .sites-controls-right {
   display: flex;
   align-items: center;
@@ -68,6 +101,14 @@
   flex: 1;
   min-width: 200px;
   max-width: 340px;
+}
+
+@media (max-width: 640px) {
+  .sites-search-wrapper {
+    max-width: 100%;
+    min-width: 100%;
+    width: 100%;
+  }
 }
 
 .sites-search-icon {

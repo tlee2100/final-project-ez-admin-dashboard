@@ -71,25 +71,27 @@ export function BookingFilterBar({
         </div>
 
         <div className="booking-actions">
-          <Button
-            icon={<LeftOutlined />}
-            onClick={() => onCurrentDateChange(currentDate.subtract(1, 'day'))}
-          />
-          <span style={{ fontWeight: 600 }}>{currentDate.format('DD/MM/YYYY')}</span>
-          <Button
-            icon={<RightOutlined />}
-            onClick={() => onCurrentDateChange(currentDate.add(1, 'day'))}
-          />
-          <Button onClick={() => onCurrentDateChange(dayjs())}>Today</Button>
-          <DatePicker
-            value={currentDate}
-            onChange={(d) => d && onCurrentDateChange(d)}
-            format="DD/MM/YYYY"
-            style={{ width: 130 }}
-          />
+          <div className="booking-date-nav">
+            <Button
+              icon={<LeftOutlined />}
+              onClick={() => onCurrentDateChange(currentDate.subtract(1, 'day'))}
+            />
+            <span className="booking-date-text">{currentDate.format('DD/MM/YYYY')}</span>
+            <Button
+              icon={<RightOutlined />}
+              onClick={() => onCurrentDateChange(currentDate.add(1, 'day'))}
+            />
+            <Button onClick={() => onCurrentDateChange(dayjs())}>Today</Button>
+            <DatePicker
+              value={currentDate}
+              onChange={(d) => d && onCurrentDateChange(d)}
+              format="DD/MM/YYYY"
+              className="booking-datepicker"
+            />
+          </div>
 
           <Button
-            style={{ marginLeft: 24 }}
+            className="booking-cancelled-toggle"
             danger={showCancelled}
             type={showCancelled ? 'primary' : 'default'}
             onClick={() => onShowCancelledChange(!showCancelled)}
@@ -106,30 +108,32 @@ export function BookingFilterBar({
           prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
-          style={{ width: 300, borderRadius: 8, padding: '6px 11px' }}
+          className="booking-search-input"
         />
-        <Select
-          placeholder="All statuses"
-          value={filterStatus}
-          onChange={onFilterStatusChange}
-          style={{ width: 150 }}
-          allowClear
-          options={[
-            { label: 'Confirmed', value: 'Confirmed' },
-            { label: 'Completed', value: 'Completed' },
-            { label: 'Cancelled', value: 'Cancelled' },
-          ]}
-        />
-        <Select
-          placeholder="All staff"
-          value={filterStaffId}
-          onChange={onFilterStaffIdChange}
-          style={{ width: 150 }}
-          allowClear
-          options={config.resourceDetails?.map((s) => ({ label: s.name, value: s.id })) || []}
-        />
+        <div className="booking-selects-row">
+          <Select
+            placeholder="All statuses"
+            value={filterStatus}
+            onChange={onFilterStatusChange}
+            className="booking-status-select"
+            allowClear
+            options={[
+              { label: 'Confirmed', value: 'Confirmed' },
+              { label: 'Completed', value: 'Completed' },
+              { label: 'Cancelled', value: 'Cancelled' },
+            ]}
+          />
+          <Select
+            placeholder="All staff"
+            value={filterStaffId}
+            onChange={onFilterStaffIdChange}
+            className="booking-staff-select"
+            allowClear
+            options={config.resourceDetails?.map((s) => ({ label: s.name, value: s.id })) || []}
+          />
+        </div>
 
-        <div style={{ flex: 1 }} />
+        <div className="booking-filters-spacer" style={{ flex: 1 }} />
 
         {selectedCount > 0 && (
           <Button
@@ -137,22 +141,28 @@ export function BookingFilterBar({
             type="text"
             icon={<CloseOutlined />}
             onClick={onBulkCancel}
+            className="booking-bulk-cancel-btn"
             style={{
-              backgroundColor: '#fce7f3',
-              color: '#be185d',
-              borderColor: '#fbcfe8',
+              fontWeight: 500,
+              background: '#fef2f2',
+              borderRadius: 8,
+              border: '1px solid #fee2e2',
             }}
           >
-            Cancel selected ({selectedCount})
+            Cancel {selectedCount} Selected
           </Button>
         )}
 
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          disabled={!config.bookingEnabled}
           onClick={onOpenNewBookingModal}
-          style={{ borderRadius: 8 }}
+          className="booking-new-btn"
+          style={{
+            background: '#6366f1',
+            borderRadius: 8,
+            fontWeight: 600,
+          }}
         >
           New Booking
         </Button>
