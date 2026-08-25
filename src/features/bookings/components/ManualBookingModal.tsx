@@ -47,6 +47,13 @@ interface ManualBookingModalProps {
   onReleaseHold: () => Promise<void>;
 }
 
+const defaultFetchAvailableSlots = (
+  sId: string,
+  startDate: string,
+  endDate: string,
+  resourceId: string,
+) => bookingApi.getAvailableSlots(sId, { startDate, endDate, resourceId });
+
 export function ManualBookingModal({
   open,
   onCancel,
@@ -58,8 +65,7 @@ export function ManualBookingModal({
   siteStaff = config?.resourceDetails || [],
   selectedSlots = [],
   selectedDate,
-  fetchAvailableSlots = (sId, startDate, endDate, resourceId) =>
-    bookingApi.getAvailableSlots(sId, { startDate, endDate, resourceId }),
+  fetchAvailableSlots,
   onHoldSlot,
   holdExpiry,
   onHoldExpired,
@@ -76,6 +82,14 @@ export function ManualBookingModal({
   const isSalon = industryTemplateId === 'salon';
 
   const selectedFormDate = Form.useWatch('date', form);
+  const selectedFormDates: dayjs.Dayjs[] = Array.isArray(selectedFormDate)
+    ? selectedFormDate
+        .map((d) => (d ? dayjs(d) : null))
+        .filter((d): d is dayjs.Dayjs => !!d && d.isValid())
+    : selectedFormDate && dayjs(selectedFormDate).isValid()
+      ? [dayjs(selectedFormDate)]
+      : [];
+
   const selectedStaffId = Form.useWatch('staffId', form);
   const selectedTimeSlots = Form.useWatch('timeSlot', form);
   const selectedTimeSlotsArr: string[] = Array.isArray(selectedTimeSlots)
@@ -102,8 +116,11 @@ export function ManualBookingModal({
     if (open) {
       setActiveTabKey('0');
       if (isMultiSlot) {
+        const initialDates = selectedSlots
+          .map((s) => (s.date ? dayjs(s.date) : null))
+          .filter((d): d is dayjs.Dayjs => !!d && d.isValid());
         form.setFieldsValue({
-          date: selectedSlots[0]?.date || selectedDate || dayjs(),
+          date: initialDates.length > 0 ? initialDates : [dayjs()],
           staffId: selectedSlots[0]?.staffId || undefined,
           timeSlot: selectedSlots.map((s) => s.time),
           serviceId: undefined,
@@ -111,8 +128,9 @@ export function ManualBookingModal({
           slotNotes: {},
         });
       } else {
+        const parsedDate = selectedDate ? dayjs(selectedDate) : dayjs();
         form.setFieldsValue({
-          date: selectedDate || dayjs(),
+          date: [parsedDate.isValid() ? parsedDate : dayjs()],
           staffId: undefined,
           timeSlot: undefined,
           slotServices: {},
@@ -123,35 +141,47 @@ export function ManualBookingModal({
   }
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchSlots = async () => {
-      if (isMultiSlot || !selectedFormDate || !selectedStaffId || !siteId) {
+      if (isMultiSlot || selectedFormDates.length === 0 || !selectedStaffId || !siteId) {
         setAvailableSlots([]);
         return;
       }
 
       setIsFetchingSlots(true);
       try {
-        const startDate = selectedFormDate.startOf('day').toISOString();
-        const endDate = selectedFormDate.endOf('day').toISOString();
-
-        const formattedSlots = await fetchAvailableSlots(
-          siteId,
-          startDate,
-          endDate,
-          selectedStaffId,
+        const fetchFn = fetchAvailableSlots || defaultFetchAvailableSlots;
+        const formattedSlotsArrays = await Promise.all(
+          selectedFormDates.map((d) => {
+            const startDate = d.startOf('day').toISOString();
+            const endDate = d.endOf('day').toISOString();
+            return fetchFn(siteId, startDate, endDate, selectedStaffId);
+          }),
         );
-        setAvailableSlots(formattedSlots);
+        const combinedSlots = formattedSlotsArrays.flat();
+        if (!isCancelled) {
+          setAvailableSlots(Array.isArray(combinedSlots) ? combinedSlots : []);
+        }
       } catch (error) {
         console.error('Failed to fetch available slots:', error);
-        setAvailableSlots([]);
+        if (!isCancelled) {
+          setAvailableSlots([]);
+        }
       } finally {
-        setIsFetchingSlots(false);
+        if (!isCancelled) {
+          setIsFetchingSlots(false);
+        }
       }
     };
 
     if (open && !isMultiSlot) {
       void fetchSlots();
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedFormDate, selectedStaffId, siteId, open, isMultiSlot, fetchAvailableSlots]);
 
   useEffect(() => {
@@ -179,7 +209,11 @@ export function ManualBookingModal({
     }
 
     const slotsToHold: AvailableSlot[] = values
-      .map((slotStr) => availableSlots.find((s) => s.startAt === slotStr))
+      .map((slotStr) =>
+        availableSlots.find(
+          (s) => s.startAt === slotStr || dayjs(s.startAt).format('HH:mm') === slotStr,
+        ),
+      )
       .filter((s): s is AvailableSlot => !!s);
 
     if (slotsToHold.length > 0) {
@@ -258,24 +292,35 @@ export function ManualBookingModal({
         | undefined = undefined;
 
       if (isMultiSlot) {
-        slotsPayload = selectedSlots.map((s, idx) => ({
-          resourceId: s.staffId,
-          date: dayjs(s.date).format('YYYY-MM-DD'),
-          timeSlot: s.time,
-          serviceId: slotServicesList[idx] || slotServicesList[0],
-          notes: slotNotesRaw[idx] || undefined,
-        }));
-      } else if (selectedTimeSlotsArr.length > 1) {
-        const formattedDate = values.date
-          ? values.date.format('YYYY-MM-DD')
-          : dayjs().format('YYYY-MM-DD');
-        slotsPayload = selectedTimeSlotsArr.map((time, idx) => ({
-          resourceId: values.staffId || '',
-          date: formattedDate,
-          timeSlot: time,
-          serviceId: slotServicesList[idx] || slotServicesList[0],
-          notes: slotNotesRaw[idx] || undefined,
-        }));
+        slotsPayload = selectedSlots.map((s, idx) => {
+          const parsed = dayjs(s.date);
+          return {
+            resourceId: s.staffId,
+            date: parsed.isValid() ? parsed.format('YYYY-MM-DD') : String(s.date),
+            timeSlot: s.time,
+            serviceId: slotServicesList[idx] || slotServicesList[0],
+            notes: slotNotesRaw[idx] || undefined,
+          };
+        });
+      } else if (selectedTimeSlotsArr.length > 1 || selectedFormDates.length > 0) {
+        slotsPayload = selectedTimeSlotsArr.map((timeVal, idx) => {
+          const matchedSlot = availableSlots.find(
+            (s) => s.startAt === timeVal || dayjs(s.startAt).format('HH:mm') === timeVal,
+          );
+          const slotDate = matchedSlot
+            ? dayjs(matchedSlot.startAt).format('YYYY-MM-DD')
+            : selectedFormDates[0]
+              ? selectedFormDates[0].format('YYYY-MM-DD')
+              : dayjs().format('YYYY-MM-DD');
+          const slotTime = matchedSlot ? dayjs(matchedSlot.startAt).format('HH:mm') : timeVal;
+          return {
+            resourceId: values.staffId || '',
+            date: slotDate,
+            timeSlot: slotTime,
+            serviceId: slotServicesList[idx] || slotServicesList[0],
+            notes: slotNotesRaw[idx] || undefined,
+          };
+        });
       }
 
       const singleTimeSlot = isMultiSlot
@@ -414,14 +459,27 @@ export function ManualBookingModal({
               </Select>
             </Form.Item>
 
-            <Form.Item name="date" label="Date" rules={[{ required: true }]}>
+            <Form.Item
+              name="date"
+              label="Date(s)"
+              rules={[{ required: true, message: 'Please select at least one date' }]}
+            >
               <DatePicker
+                multiple
+                maxTagCount="responsive"
+                placeholder="Select date(s)"
                 style={{ width: '100%' }}
                 format="DD/MM/YYYY"
-                disabledDate={(current) => current && current < dayjs().startOf('day')}
+                disabledDate={(current) =>
+                  Boolean(current && dayjs(current).isBefore(dayjs().startOf('day')))
+                }
                 onChange={async () => {
-                  if (holdExpiry) {
-                    await onReleaseHold();
+                  if (holdExpiry && onReleaseHold) {
+                    try {
+                      await onReleaseHold();
+                    } catch {
+                      // ignore
+                    }
                   }
                   form.setFieldValue('timeSlot', undefined);
                 }}
@@ -437,9 +495,9 @@ export function ManualBookingModal({
               }
               rules={[{ required: true, message: 'Please select at least one time slot' }]}
               extra={
-                !selectedFormDate || !selectedStaffId
-                  ? 'Please select a date and staff/resource first'
-                  : `${availableSlots.length} slots available for this date & staff/resource`
+                selectedFormDates.length === 0 || !selectedStaffId
+                  ? 'Please select date(s) and staff/resource first'
+                  : `${availableSlots.length} slots available across ${selectedFormDates.length} date(s)`
               }
             >
               <Select
@@ -447,23 +505,25 @@ export function ManualBookingModal({
                 placeholder="Select time slot(s)"
                 loading={isFetchingSlots}
                 notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
-                disabled={!selectedFormDate || !selectedStaffId}
+                disabled={selectedFormDates.length === 0 || !selectedStaffId}
                 onChange={handleTimeSlotChange}
                 allowClear
               >
                 {availableSlots.map((slot) => {
                   const time = dayjs(slot.startAt).format('HH:mm');
+                  const dateLabel = dayjs(slot.startAt).format('DD/MM');
                   const isHolding = slot.status === 'HOLDING';
+                  const label = selectedFormDates.length > 1 ? `${dateLabel} ${time}` : time;
                   return (
                     <Select.Option
-                      key={time}
-                      value={time}
+                      key={slot.startAt}
+                      value={slot.startAt}
                       disabled={isHolding}
                       style={
                         isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined
                       }
                     >
-                      {isHolding ? `${time} - Being booked... 🕒` : time}
+                      {isHolding ? `${label} - Being booked... 🕒` : label}
                     </Select.Option>
                   );
                 })}
@@ -515,17 +575,27 @@ export function ManualBookingModal({
                 if (isMultiSlot && selectedSlots[idx]) {
                   slotTime = selectedSlots[idx].time;
                   staffName = selectedSlots[idx].staffName;
-                  slotDate = dayjs(selectedSlots[idx].date).format('DD/MM/YYYY');
+                  const parsedSlotDate = dayjs(selectedSlots[idx].date);
+                  slotDate = parsedSlotDate.isValid() ? parsedSlotDate.format('DD/MM/YYYY') : '';
                 } else if (selectedTimeSlotsArr[idx]) {
-                  slotTime = selectedTimeSlotsArr[idx];
+                  const timeVal = selectedTimeSlotsArr[idx];
+                  const matchedSlot = availableSlots.find(
+                    (s) => s.startAt === timeVal || dayjs(s.startAt).format('HH:mm') === timeVal,
+                  );
+                  slotTime = matchedSlot ? dayjs(matchedSlot.startAt).format('HH:mm') : timeVal;
                   const staffObj = siteStaff.find((s) => s.id === selectedStaffId);
                   staffName = staffObj?.name || 'Staff';
-                  slotDate = selectedFormDate
-                    ? selectedFormDate.format('DD/MM/YYYY')
-                    : dayjs().format('DD/MM/YYYY');
+                  slotDate = matchedSlot
+                    ? dayjs(matchedSlot.startAt).format('DD/MM/YYYY')
+                    : selectedFormDates[0]
+                      ? selectedFormDates[0].format('DD/MM/YYYY')
+                      : dayjs().format('DD/MM/YYYY');
                 }
 
-                const tabLabel = slotTime ? `${slotTime}` : `Slot ${idx + 1}`;
+                const tabLabel =
+                  selectedFormDates.length > 1 && slotDate
+                    ? `${slotDate.slice(0, 5)} ${slotTime}`
+                    : slotTime || `Slot ${idx + 1}`;
 
                 return {
                   key: String(idx),
