@@ -39,5 +39,5 @@ export default function DashboardGroupLayout({ children }: { children: React.Rea
     return null;
   }
 
-  return <DashboardLayout pageName="AI Chatbot Admin">{children}</DashboardLayout>;
+  return <DashboardLayout>{children}</DashboardLayout>;
 }

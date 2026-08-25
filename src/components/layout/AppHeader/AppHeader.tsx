@@ -12,6 +12,8 @@ import {
   BulbOutlined,
   MenuOutlined,
 } from '@ant-design/icons';
+import { useOne } from '@refinedev/core';
+import type { Site } from '@/src/features/sites/types/site.types';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { NotificationBell } from '@/src/components/ui/NotificationBell/NotificationBell';
@@ -82,9 +84,28 @@ export function AppHeader({
 
   // Generate breadcrumb items
   const pathSnippets = pathname.split('/').filter((i) => i);
+  const siteId =
+    pathSnippets[0] === 'sites' && pathSnippets[1] && pathSnippets[1] !== 'new'
+      ? pathSnippets[1]
+      : undefined;
+
+  const { query: siteQuery } = useOne<Site>({
+    resource: 'sites',
+    id: siteId,
+    queryOptions: {
+      enabled: Boolean(siteId),
+    },
+  });
+  const siteName = siteQuery.data?.data?.name;
+
   const breadcrumbItems = pathSnippets.map((snippet, index) => {
     const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
-    const name = snippet.charAt(0).toUpperCase() + snippet.slice(1).replace(/-/g, ' ');
+    let name = snippet.charAt(0).toUpperCase() + snippet.slice(1).replace(/-/g, ' ');
+    if (index === 1 && pathSnippets[0] === 'sites') {
+      name = siteName || (pageName && pageName !== 'AI Chatbot Admin' ? pageName : name);
+    } else if (snippet.toLowerCase() === 'kb') {
+      name = 'Knowledge Base';
+    }
     return {
       key: url,
       title: <Link href={url}>{name}</Link>,

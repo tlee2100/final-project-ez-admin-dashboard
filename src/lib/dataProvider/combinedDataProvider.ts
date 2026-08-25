@@ -33,7 +33,7 @@ export const combinedDataProvider: DataProvider = {
   }: GetListParams): Promise<GetListResponse<TData>> => {
     let endpoint = `/${resource}`;
     if (resource === 'bookings' && meta?.siteId) {
-      endpoint = `/admin/sites/${meta.siteId}/bookings`;
+      endpoint = `/admin/bookings/${meta.siteId}`;
     }
 
     const queryParams: string[] = [];
