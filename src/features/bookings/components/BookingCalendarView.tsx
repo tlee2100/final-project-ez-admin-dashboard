@@ -183,6 +183,28 @@ export function BookingCalendarView({
                           const normalizedStatus = getStatusNormalized(booking.status);
                           const timeLabel = `${bookingStart.format('HH:mm')} - ${bookingEnd.format('HH:mm')}`;
 
+                          const serviceNames: string[] = [];
+                          if (booking.services && booking.services.length > 0) {
+                            booking.services.forEach((s) => {
+                              if (s?.name && !serviceNames.includes(s.name))
+                                serviceNames.push(s.name);
+                            });
+                          }
+                          if (
+                            booking.templateFields?.serviceNames &&
+                            Array.isArray(booking.templateFields.serviceNames)
+                          ) {
+                            booking.templateFields.serviceNames.forEach((n) => {
+                              if (typeof n === 'string' && !serviceNames.includes(n))
+                                serviceNames.push(n);
+                            });
+                          }
+                          if (serviceNames.length === 0 && booking.service?.name) {
+                            serviceNames.push(booking.service.name);
+                          }
+                          const serviceLabel =
+                            serviceNames.length > 0 ? serviceNames.join(', ') : '—';
+
                           return (
                             <Tooltip
                               key={booking.id}
@@ -191,7 +213,7 @@ export function BookingCalendarView({
                                   <div>
                                     <strong>{booking.customerName}</strong>
                                   </div>
-                                  <div>{booking.service?.name}</div>
+                                  <div>{serviceLabel}</div>
                                   <div>{timeLabel}</div>
                                 </div>
                               }
@@ -234,7 +256,7 @@ export function BookingCalendarView({
                                       textOverflow: 'ellipsis',
                                     }}
                                   >
-                                    {booking.service?.name}
+                                    {serviceLabel}
                                   </div>
                                 )}
                                 <div
@@ -348,6 +370,7 @@ export function BookingCalendarView({
                           return (
                             <Tooltip title="This slot is currently being held">
                               <div
+                                className="calendar-holding-slot"
                                 style={{
                                   width: '100%',
                                   height: '100%',

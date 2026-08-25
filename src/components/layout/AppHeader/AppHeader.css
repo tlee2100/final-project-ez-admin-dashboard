@@ -21,12 +21,6 @@
   left: 72px;
 }
 
-@media (max-width: 768px) {
-  .app-header {
-    left: 0 !important;
-  }
-}
-
 .mobile-toggle-btn {
   background: none;
   border: none;
@@ -48,6 +42,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .header-app-name {
@@ -106,6 +101,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* Theme toggle */
@@ -249,4 +245,87 @@
   background: #ef4444;
   border-radius: 50%;
   border: 2px solid white;
+}
+
+/* ─── Media Queries (Must stay at the bottom for override priority) ────────── */
+@media (max-width: 768px) {
+  .app-header {
+    left: 0 !important;
+    padding: 0 12px !important;
+    height: 56px !important;
+  }
+
+  .header-user-info {
+    display: none !important;
+  }
+
+  .header-theme-toggle {
+    display: none !important;
+  }
+
+  .header-live-btn {
+    display: none !important;
+  }
+
+  .header-divider {
+    display: none !important;
+  }
+
+  .header-breadcrumb-sep,
+  .header-role-badge {
+    display: none !important;
+  }
+
+  .header-left {
+    gap: 8px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .header-breadcrumb {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .header-breadcrumb ol,
+  .ant-breadcrumb ol {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .header-breadcrumb li,
+  .ant-breadcrumb li {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .header-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .header-notif-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-breadcrumb {
+    max-width: 150px;
+  }
 }

@@ -40,6 +40,8 @@
 @media (max-width: 768px) {
   .layout-main {
     margin-left: 0;
+    margin-top: 56px;
+    min-height: calc(100vh - 56px);
   }
 
   .layout-content {

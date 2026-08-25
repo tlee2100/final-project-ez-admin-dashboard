@@ -3,8 +3,8 @@ import { apiRequest } from '@/src/lib/api.client';
 import type {
   AvailableSlot,
   BlockoutRecord,
-  BookingRecord,
   BookingConfig,
+  BookingRecord,
   CreateBlockoutFormData,
 } from '../types/booking.types';
 
@@ -22,7 +22,7 @@ export const bookingApi = {
     if (params.resourceId) query.append('resourceId', params.resourceId);
 
     const data = await apiRequest<{ slots: AvailableSlot[] }>(
-      `/admin/sites/${siteId}/bookings/available-slots?${query.toString()}`,
+      `/admin/bookings/${siteId}/available-slots?${query.toString()}`,
     );
     return data?.slots || [];
   },
@@ -52,7 +52,7 @@ export const bookingApi = {
       sessionId: string;
     },
   ): Promise<BookingRecord> {
-    return apiRequest<BookingRecord>(`/admin/sites/${siteId}/bookings`, {
+    return apiRequest<BookingRecord>(`/admin/bookings/${siteId}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -62,23 +62,25 @@ export const bookingApi = {
    * Update the status of a specific booking
    */
   async updateStatus(siteId: string, bookingId: string, status: string): Promise<BookingRecord> {
-    return apiRequest<BookingRecord>(`/admin/sites/${siteId}/bookings/${bookingId}/status`, {
+    return apiRequest<BookingRecord>(`/admin/bookings/${siteId}/${bookingId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: status.toLowerCase() }),
     });
   },
 
   /**
-   * Cancel multiple bookings at once
+   * Cancel multiple bookings at once in a single consolidated request
    */
-  async bulkCancel(siteId: string, bookingIds: Key[]): Promise<void> {
-    await Promise.all(
-      bookingIds.map((id) =>
-        apiRequest(`/admin/sites/${siteId}/bookings/${String(id)}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'cancelled' }),
-        }),
-      ),
+  async bulkCancel(
+    siteId: string,
+    bookingIds: Key[],
+  ): Promise<{ success: boolean; cancelledCount: number }> {
+    return apiRequest<{ success: boolean; cancelledCount: number }>(
+      `/admin/bookings/${siteId}/bulk-cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ bookingIds: bookingIds.map(String) }),
+      },
     );
   },
 
@@ -95,7 +97,7 @@ export const bookingApi = {
     if (params?.resourceId) query.append('resourceId', params.resourceId);
 
     const queryStr = query.toString();
-    const endpoint = `/admin/sites/${siteId}/bookings/blockouts${queryStr ? `?${queryStr}` : ''}`;
+    const endpoint = `/admin/bookings/${siteId}/blockouts${queryStr ? `?${queryStr}` : ''}`;
     const data = await apiRequest<BlockoutRecord[]>(endpoint);
     return data || [];
   },
@@ -104,7 +106,7 @@ export const bookingApi = {
    * Create a new blockout period
    */
   async createBlockout(siteId: string, payload: CreateBlockoutFormData): Promise<BlockoutRecord> {
-    return apiRequest<BlockoutRecord>(`/admin/sites/${siteId}/bookings/blockouts`, {
+    return apiRequest<BlockoutRecord>(`/admin/bookings/${siteId}/blockouts`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -114,27 +116,68 @@ export const bookingApi = {
    * Delete a blockout period
    */
   async deleteBlockout(siteId: string, blockoutId: string): Promise<void> {
-    await apiRequest(`/admin/sites/${siteId}/bookings/blockouts/${blockoutId}`, {
+    await apiRequest(`/admin/bookings/${siteId}/blockouts/${blockoutId}`, {
       method: 'DELETE',
     });
   },
 
   /**
-   * Fetch booking configuration for a site
+   * Fetch site booking configuration
    */
   async getBookingConfig(siteId: string): Promise<BookingConfig> {
-    return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`);
+    return apiRequest<BookingConfig>(`/admin/bookings/${siteId}/booking-config`);
   },
 
   /**
-   * Update booking configuration for a site
+   * Update site booking configuration
    */
   async updateBookingConfig(
     siteId: string,
     payload: Partial<BookingConfig> | Record<string, unknown>,
   ): Promise<BookingConfig> {
-    return apiRequest<BookingConfig>(`/admin/sites/${siteId}/bookings/booking-config`, {
+    return apiRequest<BookingConfig>(`/admin/bookings/${siteId}/booking-config`, {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Hold one or multiple slots in a single consolidated request
+   */
+  async holdSlots(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+        serviceId?: string;
+      }>;
+    },
+  ): Promise<{ success: boolean; sessionId?: string }> {
+    return apiRequest<{ success: boolean; sessionId?: string }>(`/admin/bookings/${siteId}/hold`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Release held slots in a single consolidated request
+   */
+  async releaseHolds(
+    siteId: string,
+    payload: {
+      sessionId: string;
+      slots?: Array<{
+        resourceId: string;
+        startAt: string;
+        endAt: string;
+      }>;
+    },
+  ): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/admin/bookings/${siteId}/hold`, {
+      method: 'DELETE',
       body: JSON.stringify(payload),
     });
   },

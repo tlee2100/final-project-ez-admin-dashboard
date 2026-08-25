@@ -60,6 +60,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 .meta-chip {
@@ -89,6 +90,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .bookings-filters {
@@ -100,6 +103,7 @@
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
+  flex-wrap: wrap;
 }
 
 .view-toggle {
@@ -133,6 +137,39 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.booking-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booking-date-text {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.booking-datepicker {
+  width: 130px;
+}
+
+.booking-selects-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booking-search-input {
+  width: 300px;
+  border-radius: 8px;
+  padding: 6px 11px;
+}
+
+.booking-status-select,
+.booking-staff-select {
+  width: 150px;
 }
 
 .booking-table-container,
@@ -141,6 +178,9 @@
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 /* Modal and Drawer overrides */
@@ -176,6 +216,8 @@
 .calendar-grid {
   display: flex;
   flex-direction: column;
+  min-width: 600px;
+  width: 100%;
 }
 
 .calendar-header-row {
@@ -186,16 +228,19 @@
 
 .calendar-time-col {
   width: 80px;
+  min-width: 80px;
   flex-shrink: 0;
   border-right: 1px solid #e5e7eb;
   padding: 12px;
   color: #6b7280;
   font-size: 12px;
   text-align: right;
+  background: #f9fafb;
 }
 
 .calendar-staff-col {
   flex: 1;
+  min-width: 140px;
   padding: 12px;
   border-right: 1px solid #e5e7eb;
   font-weight: 600;
@@ -214,6 +259,7 @@
 
 .calendar-cell {
   flex: 1;
+  min-width: 140px;
   border-right: 1px solid #e5e7eb;
   padding: 4px;
   position: relative;
@@ -264,4 +310,145 @@
   background: #fdf2f8 !important;
   color: #f43f5e !important;
   text-decoration: line-through;
+}
+
+.calendar-holding-slot {
+  animation: holdingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes holdingPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ─── Mobile Media Queries ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .bookings-page {
+    padding: 14px;
+  }
+
+  .bookings-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .bookings-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .bookings-header-actions .ant-select {
+    width: 100% !important;
+  }
+
+  .site-settings-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bookings-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .view-toggle {
+    width: 100%;
+    display: flex;
+  }
+
+  .view-toggle button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .booking-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .booking-date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .booking-date-text {
+    font-size: 13px;
+  }
+
+  .booking-datepicker {
+    width: 110px !important;
+  }
+
+  .booking-cancelled-toggle {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0 !important;
+  }
+
+  .bookings-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .booking-search-input {
+    width: 100% !important;
+  }
+
+  .booking-selects-row {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .booking-status-select,
+  .booking-staff-select {
+    flex: 1;
+    width: auto !important;
+  }
+
+  .booking-filters-spacer {
+    display: none;
+  }
+
+  .booking-new-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar-grid {
+    min-width: 500px;
+  }
+
+  .calendar-time-col {
+    width: 65px;
+    min-width: 65px;
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+
+  .calendar-staff-col {
+    min-width: 110px;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .calendar-cell {
+    min-width: 110px;
+  }
 }

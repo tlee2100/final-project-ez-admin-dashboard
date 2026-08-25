@@ -71,8 +71,7 @@ export function ContainmentRateChart({ data }: ContainmentRateChartProps) {
               ))}
             </Pie>
             <Tooltip
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              formatter={(value: any) => [`${value}%`, '']}
+              formatter={(value: unknown) => [`${String(value ?? 0)}%`, '']}
               contentStyle={{
                 background: '#fff',
                 border: '1px solid #e5e7eb',

@@ -68,8 +68,7 @@ export function TokenUsageChart({ data }: TokenUsageChartProps) {
               tickFormatter={formatK}
             />
             <Tooltip
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              formatter={(value: any) => [`${formatK(Number(value))} tokens`, 'Usage']}
+              formatter={(value: unknown) => [`${formatK(Number(value))} tokens`, 'Usage']}
               contentStyle={{
                 background: '#fff',
                 border: '1px solid #e5e7eb',
