@@ -481,7 +481,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                   color="error"
                   style={{ fontSize: 13, padding: '2px 10px' }}
                 >
-                  Custom key failed (Fallback to shared master key)
+                  Custom key failed (Invalid / Quota exceeded)
                 </Tag>
               ) : (
                 <Tag
@@ -626,14 +626,13 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
               type="text"
               className="domain-input-field"
               style={{ width: '100%', height: 38, borderRadius: 8, fontSize: 13 }}
-              placeholder="Leave empty to use server default (e.g. https://api.openai.com/v1, https://api.ai-box.vn/v1)"
+              placeholder="Leave empty to use server default (e.g: https://api.ai-box.vn/v1)"
               value={customBaseUrl}
               onChange={(e) => setCustomBaseUrl(e.target.value)}
               disabled={!useCustomKey || savingApiKey}
             />
             <span style={{ fontSize: 11, color: '#6b7280', marginTop: 4, display: 'block' }}>
-              Compatible with OpenAI official (<code>https://api.openai.com/v1</code>), AI-Box (
-              <code>https://api.ai-box.vn/v1</code>), Azure OpenAI, or self-hosted proxy.
+              If left empty, the system will use the shared default AI provider endpoint.
             </span>
           </div>
 
@@ -845,6 +844,35 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
             </div>
           )}
         </div>
+
+        {/* Invalid Key Alert Banner */}
+        {useCustomKey && hasCustomKey && customKeyStatus === 'invalid' && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: '#fef2f2',
+              border: '1px solid #fca5a5',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}
+          >
+            <CloseCircleOutlined style={{ color: '#dc2626', fontSize: 18, marginTop: 2 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#991b1b', fontSize: 13 }}>
+                Custom API Key Error (Strict BYOK — No Master Key Fallback)
+              </div>
+              <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 2 }}>
+                Authentication with your custom API key failed (401) or your quota was exceeded
+                (429). The AI chatbot responses are currently paused for this site to prevent
+                unintended master key usage. Please test/update your credentials above or switch
+                back to the shared master key.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Warning Alert Banner */}
         <div className="security-alert-box">
