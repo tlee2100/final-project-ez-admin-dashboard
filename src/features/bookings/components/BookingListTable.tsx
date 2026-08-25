@@ -1,6 +1,6 @@
-import { Table, Tag, Dropdown, MenuProps, Button } from 'antd';
+import { Table, Tag, Dropdown, MenuProps, Button, Modal } from 'antd';
 import type { TableProps, ColumnsType } from 'antd/es/table';
-import { MoreOutlined } from '@ant-design/icons';
+import { MoreOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { useTableReturnType } from '@refinedev/antd';
 import type { BookingRecord } from '../types/booking.types';
@@ -52,12 +52,34 @@ export function BookingListTable({
     {
       title: 'Service',
       key: 'service',
-      render: (_: unknown, record: BookingRecord) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{record.service?.name ?? '—'}</div>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>{record.resource?.name ?? '—'}</div>
-        </div>
-      ),
+      render: (_: unknown, record: BookingRecord) => {
+        const serviceNames: string[] = [];
+        if (record.services && record.services.length > 0) {
+          record.services.forEach((s) => {
+            if (s?.name && !serviceNames.includes(s.name)) serviceNames.push(s.name);
+          });
+        }
+        if (
+          record.templateFields?.serviceNames &&
+          Array.isArray(record.templateFields.serviceNames)
+        ) {
+          record.templateFields.serviceNames.forEach((n) => {
+            if (typeof n === 'string' && !serviceNames.includes(n)) serviceNames.push(n);
+          });
+        }
+        if (serviceNames.length === 0 && record.service?.name) {
+          serviceNames.push(record.service.name);
+        }
+
+        const displayText = serviceNames.length > 0 ? serviceNames.join(', ') : '—';
+
+        return (
+          <div>
+            <div style={{ fontWeight: 500 }}>{displayText}</div>
+            <div style={{ fontSize: 12, color: '#6b7280' }}>{record.resource?.name ?? '—'}</div>
+          </div>
+        );
+      },
     },
     {
       title: 'Status',
@@ -87,7 +109,15 @@ export function BookingListTable({
           if (e.key === 'complete') {
             onUpdateStatus(record.id, 'Completed');
           } else if (e.key === 'cancel') {
-            onUpdateStatus(record.id, 'Cancelled');
+            Modal.confirm({
+              title: 'Cancel Booking',
+              icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+              content: `Are you sure you want to cancel the booking for ${record.customerName || 'this customer'}?`,
+              okText: 'Yes, Cancel',
+              okType: 'danger',
+              cancelText: 'No, Keep',
+              onOk: () => onUpdateStatus(record.id, 'Cancelled'),
+            });
           }
         };
 

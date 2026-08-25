@@ -54,9 +54,29 @@ export function useLiveChats(siteId?: string) {
   }, [siteId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchConversationStats();
-  }, [fetchConversationStats]);
+    let isMounted = true;
+    const loadStats = async () => {
+      try {
+        const url = siteId
+          ? `/chat/conversations/stats?siteId=${siteId}`
+          : `/chat/conversations/stats`;
+        const data = await apiRequest<{
+          total: number;
+          activeBotCount: number;
+          waitingCount: number;
+          assignedCount: number;
+          closedCount: number;
+        }>(url);
+        if (isMounted) setStats(data);
+      } catch (err) {
+        console.error('[live-chats] failed to fetch stats:', err);
+      }
+    };
+    void loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, [siteId]);
 
   // Build Refine filters
   const filters: CrudFilter[] = [];
@@ -91,7 +111,15 @@ export function useLiveChats(siteId?: string) {
     filters.push({ field: 'lastActivityAt', operator: 'lte', value: dateRange.end });
   }
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [accumulatedList, setAccumulatedList] = useState<Conversation[]>([]);
+  const [lastProcessed, setLastProcessed] = useState<{
+    data?: Conversation[];
+    page: number;
+    siteId: string | null | undefined;
+  }>({
+    page: 1,
+    siteId: null,
+  });
 
   // Reset page when filters change
   const handleSetHandlingFilter = useCallback((filter: HandlingStatus | 'CLOSED' | '') => {
@@ -109,10 +137,11 @@ export function useLiveChats(siteId?: string) {
     setPage(1);
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const [prevSiteId, setPrevSiteId] = useState(siteId);
+  if (siteId !== prevSiteId) {
+    setPrevSiteId(siteId);
     setPage(1);
-  }, [siteId]);
+  }
 
   const { query: listQuery } = useList<Conversation>({
     resource: 'chat/conversations/active',
@@ -127,21 +156,23 @@ export function useLiveChats(siteId?: string) {
   const isFetching = listQuery.isLoading || listQuery.isFetching;
   const refetch = listQuery.refetch;
 
-  // Update accumulated list when queryData or page changes
-  useEffect(() => {
-    if (!queryData) return;
-
+  if (
+    queryData &&
+    (lastProcessed.data !== queryData ||
+      lastProcessed.page !== page ||
+      lastProcessed.siteId !== siteId)
+  ) {
+    setLastProcessed({ data: queryData, page, siteId });
     if (page === 1) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setConversations(queryData);
+      setAccumulatedList(queryData);
     } else {
-      setConversations((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newItems = queryData.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newItems];
-      });
+      const existingIds = new Set(accumulatedList.map((c) => c.id));
+      const newItems = queryData.filter((c) => !existingIds.has(c.id));
+      setAccumulatedList([...accumulatedList, ...newItems]);
     }
-  }, [queryData, page]);
+  }
+
+  const conversations = page === 1 && queryData ? queryData : accumulatedList;
 
   const hasMore = conversations.length < total;
   const isLoading = page === 1 && isFetching && conversations.length === 0;

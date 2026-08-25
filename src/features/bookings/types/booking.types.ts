@@ -17,6 +17,22 @@ export interface BookingRecord {
   notes: string | null;
   resource: { id: string; name: string } | null;
   service: { id: string; name: string } | null;
+  services?: { id: string; name: string }[];
+  templateFields?: {
+    slots?: Array<{
+      date?: string;
+      timeSlot?: string;
+      serviceId?: string;
+      serviceName?: string;
+      resourceId?: string;
+      staffName?: string;
+      notes?: string;
+    }>;
+    serviceNames?: string[];
+    serviceIds?: string[];
+    slotCount?: number;
+    [key: string]: unknown;
+  };
   createdAt: string;
   updatedAt: string;
   [key: string]: unknown;
@@ -81,6 +97,7 @@ export interface ManualBookingFormData {
     date: string;
     timeSlot: string;
     serviceId?: string;
+    notes?: string;
   }>;
 }
 
