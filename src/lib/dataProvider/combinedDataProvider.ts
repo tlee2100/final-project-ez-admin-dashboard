@@ -122,19 +122,15 @@ export const combinedDataProvider: DataProvider = {
 
     const bodyParams = { ...variables } as Record<string, unknown>;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-        {
-          method: 'PATCH',
-          body: requestBody(bodyParams),
-        },
-      );
-      const item = 'data' in res && res.data ? res.data : res;
-      return { data: item as unknown as TData };
-    } catch {
-      return mockDataProvider.update({ resource, id, variables });
-    }
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+      {
+        method: 'PATCH',
+        body: requestBody(bodyParams),
+      },
+    );
+    const item = 'data' in res && res.data ? res.data : res;
+    return { data: item as unknown as TData };
   },
 
   // ── create ───────────────────────────────────────────────────────────────
@@ -147,30 +143,26 @@ export const combinedDataProvider: DataProvider = {
 
     const bodyParams = { ...variables } as Record<string, unknown>;
 
-    try {
-      const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
-        endpoint,
-        {
-          method: 'POST',
-          body: requestBody(bodyParams),
-        },
-      );
+    const res = await apiRequest<{ data?: Record<string, unknown> } | Record<string, unknown>>(
+      endpoint,
+      {
+        method: 'POST',
+        body: requestBody(bodyParams),
+      },
+    );
 
-      // Safely map if the backend explicitly nests user and initialPassword inside the root response
-      if (resource === 'users' && 'user' in res) {
-        return {
-          data: {
-            ...(res.user as object),
-            initialPassword: res.initialPassword,
-          } as unknown as TData,
-        };
-      }
-
-      const item = 'data' in res && res.data ? res.data : res;
-      return { data: item as unknown as TData };
-    } catch {
-      return mockDataProvider.create({ resource, variables });
+    // Safely map if the backend explicitly nests user and initialPassword inside the root response
+    if (resource === 'users' && 'user' in res) {
+      return {
+        data: {
+          ...(res.user as object),
+          initialPassword: res.initialPassword,
+        } as unknown as TData,
+      };
     }
+
+    const item = 'data' in res && res.data ? res.data : res;
+    return { data: item as unknown as TData };
   },
 
   // ── deleteOne ─────────────────────────────────────────────────────────────
@@ -181,12 +173,8 @@ export const combinedDataProvider: DataProvider = {
   }: DeleteOneParams<_TVariables>): Promise<DeleteOneResponse<TData>> => {
     const endpoint = meta?.url ?? `/${resource}/${id}`;
 
-    try {
-      await apiRequest<unknown>(endpoint, { method: 'DELETE' });
-      return { data: { id } as unknown as TData };
-    } catch {
-      return mockDataProvider.deleteOne({ resource, id });
-    }
+    await apiRequest<unknown>(endpoint, { method: 'DELETE' });
+    return { data: { id } as unknown as TData };
   },
 
   // ── getMany ──────────────────────────────────────────────────────────────
