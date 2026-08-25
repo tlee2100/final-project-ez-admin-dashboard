@@ -11,6 +11,19 @@
   margin-bottom: 24px;
 }
 
+@media (max-width: 640px) {
+  .organizations-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .organizations-header button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .organizations-header-left {
   display: flex;
   flex-direction: column;
@@ -98,6 +111,18 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .organizations-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .organizations-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .org-stat-card {
@@ -259,6 +284,14 @@
   margin-top: 24px;
 }
 
+.org-my-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
 /* ── Org Detail Modal ── */
 .org-detail-modal .ant-modal-content {
   border-radius: 16px;
@@ -272,7 +305,7 @@
   background: #f9fafb;
   border: 1px solid #f3f4f6;
   border-radius: 10px;
-  padding: 12px;
+  padding: 16px;
 }
 
 .metric-box {
@@ -291,7 +324,7 @@
 }
 
 .metric-value {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #111827;
   margin-top: 2px;
@@ -333,4 +366,31 @@
   align-items: center;
   justify-content: center;
   font-size: 18px;
+}
+
+/* ── Mobile Responsive Overrides ── */
+@media (max-width: 640px) {
+  .organizations-page {
+    padding: 14px;
+  }
+
+  .org-my-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .org-detail-metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .metric-box {
+    align-items: flex-start !important;
+    padding: 4px 8px !important;
+  }
+
+  .metric-value {
+    font-size: 16px !important;
+  }
 }

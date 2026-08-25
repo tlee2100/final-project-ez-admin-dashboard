@@ -14,6 +14,14 @@
   margin-bottom: 8px;
 }
 
+@media (max-width: 640px) {
+  .site-detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
 .site-detail-back-btn {
   display: inline-flex;
   align-items: center;
@@ -41,12 +49,14 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .site-detail-title-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .site-detail-title {
@@ -112,6 +122,9 @@
   gap: 6px;
   font-size: 14px;
   color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .site-detail-url-icon {
@@ -171,8 +184,27 @@
   background: #f3f4f6;
   padding: 4px;
   border-radius: 10px;
+  max-width: 100%;
   width: fit-content;
   gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .site-detail-tabs-nav {
+    width: 100%;
+  }
+
+  .site-detail-tab-btn {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+
+  .site-detail-tab-body {
+    padding: 16px !important;
+  }
 }
 
 .site-detail-tab-btn {
@@ -185,6 +217,7 @@
   color: #6b7280;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .site-detail-tab-btn:hover {

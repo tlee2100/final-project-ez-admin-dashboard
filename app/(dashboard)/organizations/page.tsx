@@ -12,6 +12,7 @@ import {
   EditOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useCurrentRole } from '@/src/hooks/useCurrentRole';
 import { useOrganizationsData } from '@/src/features/organizations/hooks/useOrganizationsData';
 import { OrganizationsSearchBar } from '@/src/features/organizations/components/OrganizationsSearchBar';
@@ -82,6 +83,12 @@ function OrganizationsContent() {
       }
     };
 
+    const formattedCreatedDate = myOrg?.createdAt
+      ? dayjs(myOrg.createdAt).isValid()
+        ? dayjs(myOrg.createdAt).format('DD/MM/YYYY')
+        : myOrg.createdAt
+      : 'N/A';
+
     return (
       <div className="organizations-page page-fade-in">
         {/* Page Header */}
@@ -121,27 +128,19 @@ function OrganizationsContent() {
         </div>
 
         {myOrg ? (
-          <div
-            style={{
-              background: 'white',
-              borderRadius: 16,
-              padding: 32,
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-          >
+          <div className="org-my-card">
             {/* Header Info */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
-                marginBottom: 24,
+                marginBottom: 20,
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 600, color: '#111827', margin: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827', margin: 0 }}>
                     {myOrg.name}
                   </h2>
                   <Tag
@@ -151,7 +150,7 @@ function OrganizationsContent() {
                     {myOrg.status}
                   </Tag>
                 </div>
-                <div style={{ color: '#6b7280', fontSize: 14, marginTop: 4 }}>
+                <div style={{ color: '#6b7280', fontSize: 13, marginTop: 6 }}>
                   Identifier:{' '}
                   <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>
                     {myOrg.slug}
@@ -161,39 +160,28 @@ function OrganizationsContent() {
             </div>
 
             {/* Metrics */}
-            <div
-              className="org-detail-metrics"
-              style={{ gridTemplateColumns: 'repeat(4, 1fr)', padding: 20, marginBottom: 32 }}
-            >
+            <div className="org-detail-metrics" style={{ marginBottom: 24 }}>
               <div className="metric-box">
                 <span className="metric-label">Sites</span>
-                <span className="metric-value" style={{ fontSize: 22 }}>
-                  {myOrg.sitesCount ?? 0}
-                </span>
+                <span className="metric-value">{myOrg.sitesCount ?? 0}</span>
               </div>
               <div className="metric-box">
                 <span className="metric-label">Agents</span>
-                <span className="metric-value" style={{ fontSize: 22 }}>
-                  {myOrg.agentsCount ?? 0}
-                </span>
+                <span className="metric-value">{myOrg.agentsCount ?? 0}</span>
               </div>
               <div className="metric-box">
                 <span className="metric-label">Owners</span>
-                <span className="metric-value" style={{ fontSize: 22 }}>
-                  {myOrg.ownersCount ?? (myOrg.ownerId ? 1 : 0)}
-                </span>
+                <span className="metric-value">{myOrg.ownersCount ?? (myOrg.ownerId ? 1 : 0)}</span>
               </div>
               <div className="metric-box">
                 <span className="metric-label">Created</span>
-                <span className="metric-value" style={{ fontSize: 18 }}>
-                  {myOrg.createdAt || 'N/A'}
-                </span>
+                <span className="metric-value">{formattedCreatedDate}</span>
               </div>
             </div>
 
             {/* Notes */}
-            <div style={{ marginBottom: 32 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
                 Internal Notes / Description
               </h3>
               <div
@@ -201,9 +189,10 @@ function OrganizationsContent() {
                   background: '#f9fafb',
                   border: '1px solid #f3f4f6',
                   borderRadius: 10,
-                  padding: '16px 20px',
+                  padding: '14px 16px',
                   color: myOrg.notes ? '#374151' : '#9ca3af',
-                  fontSize: 14,
+                  fontSize: 13.5,
+                  lineHeight: 1.5,
                 }}
               >
                 {myOrg.notes || 'No internal notes provided for this organization.'}
@@ -212,10 +201,10 @@ function OrganizationsContent() {
 
             {/* Primary Admin Owner */}
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
                 Primary Admin Owner
               </h3>
-              <div className="org-owner-card" style={{ padding: 16 }}>
+              <div className="org-owner-card" style={{ padding: 14 }}>
                 <Avatar
                   size={42}
                   src={myOrg.adminOwner.avatar}
@@ -224,33 +213,48 @@ function OrganizationsContent() {
                   {!myOrg.adminOwner.avatar && myOrg.adminOwner.initials}
                 </Avatar>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 15, color: '#111827' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
                       {myOrg.adminOwner.name}
                     </span>
-                    <Tag color="blue" style={{ borderRadius: 10, fontSize: 11 }}>
+                    <span
+                      style={{
+                        background: '#dbeafe',
+                        color: '#1d4ed8',
+                        fontSize: 11,
+                        padding: '1px 8px',
+                        borderRadius: 10,
+                        fontWeight: 500,
+                      }}
+                    >
                       Owner
-                    </Tag>
+                    </span>
                   </div>
-                  <span style={{ color: '#6b7280', fontSize: 13 }}>{myOrg.adminOwner.email}</span>
+                  <span style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+                    {myOrg.adminOwner.email}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
-            No organization found for your account.
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#6b7280' }}>
+            No organization data found.
           </div>
         )}
 
-        <EditOrgModal
-          organization={myOrg}
-          open={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onSubmit={async (id, values) => {
-            await updateOrganizationDetails(id, values);
-          }}
-        />
+        {/* Edit Org Modal */}
+        {myOrg && (
+          <EditOrgModal
+            open={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            organization={myOrg}
+            onSubmit={async (id, values) => {
+              await updateOrganizationDetails(id, values);
+              setIsEditModalOpen(false);
+            }}
+          />
+        )}
       </div>
     );
   }
