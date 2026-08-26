@@ -33,6 +33,7 @@ export interface SaveApiKeyResponse {
 export interface RemoveApiKeyResponse {
   useCustomOpenAiKey: boolean;
   customKeyStatus: 'unknown';
+  llmModel?: string;
 }
 
 export interface KBSourcesResponse {

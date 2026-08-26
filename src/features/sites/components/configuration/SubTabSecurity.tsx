@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Switch, App, Popconfirm, Tag, AutoComplete } from 'antd';
 import { useUpdate } from '@refinedev/core';
@@ -72,7 +70,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     site.customKeyStatus ?? 'unknown',
   );
   const [customBaseUrl, setCustomBaseUrl] = useState<string>(site.customBaseUrl || '');
-  const [llmModel, setLlmModel] = useState<string>(site.llmModel || 'qwen3.7-flash');
+  const [llmModel, setLlmModel] = useState<string>(site.llmModel || '');
   const [keyMask, setKeyMask] = useState<string | null>(site.keyMask || null);
 
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
@@ -284,7 +282,8 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     setTestResult(null);
     setValidationFeedback({ type: null, text: '' });
     try {
-      await siteSecurityApi.removeApiKey(site.id);
+      const res = await siteSecurityApi.removeApiKey(site.id);
+      const fallbackModel = res.llmModel || '';
 
       setHasCustomKey(false);
       setUseCustomKey(false);
@@ -292,6 +291,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
       setKeyMask(null);
       setCustomBaseUrl('');
       setApiKeyInput('');
+      setLlmModel(fallbackModel);
       message.success('Custom key removed from database. Reverting to shared master key.');
       onSave?.({
         useCustomOpenAiKey: false,
@@ -299,6 +299,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
         customKeyStatus: 'unknown',
         customBaseUrl: null,
         keyMask: null,
+        llmModel: fallbackModel,
       });
     } catch (err) {
       message.error(
