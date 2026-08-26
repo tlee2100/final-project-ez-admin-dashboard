@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { apiRequest } from '@/src/lib/api.client';
 import { useSession } from 'next-auth/react';
@@ -21,6 +21,8 @@ export function useLiveChats(siteId?: string) {
   const [handlingFilter, setHandlingFilter] = useState<HandlingStatus | 'CLOSED' | ''>('');
   const [agentId, setAgentId] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRangeFilter>(null);
+  const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const [stats, setStats] = useState({
     total: 0,
@@ -78,36 +80,50 @@ export function useLiveChats(siteId?: string) {
     };
   }, [siteId]);
 
+  // Debounce search input by 400ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchText), 400);
+    return () => clearTimeout(t);
+  }, [searchText]);
+
   // Build Refine filters
-  const filters: CrudFilter[] = [];
+  const filters: CrudFilter[] = useMemo(() => {
+    const f: CrudFilter[] = [];
 
-  if (handlingFilter) {
-    if (handlingFilter === 'CLOSED') {
-      filters.push({ field: 'status', operator: 'eq', value: 'CLOSED' });
-    } else {
-      filters.push({ field: 'handlingStatus', operator: 'eq', value: handlingFilter });
-      filters.push({ field: 'status', operator: 'eq', value: 'OPEN' }); // status != CLOSED
+    if (handlingFilter) {
+      if (handlingFilter === 'CLOSED') {
+        f.push({ field: 'status', operator: 'eq', value: 'CLOSED' });
+      } else {
+        f.push({ field: 'handlingStatus', operator: 'eq', value: handlingFilter });
+        f.push({ field: 'status', operator: 'eq', value: 'OPEN' });
+      }
     }
-  }
 
-  if (siteId) {
-    filters.push({ field: 'siteId', operator: 'eq', value: siteId });
-  }
-
-  if (agentId !== 'all') {
-    if (agentId === 'unassigned') {
-      filters.push({ field: 'agentId', operator: 'null', value: 'true' });
-    } else {
-      filters.push({ field: 'agentId', operator: 'eq', value: agentId });
+    if (siteId) {
+      f.push({ field: 'siteId', operator: 'eq', value: siteId });
     }
-  }
 
-  if (dateRange?.start) {
-    filters.push({ field: 'lastActivityAt', operator: 'gte', value: dateRange.start });
-  }
-  if (dateRange?.end) {
-    filters.push({ field: 'lastActivityAt', operator: 'lte', value: dateRange.end });
-  }
+    if (agentId !== 'all') {
+      if (agentId === 'unassigned') {
+        f.push({ field: 'agentId', operator: 'null', value: 'true' });
+      } else {
+        f.push({ field: 'agentId', operator: 'eq', value: agentId });
+      }
+    }
+
+    if (dateRange?.start) {
+      f.push({ field: 'lastActivityAt', operator: 'gte', value: dateRange.start });
+    }
+    if (dateRange?.end) {
+      f.push({ field: 'lastActivityAt', operator: 'lte', value: dateRange.end });
+    }
+
+    if (debouncedSearch.trim()) {
+      f.push({ field: 'visitorName', operator: 'containss', value: debouncedSearch.trim() });
+    }
+
+    return f;
+  }, [handlingFilter, siteId, agentId, dateRange, debouncedSearch]);
 
   const [accumulatedList, setAccumulatedList] = useState<Conversation[]>([]);
   const [lastProcessed, setLastProcessed] = useState<{
@@ -132,6 +148,11 @@ export function useLiveChats(siteId?: string) {
 
   const handleSetDateRange = useCallback((range: DateRangeFilter) => {
     setDateRange(range);
+    setPage(1);
+  }, []);
+
+  const handleSetSearchText = useCallback((text: string) => {
+    setSearchText(text);
     setPage(1);
   }, []);
 
@@ -230,12 +251,14 @@ export function useLiveChats(siteId?: string) {
     handlingFilter,
     agentId,
     dateRange,
+    searchText,
     isLoading,
     error,
     setPage,
     setHandlingFilter: handleSetHandlingFilter,
     setAgentId: handleSetAgentId,
     setDateRange: handleSetDateRange,
+    setSearchText: handleSetSearchText,
     refresh: refetch,
   };
 }

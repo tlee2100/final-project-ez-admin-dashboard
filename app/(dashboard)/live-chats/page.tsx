@@ -68,6 +68,8 @@ export default function LiveChatsPage() {
     agentId,
     setAgentId,
     setDateRange,
+    searchText,
+    setSearchText,
   } = useLiveChats(selectedSiteId);
 
   const { filteredSites } = useSitesData();
@@ -162,7 +164,14 @@ export default function LiveChatsPage() {
       {/* ── Filters Row ── */}
       <div className="filters-row">
         <div className="search-input-wrapper">
-          <Input.Search placeholder="Search conversations..." allowClear size="large" />
+          <Input.Search
+            placeholder="Search by visitor name..."
+            allowClear
+            size="large"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onSearch={(val) => setSearchText(val)}
+          />
         </div>
         <div className="filters-actions">
           <Dropdown

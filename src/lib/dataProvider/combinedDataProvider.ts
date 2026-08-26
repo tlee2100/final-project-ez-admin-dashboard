@@ -59,8 +59,13 @@ export const combinedDataProvider: DataProvider = {
       filters.forEach((f) => {
         if ('field' in f) {
           if (f.operator === 'contains') {
-            // General text search
+            // General text search (no specific field)
             queryParams.push(`search=${encodeURIComponent(String(f.value))}`);
+          } else if (f.operator === 'containss') {
+            // Field-level case-insensitive LIKE: filter.field=$ilike:%value%
+            const raw = String(f.value);
+            const wrapped = raw.startsWith('%') ? raw : `%${raw}%`;
+            queryParams.push(`filter.${f.field}=$ilike:${encodeURIComponent(wrapped)}`);
           } else if (f.operator === 'eq') {
             // Exact match filter
             queryParams.push(`filter.${f.field}=$eq:${encodeURIComponent(String(f.value))}`);
@@ -69,7 +74,7 @@ export const combinedDataProvider: DataProvider = {
             const vals = Array.isArray(f.value) ? f.value.join(',') : String(f.value);
             queryParams.push(`filter.${f.field}=$in:${encodeURIComponent(vals)}`);
           } else {
-            // Fallback for other operators (gte, lte, etc.)
+            // Fallback for other operators (gte, lte, null, etc.)
             queryParams.push(
               `filter.${f.field}=$${f.operator}:${encodeURIComponent(String(f.value))}`,
             );
