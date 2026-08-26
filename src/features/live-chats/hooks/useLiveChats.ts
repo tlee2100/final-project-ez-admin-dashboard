@@ -88,8 +88,6 @@ export function useLiveChats(siteId?: string) {
       filters.push({ field: 'handlingStatus', operator: 'eq', value: handlingFilter });
       filters.push({ field: 'status', operator: 'eq', value: 'OPEN' }); // status != CLOSED
     }
-  } else {
-    filters.push({ field: 'status', operator: 'eq', value: 'OPEN' });
   }
 
   if (siteId) {

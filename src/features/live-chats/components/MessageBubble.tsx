@@ -6,6 +6,7 @@ import { UserOutlined, RobotOutlined, DownloadOutlined } from '@ant-design/icons
 import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../types/chat.types';
 import { formatTime } from '../utils/chatFormat.utils';
+import { parseBookingMessage, renderBookingCommandCard } from '../utils/chatBookingMessage.utils';
 
 const { Text } = Typography;
 
@@ -116,6 +117,15 @@ export function MessageBubble({
     }
   };
 
+  const parsedBooking = parseBookingMessage(msg.content);
+
+  // Clean any XML markup from text for rendering
+  const displayContent = msg.content
+    .replace(/<booking-(?:code|cancelled)>.*?<\/booking-(?:code|cancelled)>/g, '')
+    .replace(/<booking-input>.*?<\/booking-input>/g, '')
+    .replace(/<chips>.*?<\/chips>/g, '')
+    .trim();
+
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
@@ -144,62 +154,105 @@ export function MessageBubble({
             {senderLabel}
           </Text>
         )}
-        <div
-          className="markdown-bubble"
-          style={{
-            background: isAgentSide ? '#dbeafe' : '#f3f4f6',
-            borderRadius: isAgentSide ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-            padding: '10px 14px',
-            fontSize: 14,
-            color: '#111827',
-            lineHeight: 1.5,
-            width: 'fit-content',
-            marginLeft: isAgentSide ? 'auto' : 0,
-            wordBreak: 'break-word',
-          }}
-        >
-          <Image.PreviewGroup>
-            <ReactMarkdown
-              components={{
-                img(props) {
-                  const src = props.src as string;
-                  return (
-                    <div style={{ marginTop: 8, marginBottom: 8 }}>
-                      <Image
-                        src={src}
-                        alt={props.alt}
-                        style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
-                        preview={{
-                          toolbarRender: (originalNode) => (
-                            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                              {originalNode}
-                              <a
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleDownloadImage(src);
-                                }}
-                                style={{
-                                  color: 'rgba(255, 255, 255, 0.85)',
-                                  fontSize: 20,
-                                  cursor: 'pointer',
-                                  marginLeft: 16,
-                                }}
-                              >
-                                <DownloadOutlined />
-                              </a>
-                            </div>
-                          ),
-                        }}
-                      />
-                    </div>
-                  );
-                },
-              }}
-            >
-              {msg.content}
-            </ReactMarkdown>
-          </Image.PreviewGroup>
-        </div>
+
+        {parsedBooking.isCommand ? (
+          <div style={{ marginLeft: isAgentSide ? 'auto' : 0, width: 'fit-content' }}>
+            {renderBookingCommandCard(parsedBooking)}
+          </div>
+        ) : (
+          <div
+            className="markdown-bubble"
+            style={{
+              background: isAgentSide ? '#dbeafe' : '#f3f4f6',
+              borderRadius: isAgentSide ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+              padding: '10px 14px',
+              fontSize: 14,
+              color: '#111827',
+              lineHeight: 1.5,
+              width: 'fit-content',
+              marginLeft: isAgentSide ? 'auto' : 0,
+              wordBreak: 'break-word',
+            }}
+          >
+            <Image.PreviewGroup>
+              <ReactMarkdown
+                components={{
+                  img(props) {
+                    const src = props.src as string;
+                    return (
+                      <div style={{ marginTop: 8, marginBottom: 8 }}>
+                        <Image
+                          src={src}
+                          alt={props.alt}
+                          style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+                          preview={{
+                            toolbarRender: (originalNode) => (
+                              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                {originalNode}
+                                <a
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    void handleDownloadImage(src);
+                                  }}
+                                  style={{
+                                    color: 'rgba(255, 255, 255, 0.85)',
+                                    fontSize: 20,
+                                    cursor: 'pointer',
+                                    marginLeft: 16,
+                                  }}
+                                >
+                                  <DownloadOutlined />
+                                </a>
+                              </div>
+                            ),
+                          }}
+                        />
+                      </div>
+                    );
+                  },
+                }}
+              >
+                {displayContent || msg.content}
+              </ReactMarkdown>
+            </Image.PreviewGroup>
+          </div>
+        )}
+
+        {/* Render chips components if provided by AI */}
+        {msg.components && msg.components.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginTop: 6,
+              justifyContent: isAgentSide ? 'flex-end' : 'flex-start',
+            }}
+          >
+            {msg.components.map((comp, cIdx) => {
+              if (comp.type === 'chips' && Array.isArray(comp.items)) {
+                return comp.items.map((item, iIdx) => (
+                  <Tag
+                    key={`${cIdx}-${iIdx}`}
+                    style={{
+                      borderRadius: 12,
+                      padding: '2px 10px',
+                      fontSize: 12,
+                      background: '#f1f5f9',
+                      borderColor: '#cbd5e1',
+                      color: '#334155',
+                      marginRight: 0,
+                    }}
+                  >
+                    {item.label || item.value}
+                  </Tag>
+                ));
+              }
+              return null;
+            })}
+          </div>
+        )}
+
         <Text
           style={{
             fontSize: 11,

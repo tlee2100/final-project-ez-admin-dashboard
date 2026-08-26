@@ -238,14 +238,17 @@ export default function LiveChatsPage() {
         ) : conversations.length === 0 ? (
           <div className="empty-state">
             <MessageOutlined className="empty-state-icon" />
-            <div className="empty-state-title">No active conversations</div>
+            <div className="empty-state-title">No conversations found</div>
             <div className="empty-state-desc">New chats will appear here in real time</div>
           </div>
         ) : (
           conversations.map((chat: Conversation) => {
             let statusClass = 'closed';
             let statusLabel = 'Closed';
-            if (chat.handlingStatus === 'WAITING_FOR_AGENT') {
+            if (chat.status === 'CLOSED') {
+              statusClass = 'closed';
+              statusLabel = 'Closed';
+            } else if (chat.handlingStatus === 'WAITING_FOR_AGENT') {
               statusClass = 'waiting';
               statusLabel = 'Waiting for Agent';
             } else if (chat.handlingStatus === 'AGENT_HANDLING') {

@@ -49,6 +49,18 @@ export interface ChatMessage {
   senderType: SenderType;
   agentId: string | null;
   content: string;
+  locale?: string | null;
+  components?: Array<{
+    type: string;
+    items?: Array<{
+      action: string;
+      value?: string;
+      label?: string;
+      labelKey?: string;
+      labelParams?: Record<string, string | number>;
+    }>;
+    [key: string]: unknown;
+  }> | null;
   status: 'SENT' | 'DELIVERED' | 'READ';
   createdAt: string;
   senderName?: string | null;
