@@ -4,8 +4,8 @@ export interface StatCardData {
   id: string;
   title: string;
   value: string;
-  trend: number; // percentage change
-  trendDirection: StatTrend;
+  trend?: number;
+  trendDirection?: StatTrend;
   icon: string;
   iconColor: string;
   iconBg: string;
@@ -45,11 +45,17 @@ export interface ActivityItem {
   timeAgo: string;
 }
 
+export interface TokenUsageData {
+  daily: ChartDataPoint[];
+  weekly: ChartDataPoint[];
+  monthly: ChartDataPoint[];
+}
+
 export interface DashboardData {
   stats: StatCardData[];
   chatActivity: ChatActivityData;
   containmentRate: ContainmentData;
-  tokenUsage: { daily: ChartDataPoint[] };
+  tokenUsage: TokenUsageData;
   userFeedback: UserFeedbackData;
   recentActivity: ActivityItem[];
 }

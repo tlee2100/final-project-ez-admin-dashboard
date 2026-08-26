@@ -12,6 +12,7 @@ interface UseBookingSocketOptions {
   siteId: string | null;
   enabled: boolean;
   onSlotHeld: (slot: Omit<AvailableSlot, 'status'>) => void;
+  onSlotsHeld?: (slots: Array<Omit<AvailableSlot, 'status'>>) => void;
   onSlotConfirmed: (slot: Omit<AvailableSlot, 'status'>) => void;
   onSlotReleased: (slot: Omit<AvailableSlot, 'status'>) => void;
 }
@@ -20,6 +21,7 @@ export function useBookingSocket({
   siteId,
   enabled,
   onSlotHeld,
+  onSlotsHeld,
   onSlotConfirmed,
   onSlotReleased,
 }: UseBookingSocketOptions) {
@@ -34,14 +36,16 @@ export function useBookingSocket({
   };
 
   const onSlotHeldRef = useRef(onSlotHeld);
+  const onSlotsHeldRef = useRef(onSlotsHeld);
   const onSlotConfirmedRef = useRef(onSlotConfirmed);
   const onSlotReleasedRef = useRef(onSlotReleased);
 
   useEffect(() => {
     onSlotHeldRef.current = onSlotHeld;
+    onSlotsHeldRef.current = onSlotsHeld;
     onSlotConfirmedRef.current = onSlotConfirmed;
     onSlotReleasedRef.current = onSlotReleased;
-  }, [onSlotHeld, onSlotConfirmed, onSlotReleased]);
+  }, [onSlotHeld, onSlotsHeld, onSlotConfirmed, onSlotReleased]);
 
   const connect = useCallback(() => {
     if (!enabled || !siteId) return;
@@ -53,6 +57,33 @@ export function useBookingSocket({
       query: { siteId },
       transports: ['websocket'],
     });
+
+    socket.on(
+      'booking_slots_held',
+      (slots: Array<{ resourceId: string; startAt: string; endAt: string }>) => {
+        if (Array.isArray(slots) && slots.length > 0) {
+          if (onSlotsHeldRef.current) {
+            onSlotsHeldRef.current(slots);
+          } else {
+            slots.forEach((slot) => onSlotHeldRef.current(slot));
+          }
+
+          slots.forEach((slot) => {
+            const key = getSlotKey(slot.startAt, slot.endAt, slot.resourceId);
+            if (timeoutRefs.current.has(key)) {
+              clearTimeout(timeoutRefs.current.get(key));
+            }
+
+            const timeout = setTimeout(() => {
+              onSlotReleasedRef.current(slot);
+              timeoutRefs.current.delete(key);
+            }, 600 * 1000); // 10 minutes
+
+            timeoutRefs.current.set(key, timeout);
+          });
+        }
+      },
+    );
 
     socket.on(
       'booking_slot_held',

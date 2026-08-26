@@ -143,7 +143,7 @@ export interface ManualBookingFormValues {
   customerPhone: string;
   customerEmail?: string;
   serviceId?: string;
-  staffId?: string;
+  staffId?: string | string[];
   notes?: string;
   slotServices?: Record<number | string, string> | string[];
   slotNotes?: Record<number | string, string> | string[];

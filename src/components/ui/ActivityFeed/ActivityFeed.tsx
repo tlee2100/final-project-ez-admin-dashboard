@@ -30,7 +30,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
     <div className="activity-feed" role="region" aria-label="Recent Activity">
       <div className="activity-feed-header">
         <h2 className="activity-feed-title">Recent Activity</h2>
-        <Link href="/activity" className="activity-feed-view-all">
+        <Link href="/live-chats" className="activity-feed-view-all">
           View All <ArrowRightOutlined />
         </Link>
       </div>

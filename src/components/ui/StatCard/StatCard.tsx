@@ -2,13 +2,16 @@
 
 import React from 'react';
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  MinusOutlined,
   MessageOutlined,
   GlobalOutlined,
   ClockCircleOutlined,
   ApiOutlined,
+  FileTextOutlined,
+  DatabaseOutlined,
+  CheckOutlined,
+  LikeOutlined,
+  DollarOutlined,
+  CalculatorOutlined,
 } from '@ant-design/icons';
 import type { StatCardData } from '@/src/features/dashboard/types/dashboard.types';
 import './StatCard.css';
@@ -23,35 +26,37 @@ const ICON_MAP: Record<string, React.ReactElement> = {
   global: <GlobalOutlined />,
   clock: <ClockCircleOutlined />,
   api: <ApiOutlined />,
+  file: <FileTextOutlined />,
+  database: <DatabaseOutlined />,
+  check: <CheckOutlined />,
+  like: <LikeOutlined />,
+  dollar: <DollarOutlined />,
+  calculator: <CalculatorOutlined />,
 };
 
 // Accent color map for the top border
 const ACCENT_MAP: Record<string, string> = {
   message: '#6366f1',
   global: '#10b981',
-  clock: '#f59e0b',
+  clock: '#3b82f6',
   api: '#f97316',
+  file: '#10b981',
+  database: '#8b5cf6',
+  check: '#8b5cf6',
+  like: '#10b981',
+  dollar: '#10b981',
+  calculator: '#f59e0b',
 };
 
 export function StatCard({ data }: StatCardProps) {
-  const { title, value, trend, trendDirection, icon, iconColor, iconBg, isMock } = data;
-
-  const trendLabel =
-    trendDirection === 'up' ? `+${trend}%` : trendDirection === 'down' ? `-${trend}%` : `${trend}%`;
-
-  const TrendIcon =
-    trendDirection === 'up'
-      ? ArrowUpOutlined
-      : trendDirection === 'down'
-        ? ArrowDownOutlined
-        : MinusOutlined;
+  const { title, value, icon, iconColor, iconBg, isMock } = data;
 
   return (
     <div
       className="stat-card"
       style={{ '--card-accent': ACCENT_MAP[icon] ?? '#6366f1' } as React.CSSProperties}
       role="article"
-      aria-label={`${title}: ${value}, trend ${trendLabel}`}
+      aria-label={`${title}: ${value}`}
     >
       <div className="stat-card-content">
         <p className="stat-card-title">
@@ -66,10 +71,6 @@ export function StatCard({ data }: StatCardProps) {
           )}
         </p>
         <p className="stat-card-value">{value}</p>
-        <span className={`stat-card-trend ${trendDirection}`}>
-          <TrendIcon />
-          {trendLabel}
-        </span>
       </div>
 
       <div

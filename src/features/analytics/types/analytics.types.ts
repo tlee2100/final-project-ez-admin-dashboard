@@ -3,7 +3,7 @@ import type {
   ChatActivityData,
   ContainmentData,
   UserFeedbackData,
-  ChartDataPoint,
+  TokenUsageData,
 } from '../../dashboard/types/dashboard.types';
 
 export interface TopicData {
@@ -24,29 +24,18 @@ export interface ConversationMetrics {
 }
 
 export interface KBDocumentPerformance {
+  id?: string;
   name: string;
+  siteName?: string;
   hits: number;
 }
 
 export interface KnowledgeBasePerformance {
-  querySuccessRate: string;
-  querySuccessTrend: string;
-  avgRetrievalTime: string;
-  avgRetrievalTrend: string;
   topDocuments: KBDocumentPerformance[];
-}
-
-export interface UnhandledIntent {
-  name: string;
-  occurrences: number;
 }
 
 export interface ModelPerformance {
   avgGenerationTime: string;
-  avgGenerationTrend: string;
-  intentAccuracy: string;
-  intentAccuracyTrend: string;
-  topUnhandledIntents: UnhandledIntent[];
 }
 
 export interface SiteUsageData {
@@ -61,20 +50,21 @@ export interface AnalyticsData {
     stats: StatCardData[];
     chatActivity: ChatActivityData;
     containmentRate: ContainmentData;
-    tokenUsage: { daily: ChartDataPoint[]; weekly: ChartDataPoint[]; monthly: ChartDataPoint[] };
+    tokenUsage: TokenUsageData;
     userFeedback: UserFeedbackData;
   };
-  conversations: {
+  conversations?: {
     topTopics: TopicData[];
     metrics: ConversationMetrics;
   };
   performance: {
+    stats: StatCardData[];
     kb: KnowledgeBasePerformance;
     model: ModelPerformance;
   };
   usageCosts: {
     stats: StatCardData[];
-    tokenUsage: { daily: ChartDataPoint[]; weekly: ChartDataPoint[]; monthly: ChartDataPoint[] };
+    tokenUsage: TokenUsageData;
     usageBySite: SiteUsageData[];
   };
 }
