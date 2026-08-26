@@ -140,4 +140,12 @@ export const bookingApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Fetch all actively held slots for a site
+   */
+  async getActiveHolds(siteId: string): Promise<AvailableSlot[]> {
+    const data = await apiRequest<AvailableSlot[]>(`/admin/bookings/${siteId}/holds`);
+    return data || [];
+  },
 };

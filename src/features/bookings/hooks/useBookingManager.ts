@@ -29,6 +29,34 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
   // Keep a ref to the currently held slot(s) for cleanup on unmount
   const currentHoldsRef = useRef<Array<{ resourceId: string; startAt: string; endAt: string }>>([]);
 
+  // Fetch existing active holds from server on initial load or site change
+  useEffect(() => {
+    let isMounted = true;
+    if (!activeSiteId) {
+      void Promise.resolve().then(() => {
+        if (isMounted) {
+          setHoldingSlots([]);
+        }
+      });
+      return;
+    }
+
+    bookingApi
+      .getActiveHolds(activeSiteId)
+      .then((holds) => {
+        if (isMounted) {
+          setHoldingSlots(holds || []);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch active holds:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSiteId]);
+
   // Subscribe to real-time slot held / released events via WebSocket
   useBookingSocket({
     siteId: activeSiteId,
@@ -48,6 +76,24 @@ export function useBookingManager({ activeSiteId, onBookingConfirmed }: UseBooki
             status: 'HOLDING',
           },
         ];
+      });
+    },
+    onSlotsHeld: (slots) => {
+      setHoldingSlots((prev) => {
+        const next = [...prev];
+        for (const slot of slots) {
+          const isSelfHold = currentHoldsRef.current.some((h) => isMatchingSlot(h, slot));
+          if (isSelfHold) continue;
+          if (!next.some((s) => isMatchingSlot(s, slot))) {
+            next.push({
+              resourceId: slot.resourceId,
+              startAt: slot.startAt,
+              endAt: slot.endAt,
+              status: 'HOLDING',
+            });
+          }
+        }
+        return next;
       });
     },
     onSlotConfirmed: (slot) => {
