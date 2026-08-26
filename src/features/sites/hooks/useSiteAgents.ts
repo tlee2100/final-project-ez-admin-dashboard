@@ -13,6 +13,12 @@ export interface UserRecord {
   role: string;
 }
 
+export interface SiteWithAgents {
+  id: string;
+  name: string;
+  agents?: UserRecord[];
+}
+
 export function useSiteAgents(siteId: string | null) {
   const invalidate = useInvalidate();
   const { isSuperAdmin, isAdmin } = useCurrentRole();
@@ -23,7 +29,7 @@ export function useSiteAgents(siteId: string | null) {
   const [isMutating, setIsMutating] = useState(false);
 
   // 1. Fetch all users from backend
-  const { query: usersQuery } = useList({
+  const { query: usersQuery } = useList<UserRecord>({
     resource: 'users',
     pagination: { mode: 'server', currentPage: 1, pageSize: 1000 },
     queryOptions: {
@@ -33,12 +39,12 @@ export function useSiteAgents(siteId: string | null) {
 
   const rawUsers = usersQuery.data?.data;
   const allAgents = useMemo(() => {
-    const allUsers = (rawUsers as unknown as UserRecord[]) || [];
+    const allUsers = rawUsers || [];
     return allUsers.filter((u) => String(u.role).toLowerCase() === 'agent');
   }, [rawUsers]);
 
   // 2. Fetch current site details to get assigned agents
-  const { query: siteQuery } = useOne({
+  const { query: siteQuery } = useOne<SiteWithAgents>({
     resource: 'sites',
     id: siteId || '',
     queryOptions: {
@@ -50,7 +56,7 @@ export function useSiteAgents(siteId: string | null) {
   const isUsersLoading = usersQuery.isLoading;
   const rawAgents = siteQuery.data?.data?.agents;
 
-  const assignedAgents = useMemo(() => (rawAgents as unknown as UserRecord[]) || [], [rawAgents]);
+  const assignedAgents = useMemo(() => rawAgents || [], [rawAgents]);
 
   // Filter out agents that are already assigned to this site
   const availableAgents = useMemo(

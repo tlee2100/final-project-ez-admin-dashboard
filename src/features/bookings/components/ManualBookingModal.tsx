@@ -16,9 +16,11 @@ import { CopyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { bookingApi } from '../services/booking.api';
 import type {
+  AdminBookingSlotItem,
   AvailableSlot,
   BookingConfig,
   ManualBookingFormData,
+  ManualBookingFormValues,
   SelectedCalendarSlot,
 } from '../types/booking.types';
 
@@ -246,12 +248,7 @@ export function ManualBookingModal({
     message.success('Configuration applied to all slots');
   };
 
-  const handleFinish = async (
-    values: ManualBookingFormData & {
-      slotServices?: Record<number, string> | string[];
-      slotNotes?: Record<number, string> | string[];
-    },
-  ) => {
+  const handleFinish = async (values: ManualBookingFormValues) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
@@ -281,15 +278,7 @@ export function ManualBookingModal({
       const singleServiceId = slotServicesList[0] || values.serviceId;
       const serviceIds = slotServicesList.length > 0 ? slotServicesList : undefined;
 
-      let slotsPayload:
-        | Array<{
-            resourceId: string;
-            date: string;
-            timeSlot: string;
-            serviceId?: string;
-            notes?: string;
-          }>
-        | undefined = undefined;
+      let slotsPayload: AdminBookingSlotItem[] | undefined = undefined;
 
       if (isMultiSlot) {
         slotsPayload = selectedSlots.map((s, idx) => {
@@ -325,7 +314,8 @@ export function ManualBookingModal({
 
       const singleTimeSlot = isMultiSlot
         ? selectedSlots[0]?.time
-        : selectedTimeSlotsArr[0] || values.timeSlot;
+        : selectedTimeSlotsArr[0] ||
+          (typeof values.timeSlot === 'string' ? values.timeSlot : values.timeSlot?.[0]);
 
       const generalNote = values.notes?.trim() || '';
       const topLevelNote =
@@ -333,9 +323,20 @@ export function ManualBookingModal({
           ? [generalNote, slotNotesRaw[0]].filter(Boolean).join('\n')
           : generalNote;
 
+      const parsedDate = values.date
+        ? dayjs.isDayjs(values.date)
+          ? values.date
+          : Array.isArray(values.date) && values.date[0] && dayjs.isDayjs(values.date[0])
+            ? values.date[0]
+            : dayjs(values.date as string)
+        : undefined;
+
       const bookingPayload: ManualBookingFormData = {
-        ...values,
+        customerName: values.customerName,
+        customerPhone: values.customerPhone,
         customerEmail: values.customerEmail?.trim() || undefined,
+        staffId: values.staffId,
+        date: parsedDate && parsedDate.isValid() ? parsedDate : undefined,
         notes: topLevelNote || undefined,
         timeSlot: singleTimeSlot,
         serviceId: singleServiceId,

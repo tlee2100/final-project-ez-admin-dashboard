@@ -26,6 +26,7 @@ import {
   useSiteBookingConfig,
   type BookingFormValues,
 } from '@/src/features/sites/hooks/useSiteBookingConfig';
+import type { UpdateBookingConfigPayload } from '@/src/features/bookings/types/booking.types';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -149,7 +150,7 @@ export function TabBooking({ site }: TabBookingProps) {
       .map((d: string) => DAYS_MAP.indexOf(d) + 1)
       .sort((a: number, b: number) => a - b);
 
-    const payload = {
+    const payload: UpdateBookingConfigPayload = {
       bookingEnabled: values.bookingEnabled,
       industryTemplate: values.industryTemplate,
       timezone: values.timezone,

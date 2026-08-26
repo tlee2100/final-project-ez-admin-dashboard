@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
 import { bookingApi } from '@/src/features/bookings/services/booking.api';
-import type { BookingConfig } from '@/src/features/bookings/types/booking.types';
+import type {
+  BookingConfig,
+  UpdateBookingConfigPayload,
+} from '@/src/features/bookings/types/booking.types';
 
 export interface BookingFormValues {
   bookingEnabled: boolean;
@@ -71,7 +74,7 @@ export function useSiteBookingConfig(siteId: string | null) {
   }, [siteId]);
 
   const saveConfig = useCallback(
-    async (payload: Partial<BookingConfig> | Record<string, unknown>) => {
+    async (payload: UpdateBookingConfigPayload | Partial<BookingConfig>) => {
       if (!siteId) return false;
       try {
         setSaving(true);

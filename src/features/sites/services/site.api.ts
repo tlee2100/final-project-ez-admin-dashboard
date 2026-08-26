@@ -96,7 +96,7 @@ export const siteApi = {
   async assignAgents(siteId: string, agentIds: string[]): Promise<void> {
     await Promise.all(
       agentIds.map((agentId) =>
-        apiRequest(`/sites/${siteId}/agents`, {
+        apiRequest<void>(`/sites/${siteId}/agents`, {
           method: 'POST',
           body: JSON.stringify({ agentId }),
         }),

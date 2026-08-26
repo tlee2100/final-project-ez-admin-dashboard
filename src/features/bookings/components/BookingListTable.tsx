@@ -1,5 +1,7 @@
-import { Table, Tag, Dropdown, MenuProps, Button, Modal } from 'antd';
-import type { TableProps, ColumnsType } from 'antd/es/table';
+import React from 'react';
+import { Table, Tag, Dropdown, Button, Modal } from 'antd';
+import type { MenuProps } from 'antd';
+import type { ColumnsType, TableProps } from 'antd/es/table';
 import { MoreOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { useTableReturnType } from '@refinedev/antd';
@@ -146,7 +148,7 @@ export function BookingListTable({
   return (
     <div className="booking-table-container">
       <Table
-        {...(tableProps as unknown as TableProps<BookingRecord>)}
+        {...(tableProps as TableProps<BookingRecord>)}
         columns={columns}
         rowKey="id"
         rowSelection={

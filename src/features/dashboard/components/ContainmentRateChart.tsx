@@ -62,7 +62,7 @@ export function ContainmentRateChart({ data }: ContainmentRateChartProps) {
               paddingAngle={3}
               dataKey="value"
               labelLine={false}
-              label={CustomLabel as unknown as boolean}
+              label={(props) => CustomLabel(props as LabelProps)}
               startAngle={90}
               endAngle={-270}
             >
