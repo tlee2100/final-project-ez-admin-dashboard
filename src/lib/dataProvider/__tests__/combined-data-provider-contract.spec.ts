@@ -42,7 +42,7 @@ describe('CombinedDataProvider Contract Tests', () => {
       meta: { siteId: 'site-xyz-123' },
     });
 
-    expect(spy).toHaveBeenCalledWith('/admin/sites/site-xyz-123/bookings');
+    expect(spy).toHaveBeenCalledWith('/admin/bookings/site-xyz-123');
   });
 
   it('should handle filters for contains, eq, and in operators', async () => {
