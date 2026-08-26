@@ -11,6 +11,7 @@ import type {
 } from '../types/knowledge-base.types';
 
 const ACTIVE_STATUSES = new Set(['queued', 'discovering', 'processing']);
+const POLLED_STATUSES = new Set(['waiting', ...ACTIVE_STATUSES]);
 
 export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
   const { message } = App.useApp();
@@ -67,14 +68,14 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
       enabled: !!siteId && !!effectiveRunId,
       refetchInterval: (query) => {
         const status = query.state.data?.data?.status;
-        return status && ACTIVE_STATUSES.has(status) ? 3000 : false;
+        return status && POLLED_STATUSES.has(status) ? 3000 : false;
       },
     },
   });
 
   const selectedRun = selectedRunQuery.data?.data || null;
   const refetchSelectedRun = selectedRunQuery.refetch;
-  const isActiveRunSelected = selectedRun?.status && ACTIVE_STATUSES.has(selectedRun.status);
+  const isSelectedRunChanging = selectedRun?.status && POLLED_STATUSES.has(selectedRun.status);
 
   // --- GET RUN PAGES ---
   const { query: pagesQuery } = useCustom<{ data: CrawlRunPageDto[]; total: number }>({
@@ -90,7 +91,7 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
     },
     queryOptions: {
       enabled: !!siteId && !!effectiveRunId,
-      refetchInterval: isActiveRunSelected ? 3000 : false,
+      refetchInterval: isSelectedRunChanging ? 3000 : false,
     },
   });
 
@@ -152,9 +153,10 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
   const runAction = useCallback(
     async (
       url: string,
-      method: 'post' | 'put' | 'patch',
+      method: 'post' | 'put' | 'patch' | 'delete',
       successMessage: string,
       values?: unknown,
+      waitingMessage?: string,
     ) => {
       setIsActionLoading(true);
       try {
@@ -163,9 +165,14 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
           method,
           values: values || {},
         });
-        message.success(successMessage);
+        const response = result.data as { runId?: string; status?: string };
+        if (response.status === 'waiting' && waitingMessage) {
+          message.info(waitingMessage);
+        } else {
+          message.success(successMessage);
+        }
 
-        const runId = (result.data as { runId?: string })?.runId;
+        const runId = response.runId;
         if (runId) {
           setSelectedRunId(runId);
           setPagesPage(1);
@@ -257,7 +264,13 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
     saveConfig,
     startCrawl: () => runAction(`/sites/${siteId}/kb/crawl`, 'post', 'Sitemap crawl started'),
     ingestUrl: (url: string) =>
-      runAction(`/sites/${siteId}/kb/upload/url`, 'post', 'URL crawl started', { url }),
+      runAction(
+        `/sites/${siteId}/kb/upload/url`,
+        'post',
+        'URL crawl started',
+        { url },
+        'URL queued and will start after the current crawl',
+      ),
     addSitemapAndStart,
     retryFailed: (runId: string) =>
       runAction(
@@ -267,6 +280,13 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
       ),
     recrawlSource: (documentId: string) =>
       runAction(`/sites/${siteId}/kb/sources/${documentId}/recrawl`, 'post', 'URL recrawl started'),
+    deleteFailedItem: (runId: string, itemId: string) =>
+      runAction(
+        `/sites/${siteId}/kb/crawls/${runId}/pages/${itemId}`,
+        'delete',
+        'Failed URL deleted',
+      ),
+    siteId,
     progressPercent: useMemo(() => {
       const run = effectiveActiveRun ?? selectedRun;
       if (!run?.totalPages) return 0;
