@@ -1510,3 +1510,40 @@
     text-align: center;
   }
 }
+
+/* ── Custom Table Styles for Crawler ── */
+.kb-custom-table .ant-table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.kb-custom-table .ant-table-cell {
+  padding: 14px 16px !important;
+}
+
+.kb-custom-table .ant-table-thead > tr > th:first-child,
+.kb-custom-table .ant-table-tbody > tr > td:first-child {
+  padding-left: 32px !important;
+}
+
+.kb-custom-table .ant-table-thead > tr > th:last-child,
+.kb-custom-table .ant-table-tbody > tr > td:last-child {
+  padding-right: 32px !important;
+}
+
+.kb-custom-table .ant-tag {
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-weight: 500;
+}
+
+.kb-custom-table .ant-typography {
+  border-radius: 6px;
+  padding: 4px 8px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.kb-custom-table a.ant-typography:hover {
+  background-color: #f3f4f6;
+}
