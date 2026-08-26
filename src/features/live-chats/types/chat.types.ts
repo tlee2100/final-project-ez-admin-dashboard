@@ -32,7 +32,7 @@ export interface Conversation {
   siteId: string;
   agentId: string | null;
   visitorName: string;
-  visitorEmail: string;
+  visitorEmail: string | null;
   status: ConversationStatus;
   handlingStatus: HandlingStatus;
   lastActivityAt: string;

@@ -101,13 +101,15 @@ export function VisitorInfoTab({
       {/* Visitor Card */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <Avatar size={48} style={{ background: '#6366f1', fontSize: 18, fontWeight: 700 }}>
-          {conversation.visitorName.charAt(0).toUpperCase()}
+          {(conversation.visitorName || 'Guest').charAt(0).toUpperCase()}
         </Avatar>
         <div>
           <div style={{ fontWeight: 600, color: '#111827', fontSize: 15 }}>
-            {conversation.visitorName}
+            {conversation.visitorName || 'Guest (Anonymous)'}
           </div>
-          <div style={{ fontSize: 13, color: '#6b7280' }}>{conversation.visitorEmail}</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>
+            {conversation.visitorEmail || 'No email provided'}
+          </div>
         </div>
       </div>
 
@@ -161,7 +163,7 @@ export function VisitorInfoTab({
             }}
           >
             <MailOutlined style={{ color: '#9ca3af' }} />
-            <span>{conversation.visitorEmail}</span>
+            <span>{conversation.visitorEmail || 'Not provided'}</span>
           </div>
           <div
             style={{

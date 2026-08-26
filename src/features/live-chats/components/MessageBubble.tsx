@@ -84,7 +84,7 @@ export function MessageBubble({
         fontWeight: 600,
       }}
     >
-      {visitorName.charAt(0).toUpperCase()}
+      {(visitorName || 'Guest').charAt(0).toUpperCase()}
     </Avatar>
   );
 
