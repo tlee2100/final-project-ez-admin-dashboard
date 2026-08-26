@@ -53,33 +53,8 @@
   font-weight: 700;
   color: #111827;
   line-height: 1;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font-variant-numeric: tabular-nums;
-}
-
-.stat-card-trend {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 100px;
-}
-
-.stat-card-trend.up {
-  background: #d1fae5;
-  color: #059669;
-}
-
-.stat-card-trend.down {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.stat-card-trend.neutral {
-  background: #f3f4f6;
-  color: #6b7280;
 }
 
 .stat-card-icon {

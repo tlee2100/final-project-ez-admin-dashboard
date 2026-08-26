@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  PlusOutlined,
   ExportOutlined,
   MessageOutlined,
   CalendarOutlined,
@@ -55,13 +54,6 @@ export default function DashboardPage() {
               <ExportOutlined />
               Export Report
             </button>
-          )}
-
-          {isAdmin && (
-            <Link href="/sites/new" className="btn-primary">
-              <PlusOutlined />
-              New Site
-            </Link>
           )}
 
           {currentRole === 'agent' && (

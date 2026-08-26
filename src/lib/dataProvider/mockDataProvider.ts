@@ -15,14 +15,12 @@ import type {
   GetManyParams,
 } from '@refinedev/core';
 import { MOCK_SITES } from '@/src/features/sites/mock/sitesMockData';
-import { MOCK_ORGANIZATIONS } from '@/src/features/organizations/mock/organizationsMockData';
-import { mockDashboardData } from '@/src/features/dashboard/mock/dashboardMockData';
 import type { Site } from '@/src/features/sites/types/site.types';
 import type { Organization } from '@/src/features/organizations/types/organization.types';
 
 // ── In-memory mutable copy of sites (supports toggle/update) ────────────────
 let sitesStore: Site[] = MOCK_SITES.map((s) => ({ ...s }));
-let orgsStore: Organization[] = MOCK_ORGANIZATIONS.map((o) => ({ ...o }));
+let orgsStore: Organization[] = [];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function applyFilters(
@@ -119,7 +117,7 @@ export const mockDataProvider: DataProvider = {
 
     if (resource === 'dashboard') {
       // id is always 'overview' for dashboard
-      return { data: mockDashboardData as unknown as TData };
+      return { data: {} as unknown as TData };
     }
 
     if (resource === 'sites') {

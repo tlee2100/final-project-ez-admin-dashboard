@@ -11,10 +11,10 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import type { ChartDataPoint, ChartPeriod } from '../types/dashboard.types';
+import type { ChartPeriod, TokenUsageData } from '../types/dashboard.types';
 
 interface TokenUsageChartProps {
-  data: { daily: ChartDataPoint[] };
+  data: TokenUsageData;
 }
 
 const PERIOD_OPTIONS: ChartPeriod[] = ['Daily', 'Weekly', 'Monthly'];
@@ -29,8 +29,12 @@ function formatK(value: number) {
 export function TokenUsageChart({ data }: TokenUsageChartProps) {
   const [period, setPeriod] = useState<ChartPeriod>('Daily');
 
-  // For mock we only have daily, other periods would be fetched from API
-  const chartData = data.daily;
+  const chartData =
+    period === 'Daily'
+      ? (data?.daily ?? [])
+      : period === 'Weekly'
+        ? (data?.weekly ?? [])
+        : (data?.monthly ?? []);
 
   return (
     <div className="chart-card">
