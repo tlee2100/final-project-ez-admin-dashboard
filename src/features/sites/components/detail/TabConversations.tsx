@@ -44,12 +44,12 @@ export function TabConversations({ siteId, siteName }: TabConversationsProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Real metrics derived from the live conversations stats
-  const countAll = stats.total + stats.closedCount;
+  const countAll = stats.total;
   const countActive = stats.activeBotCount;
   const countWaiting = stats.waitingCount;
   const countWithAgent = stats.assignedCount;
   const countClosed = stats.closedCount;
-  const countOpen = stats.total;
+  const countOpen = stats.activeBotCount + stats.waitingCount + stats.assignedCount;
 
   const filteredConvs = useMemo(() => {
     if (!searchTerm.trim()) return conversations;
