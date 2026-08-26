@@ -70,8 +70,15 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
     site.customKeyStatus ?? 'unknown',
   );
   const [customBaseUrl, setCustomBaseUrl] = useState<string>(site.customBaseUrl || '');
+  // llmModel used only when BYOK is active (the user-chosen model for their custom key).
+  // When using master key, llmModel is determined by the backend env and shown via site.llmModel.
   const [llmModel, setLlmModel] = useState<string>(site.llmModel || '');
   const [keyMask, setKeyMask] = useState<string | null>(site.keyMask || null);
+
+  // Derived: the model to display in the LLM Model field.
+  // When BYOK is active, show the locally-managed llmModel (may differ from site.llmModel if user is editing).
+  // When master key is active, always show site.llmModel (from backend env) to stay in sync.
+  const displayedLlmModel = useCustomKey ? llmModel : site.llmModel || '';
 
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
@@ -322,6 +329,8 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
           cancelText: 'Cancel',
           okButtonProps: { style: { background: '#2563eb' } },
           onOk: () => {
+            // Restore the site's stored custom model when re-activating BYOK.
+            setLlmModel(site.llmModel || '');
             setUseCustomKey(true);
             updateSite(
               {
@@ -366,6 +375,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
           onOk: () => {
             setUseCustomKey(false);
             setApiKeyInput('');
+            // llmModel display will auto-derive from site.llmModel (backend env) via displayedLlmModel.
             updateSite(
               {
                 resource: 'sites',
@@ -645,7 +655,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
               </span>
             </div>
             <AutoComplete
-              value={llmModel}
+              value={displayedLlmModel}
               onChange={(value) => setLlmModel(value)}
               options={MODEL_PRESETS}
               placeholder="e.g. qwen3.7-flash, gpt-4o-mini, deepseek-chat..."
