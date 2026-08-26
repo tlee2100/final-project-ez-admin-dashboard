@@ -1,6 +1,5 @@
 import {
   CloseCircleOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   GlobalOutlined,
   LinkOutlined,
@@ -302,7 +301,7 @@ function RunPagesTable({
       });
       message.success('Failed URL deleted');
       void refetchPages();
-    } catch (e) {
+    } catch {
       message.error('Failed to delete URL');
     } finally {
       setIsDeleting(false);
@@ -319,7 +318,7 @@ function RunPagesTable({
       });
       message.success('URL queued for recrawl');
       void refetchPages();
-    } catch (e) {
+    } catch {
       message.error('Failed to recrawl URL');
     } finally {
       setIsRetrying(null);
