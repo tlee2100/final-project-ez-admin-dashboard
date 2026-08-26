@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   Form,
@@ -84,15 +84,21 @@ export function ManualBookingModal({
   const isSalon = industryTemplateId === 'salon';
 
   const selectedFormDate = Form.useWatch('date', form);
-  const selectedFormDates: dayjs.Dayjs[] = Array.isArray(selectedFormDate)
-    ? selectedFormDate
+  const selectedFormDates = useMemo<dayjs.Dayjs[]>(() => {
+    if (Array.isArray(selectedFormDate)) {
+      return selectedFormDate
         .map((d) => (d ? dayjs(d) : null))
-        .filter((d): d is dayjs.Dayjs => !!d && d.isValid())
-    : selectedFormDate && dayjs(selectedFormDate).isValid()
-      ? [dayjs(selectedFormDate)]
-      : [];
+        .filter((d): d is dayjs.Dayjs => !!d && d.isValid());
+    }
+    return selectedFormDate && dayjs(selectedFormDate).isValid() ? [dayjs(selectedFormDate)] : [];
+  }, [selectedFormDate]);
 
-  const selectedStaffId = Form.useWatch('staffId', form);
+  const selectedStaffField = Form.useWatch('staffId', form);
+  const selectedStaffIds = useMemo<string[]>(() => {
+    if (Array.isArray(selectedStaffField)) return selectedStaffField.filter(Boolean);
+    return selectedStaffField ? [selectedStaffField] : [];
+  }, [selectedStaffField]);
+
   const selectedTimeSlots = Form.useWatch('timeSlot', form);
   const selectedTimeSlotsArr: string[] = Array.isArray(selectedTimeSlots)
     ? selectedTimeSlots
@@ -101,6 +107,87 @@ export function ManualBookingModal({
       : [];
 
   const totalSlots = isMultiSlot ? selectedSlots.length : Math.max(1, selectedTimeSlotsArr.length);
+
+  const effectiveServices = useMemo<Array<{ id: string; name: string }>>(() => {
+    const list =
+      siteServices && siteServices.length > 0
+        ? siteServices
+        : config?.serviceDetails && config.serviceDetails.length > 0
+          ? config.serviceDetails
+          : (config?.services as Array<{ id?: string; name?: string } | string>) || [];
+    return list.map((s) => {
+      if (typeof s === 'string') return { id: s, name: s };
+      return { id: s.id || s.name || 'service', name: s.name || s.id || 'Service' };
+    });
+  }, [siteServices, config]);
+
+  const effectiveStaff = useMemo<Array<{ id: string; name: string }>>(() => {
+    const list =
+      siteStaff && siteStaff.length > 0
+        ? siteStaff
+        : config?.resourceDetails && config.resourceDetails.length > 0
+          ? config.resourceDetails
+          : (config?.resources as Array<{ id?: string; name?: string } | string>) || [];
+    return list.map((s) => {
+      if (typeof s === 'string') return { id: s, name: s };
+      return { id: s.id || s.name || 'staff', name: s.name || s.id || 'Staff' };
+    });
+  }, [siteStaff, config]);
+
+  // Computed options representing available slot + resource pairs
+  const timeSlotOptions = useMemo(() => {
+    const options: Array<{
+      value: string;
+      label: string;
+      startAt: string;
+      endAt: string;
+      resourceId: string;
+      resourceName: string;
+      isHolding: boolean;
+    }> = [];
+
+    for (const slot of availableSlots) {
+      const time = dayjs(slot.startAt).format('HH:mm');
+      const dateLabel = dayjs(slot.startAt).format('DD/MM');
+      const baseTimeStr = selectedFormDates.length > 1 ? `${dateLabel} ${time}` : time;
+      const isHolding = slot.status === 'HOLDING';
+
+      if (slot.availableResources && slot.availableResources.length > 0) {
+        for (const res of slot.availableResources) {
+          if (selectedStaffIds.length > 0 && !selectedStaffIds.includes(res.resourceId)) {
+            continue;
+          }
+          const displayLabel =
+            selectedStaffIds.length > 1 ? `${baseTimeStr} — 👤 ${res.resourceName}` : baseTimeStr;
+          options.push({
+            value: `${slot.startAt}__${res.resourceId}`,
+            label: isHolding ? `${displayLabel} - Being booked... 🕒` : displayLabel,
+            startAt: slot.startAt,
+            endAt: slot.endAt,
+            resourceId: res.resourceId,
+            resourceName: res.resourceName,
+            isHolding,
+          });
+        }
+      } else {
+        const resId = slot.resourceId || selectedStaffIds[0] || '';
+        const resObj = effectiveStaff.find((s) => s.id === resId);
+        const resName = resObj?.name || 'Staff';
+        const displayLabel =
+          selectedStaffIds.length > 1 ? `${baseTimeStr} — 👤 ${resName}` : baseTimeStr;
+        options.push({
+          value: `${slot.startAt}__${resId}`,
+          label: isHolding ? `${displayLabel} - Being booked... 🕒` : displayLabel,
+          startAt: slot.startAt,
+          endAt: slot.endAt,
+          resourceId: resId,
+          resourceName: resName,
+          isHolding,
+        });
+      }
+    }
+    return options;
+  }, [availableSlots, selectedStaffIds, selectedFormDates.length, effectiveStaff]);
 
   // Validate Vietnamese phone number: 0 + 9-10 digits
   const phoneValidator = (_: unknown, value: string) => {
@@ -112,18 +199,19 @@ export function ManualBookingModal({
     return Promise.resolve();
   };
 
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
+  useEffect(() => {
     if (open) {
-      setActiveTabKey('0');
+      void Promise.resolve().then(() => {
+        setActiveTabKey('0');
+      });
       if (isMultiSlot) {
         const initialDates = selectedSlots
           .map((s) => (s.date ? dayjs(s.date) : null))
           .filter((d): d is dayjs.Dayjs => !!d && d.isValid());
+        form.resetFields();
         form.setFieldsValue({
           date: initialDates.length > 0 ? initialDates : [dayjs()],
-          staffId: selectedSlots[0]?.staffId || undefined,
+          staffId: selectedSlots[0]?.staffId ? [selectedSlots[0].staffId] : [],
           timeSlot: selectedSlots.map((s) => s.time),
           serviceId: undefined,
           slotServices: {},
@@ -131,22 +219,31 @@ export function ManualBookingModal({
         });
       } else {
         const parsedDate = selectedDate ? dayjs(selectedDate) : dayjs();
+        form.resetFields();
         form.setFieldsValue({
           date: [parsedDate.isValid() ? parsedDate : dayjs()],
-          staffId: undefined,
+          staffId: [],
           timeSlot: undefined,
+          serviceId: undefined,
           slotServices: {},
           slotNotes: {},
         });
       }
+    } else {
+      form.resetFields();
     }
-  }
+  }, [open, siteId, isMultiSlot, selectedSlots, selectedDate, form]);
 
   useEffect(() => {
     let isCancelled = false;
 
     const fetchSlots = async () => {
-      if (isMultiSlot || selectedFormDates.length === 0 || !selectedStaffId || !siteId) {
+      if (
+        isMultiSlot ||
+        selectedFormDates.length === 0 ||
+        selectedStaffIds.length === 0 ||
+        !siteId
+      ) {
         setAvailableSlots([]);
         return;
       }
@@ -154,11 +251,11 @@ export function ManualBookingModal({
       setIsFetchingSlots(true);
       try {
         const fetchFn = fetchAvailableSlots || defaultFetchAvailableSlots;
+        const resourceParam = selectedStaffIds.join(',');
         const formattedSlotsArrays = await Promise.all(
           selectedFormDates.map((d) => {
-            const startDate = d.startOf('day').toISOString();
-            const endDate = d.endOf('day').toISOString();
-            return fetchFn(siteId, startDate, endDate, selectedStaffId);
+            const dateStr = d.format('YYYY-MM-DD');
+            return fetchFn(siteId, dateStr, dateStr, resourceParam);
           }),
         );
         const combinedSlots = formattedSlotsArrays.flat();
@@ -184,7 +281,16 @@ export function ManualBookingModal({
     return () => {
       isCancelled = true;
     };
-  }, [selectedFormDate, selectedStaffId, siteId, open, isMultiSlot, fetchAvailableSlots]);
+  }, [
+    selectedFormDate,
+    selectedStaffField,
+    selectedFormDates,
+    selectedStaffIds,
+    siteId,
+    open,
+    isMultiSlot,
+    fetchAvailableSlots,
+  ]);
 
   useEffect(() => {
     if (!holdExpiry) return;
@@ -210,13 +316,28 @@ export function ManualBookingModal({
       return;
     }
 
-    const slotsToHold: AvailableSlot[] = values
-      .map((slotStr) =>
-        availableSlots.find(
-          (s) => s.startAt === slotStr || dayjs(s.startAt).format('HH:mm') === slotStr,
-        ),
-      )
-      .filter((s): s is AvailableSlot => !!s);
+    const slotsToHold: AvailableSlot[] = values.reduce<AvailableSlot[]>((acc, val) => {
+      const opt = timeSlotOptions.find((o) => o.value === val);
+      if (opt) {
+        acc.push({
+          startAt: opt.startAt,
+          endAt: opt.endAt,
+          resourceId: opt.resourceId,
+          status: 'HOLDING',
+        });
+        return acc;
+      }
+      const s = availableSlots.find((slot) => slot.startAt === val);
+      if (s) {
+        acc.push({
+          startAt: s.startAt,
+          endAt: s.endAt,
+          resourceId: s.resourceId || selectedStaffIds[0] || '',
+          status: 'HOLDING',
+        });
+      }
+      return acc;
+    }, []);
 
     if (slotsToHold.length > 0) {
       const success = await onHoldSlot(slotsToHold);
@@ -293,17 +414,27 @@ export function ManualBookingModal({
         });
       } else if (selectedTimeSlotsArr.length > 1 || selectedFormDates.length > 0) {
         slotsPayload = selectedTimeSlotsArr.map((timeVal, idx) => {
+          const opt = timeSlotOptions.find((o) => o.value === timeVal);
           const matchedSlot = availableSlots.find(
-            (s) => s.startAt === timeVal || dayjs(s.startAt).format('HH:mm') === timeVal,
+            (s) => s.startAt === timeVal || (opt && s.startAt === opt.startAt),
           );
-          const slotDate = matchedSlot
-            ? dayjs(matchedSlot.startAt).format('YYYY-MM-DD')
+          const slotStartAt = opt ? opt.startAt : matchedSlot ? matchedSlot.startAt : timeVal;
+          const slotDate = dayjs(slotStartAt).isValid()
+            ? dayjs(slotStartAt).format('YYYY-MM-DD')
             : selectedFormDates[0]
               ? selectedFormDates[0].format('YYYY-MM-DD')
               : dayjs().format('YYYY-MM-DD');
-          const slotTime = matchedSlot ? dayjs(matchedSlot.startAt).format('HH:mm') : timeVal;
+          const slotTime = dayjs(slotStartAt).isValid()
+            ? dayjs(slotStartAt).format('HH:mm')
+            : timeVal;
+          const slotResourceId =
+            opt?.resourceId ||
+            selectedStaffIds[0] ||
+            (typeof values.staffId === 'string' ? values.staffId : values.staffId?.[0]) ||
+            '';
+
           return {
-            resourceId: values.staffId || '',
+            resourceId: slotResourceId,
             date: slotDate,
             timeSlot: slotTime,
             serviceId: slotServicesList[idx] || slotServicesList[0],
@@ -314,8 +445,13 @@ export function ManualBookingModal({
 
       const singleTimeSlot = isMultiSlot
         ? selectedSlots[0]?.time
-        : selectedTimeSlotsArr[0] ||
-          (typeof values.timeSlot === 'string' ? values.timeSlot : values.timeSlot?.[0]);
+        : slotsPayload?.[0]?.timeSlot || selectedTimeSlotsArr[0];
+
+      const singleStaffId = isMultiSlot
+        ? selectedSlots[0]?.staffId
+        : slotsPayload?.[0]?.resourceId ||
+          selectedStaffIds[0] ||
+          (typeof values.staffId === 'string' ? values.staffId : values.staffId?.[0]);
 
       const generalNote = values.notes?.trim() || '';
       const topLevelNote =
@@ -335,7 +471,7 @@ export function ManualBookingModal({
         customerName: values.customerName,
         customerPhone: values.customerPhone,
         customerEmail: values.customerEmail?.trim() || undefined,
-        staffId: values.staffId,
+        staffId: singleStaffId,
         date: parsedDate && parsedDate.isValid() ? parsedDate : undefined,
         notes: topLevelNote || undefined,
         timeSlot: singleTimeSlot,
@@ -369,10 +505,19 @@ export function ManualBookingModal({
       onCancel={onCancel}
       footer={null}
       width={600}
+      destroyOnClose
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 20 }}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        initialValues={{
+          date: [dayjs()],
+          staffId: [],
+        }}
+      >
         {/* If multi-slot, show selected slots summary */}
-        {isMultiSlot && (
+        {isMultiSlot && selectedSlots.length > 0 && (
           <div
             style={{
               padding: '12px 16px',
@@ -442,9 +587,15 @@ export function ManualBookingModal({
               Time & Staff Selection
             </Title>
 
-            <Form.Item name="staffId" label="Staff / Resource" rules={[{ required: true }]}>
+            <Form.Item
+              name="staffId"
+              label="Staff / Resource(s)"
+              rules={[{ required: true, message: 'Please select at least one staff/resource' }]}
+            >
               <Select
-                placeholder="Select staff or resource"
+                mode="multiple"
+                maxTagCount="responsive"
+                placeholder="Select staff or resource(s)"
                 onChange={async () => {
                   if (holdExpiry) {
                     await onReleaseHold();
@@ -496,9 +647,9 @@ export function ManualBookingModal({
               }
               rules={[{ required: true, message: 'Please select at least one time slot' }]}
               extra={
-                selectedFormDates.length === 0 || !selectedStaffId
-                  ? 'Please select date(s) and staff/resource first'
-                  : `${availableSlots.length} slots available across ${selectedFormDates.length} date(s)`
+                selectedFormDates.length === 0 || selectedStaffIds.length === 0
+                  ? 'Please select date(s) and staff/resource(s) first'
+                  : `${timeSlotOptions.length} slot option(s) available across ${selectedFormDates.length} date(s)`
               }
             >
               <Select
@@ -506,28 +657,22 @@ export function ManualBookingModal({
                 placeholder="Select time slot(s)"
                 loading={isFetchingSlots}
                 notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
-                disabled={selectedFormDates.length === 0 || !selectedStaffId}
+                disabled={selectedFormDates.length === 0 || selectedStaffIds.length === 0}
                 onChange={handleTimeSlotChange}
                 allowClear
               >
-                {availableSlots.map((slot) => {
-                  const time = dayjs(slot.startAt).format('HH:mm');
-                  const dateLabel = dayjs(slot.startAt).format('DD/MM');
-                  const isHolding = slot.status === 'HOLDING';
-                  const label = selectedFormDates.length > 1 ? `${dateLabel} ${time}` : time;
-                  return (
-                    <Select.Option
-                      key={slot.startAt}
-                      value={slot.startAt}
-                      disabled={isHolding}
-                      style={
-                        isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined
-                      }
-                    >
-                      {isHolding ? `${label} - Being booked... 🕒` : label}
-                    </Select.Option>
-                  );
-                })}
+                {timeSlotOptions.map((opt) => (
+                  <Select.Option
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={opt.isHolding}
+                    style={
+                      opt.isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined
+                    }
+                  >
+                    {opt.label}
+                  </Select.Option>
+                ))}
               </Select>
             </Form.Item>
           </>
@@ -580,14 +725,24 @@ export function ManualBookingModal({
                   slotDate = parsedSlotDate.isValid() ? parsedSlotDate.format('DD/MM/YYYY') : '';
                 } else if (selectedTimeSlotsArr[idx]) {
                   const timeVal = selectedTimeSlotsArr[idx];
+                  const opt = timeSlotOptions.find((o) => o.value === timeVal);
                   const matchedSlot = availableSlots.find(
-                    (s) => s.startAt === timeVal || dayjs(s.startAt).format('HH:mm') === timeVal,
+                    (s) => s.startAt === timeVal || (opt && s.startAt === opt.startAt),
                   );
-                  slotTime = matchedSlot ? dayjs(matchedSlot.startAt).format('HH:mm') : timeVal;
-                  const staffObj = siteStaff.find((s) => s.id === selectedStaffId);
-                  staffName = staffObj?.name || 'Staff';
-                  slotDate = matchedSlot
-                    ? dayjs(matchedSlot.startAt).format('DD/MM/YYYY')
+                  const slotStartAt = opt
+                    ? opt.startAt
+                    : matchedSlot
+                      ? matchedSlot.startAt
+                      : timeVal;
+                  slotTime = dayjs(slotStartAt).isValid()
+                    ? dayjs(slotStartAt).format('HH:mm')
+                    : timeVal;
+                  staffName =
+                    opt?.resourceName ||
+                    siteStaff.find((s) => s.id === selectedStaffIds[0])?.name ||
+                    'Staff';
+                  slotDate = dayjs(slotStartAt).isValid()
+                    ? dayjs(slotStartAt).format('DD/MM/YYYY')
                     : selectedFormDates[0]
                       ? selectedFormDates[0].format('DD/MM/YYYY')
                       : dayjs().format('DD/MM/YYYY');
@@ -596,7 +751,9 @@ export function ManualBookingModal({
                 const tabLabel =
                   selectedFormDates.length > 1 && slotDate
                     ? `${slotDate.slice(0, 5)} ${slotTime}`
-                    : slotTime || `Slot ${idx + 1}`;
+                    : staffName && selectedStaffIds.length > 1
+                      ? `${slotTime} (${staffName})`
+                      : slotTime || `Slot ${idx + 1}`;
 
                 return {
                   key: String(idx),
@@ -628,7 +785,7 @@ export function ManualBookingModal({
                         {slotDate && <Tag color="default">📅 {slotDate}</Tag>}
                       </div>
 
-                      {siteServices && siteServices.length > 0 && (
+                      {effectiveServices && effectiveServices.length > 0 && (
                         <Form.Item
                           name={['slotServices', idx]}
                           label={
@@ -649,7 +806,7 @@ export function ManualBookingModal({
                         >
                           <Select
                             placeholder="Select service for this slot"
-                            options={siteServices.map((s) => ({ value: s.id, label: s.name }))}
+                            options={effectiveServices.map((s) => ({ value: s.id, label: s.name }))}
                             allowClear
                           />
                         </Form.Item>
@@ -673,8 +830,8 @@ export function ManualBookingModal({
           </div>
         ) : (
           /* Single Slot View */
-          siteServices &&
-          siteServices.length > 0 && (
+          effectiveServices &&
+          effectiveServices.length > 0 && (
             <div style={{ marginTop: 24 }}>
               <Title level={5} style={{ marginBottom: 16 }}>
                 Booking Details
@@ -691,7 +848,7 @@ export function ManualBookingModal({
               >
                 <Select
                   placeholder="Select service"
-                  options={siteServices.map((s) => ({ value: s.id, label: s.name }))}
+                  options={effectiveServices.map((s) => ({ value: s.id, label: s.name }))}
                   allowClear
                 />
               </Form.Item>
