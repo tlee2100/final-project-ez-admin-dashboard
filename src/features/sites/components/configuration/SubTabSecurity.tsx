@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Switch, App, Popconfirm, Tag, AutoComplete } from 'antd';
+import { Switch, App, Popconfirm, Tag, AutoComplete, Input, InputNumber, Button, Form } from 'antd';
 import { useUpdate } from '@refinedev/core';
 import {
   WarningOutlined,
@@ -425,14 +425,15 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                 cancelText="No"
                 placement="top"
               >
-                <button
-                  type="button"
+                <Button
+                  type="text"
+                  size="small"
                   className="domain-tag-remove-btn"
                   title={`Remove ${domain}`}
                   aria-label={`Remove ${domain}`}
-                >
-                  <CloseOutlined style={{ fontSize: 9 }} />
-                </button>
+                  icon={<CloseOutlined style={{ fontSize: 9 }} />}
+                  style={{ padding: 0, minWidth: 'auto', height: 'auto', marginLeft: 4 }}
+                />
               </Popconfirm>
             </span>
           ))}
@@ -440,17 +441,16 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
 
         {/* Input Row */}
         <div className="domain-input-row">
-          <input
-            type="text"
+          <Input
             className="domain-input-field"
             placeholder="Add a domain or URL (e.g. example.com, *.example.com, http://127.0.0.1:5500)"
             value={newDomainInput}
             onChange={(e) => setNewDomainInput(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <button type="button" className="domain-add-btn" onClick={handleAddDomain}>
+          <Button type="primary" className="domain-add-btn" onClick={handleAddDomain}>
             Add
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -514,30 +514,24 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
             )}
 
             {useCustomKey && (
-              <button
-                type="button"
+              <Button
+                type="default"
+                size="small"
                 style={{
-                  height: 28,
-                  padding: '0 12px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
                   color: '#2563eb',
                   background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
+                  borderColor: '#bfdbfe',
                   borderRadius: 6,
-                  fontSize: 12,
                   fontWeight: 600,
-                  cursor: testingConnection ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s ease',
                 }}
+                icon={<ApiOutlined />}
+                loading={testingConnection}
                 onClick={() => void handleTestConnection()}
                 disabled={testingConnection || savingApiKey}
                 title="Test connection to AI provider with current credentials"
               >
-                {testingConnection ? <LoadingOutlined spin /> : <ApiOutlined />}
-                {testingConnection ? 'Testing…' : 'Test Connection'}
-              </button>
+                Test Connection
+              </Button>
             )}
           </div>
         </div>
@@ -586,8 +580,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
               )}
             </div>
             <div className="api-key-input-wrapper">
-              <input
-                type={showApiKey ? 'text' : 'password'}
+              <Input.Password
                 className="api-key-input"
                 placeholder={
                   hasCustomKey
@@ -605,23 +598,11 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                   }
                 }}
                 disabled={!useCustomKey || savingApiKey}
+                visibilityToggle={{
+                  visible: showApiKey,
+                  onVisibleChange: setShowApiKey,
+                }}
               />
-              {useCustomKey && (
-                <button
-                  type="button"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#6b7280',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                  }}
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  title={showApiKey ? 'Hide API Key' : 'Show API Key'}
-                >
-                  {showApiKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                </button>
-              )}
             </div>
           </div>
 
@@ -633,8 +614,7 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                 <span style={{ color: '#9ca3af', fontWeight: 400 }}>(Optional)</span>
               </span>
             </div>
-            <input
-              type="text"
+            <Input
               className="domain-input-field"
               style={{ width: '100%', height: 38, borderRadius: 8, fontSize: 13 }}
               placeholder="Leave empty to use server default (e.g: https://api.ai-box.vn/v1)"
@@ -752,58 +732,40 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                 flexWrap: 'wrap',
               }}
             >
-              <button
-                type="button"
+              <Button
+                type="primary"
                 className="domain-add-btn"
                 style={{
                   flex: 1,
                   minWidth: 180,
                   height: 40,
-                  padding: '0 24px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  color: '#ffffff',
-                  background: '#3b82f6',
                   borderRadius: 8,
-                  fontSize: 14,
                   fontWeight: 600,
-                  border: 'none',
-                  cursor: savingApiKey ? 'not-allowed' : 'pointer',
-                  transition: 'background 0.15s ease, transform 0.1s ease',
                 }}
+                loading={savingApiKey}
                 onClick={() => void handleSaveApiKey()}
                 disabled={savingApiKey || testingConnection}
               >
-                {savingApiKey && <LoadingOutlined spin />}
                 {savingApiKey ? 'Verifying & Saving…' : 'Validate & Save Settings'}
-              </button>
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                type="default"
                 style={{
                   height: 40,
-                  padding: '0 18px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
                   color: '#2563eb',
                   background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
+                  borderColor: '#cbd5e1',
                   borderRadius: 8,
-                  fontSize: 14,
                   fontWeight: 600,
-                  cursor: testingConnection ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s ease',
                 }}
+                icon={<ApiOutlined />}
+                loading={testingConnection}
                 onClick={() => void handleTestConnection()}
                 disabled={testingConnection || savingApiKey}
               >
-                {testingConnection ? <LoadingOutlined spin /> : <ApiOutlined />}
-                {testingConnection ? 'Testing…' : 'Test Connection'}
-              </button>
+                Test Connection
+              </Button>
 
               {hasCustomKey && (
                 <Popconfirm
@@ -814,42 +776,19 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
                   cancelText="Cancel"
                   okButtonProps={{ danger: true }}
                 >
-                  <button
-                    type="button"
+                  <Button
+                    danger
                     style={{
                       height: 40,
-                      padding: '0 18px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      color: '#ef4444',
-                      background: '#ffffff',
-                      border: '1px solid #fecaca',
                       borderRadius: 8,
-                      fontSize: 14,
                       fontWeight: 600,
-                      fontFamily: 'inherit',
-                      cursor: removingApiKey ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
                     }}
-                    onMouseEnter={(e) => {
-                      if (!removingApiKey) {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.borderColor = '#f87171';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!removingApiKey) {
-                        e.currentTarget.style.background = '#ffffff';
-                        e.currentTarget.style.borderColor = '#fecaca';
-                      }
-                    }}
+                    icon={<DeleteOutlined />}
+                    loading={removingApiKey}
                     disabled={removingApiKey || savingApiKey || testingConnection}
                   >
-                    <DeleteOutlined style={{ fontSize: 14 }} />
-                    {removingApiKey ? 'Removing…' : 'Remove Key'}
-                  </button>
+                    Remove Key
+                  </Button>
                 </Popconfirm>
               )}
             </div>
@@ -912,43 +851,55 @@ export function SubTabSecurity({ site, onSave }: SubTabSecurityProps) {
         <div className="rate-limit-grid">
           {/* Max Messages Per Session */}
           <div className="rate-limit-box">
-            <label htmlFor="max-messages-input" className="rate-limit-label">
-              Max Messages Per Session
-            </label>
-            <input
-              id="max-messages-input"
-              type="number"
-              className="rate-limit-input"
-              value={maxMessagesPerSession}
-              min={1}
-              max={1000}
-              onChange={(e) => setMaxMessagesPerSession(Number(e.target.value))}
-            />
+            <Form.Item
+              label="Max Messages Per Session"
+              style={{ marginBottom: 0 }}
+              layout="vertical"
+            >
+              <InputNumber
+                id="max-messages-input"
+                className="rate-limit-input"
+                value={maxMessagesPerSession}
+                min={1}
+                max={1000}
+                onChange={(value) => setMaxMessagesPerSession(value as number)}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
 
           {/* Max Sessions Per IP (24h) */}
           <div className="rate-limit-box">
-            <label htmlFor="max-sessions-input" className="rate-limit-label">
-              Max Sessions Per IP (24h)
-            </label>
-            <input
-              id="max-sessions-input"
-              type="number"
-              className="rate-limit-input"
-              value={maxSessionsPerIP}
-              min={1}
-              max={500}
-              onChange={(e) => setMaxSessionsPerIP(Number(e.target.value))}
-            />
+            <Form.Item
+              label="Max Sessions Per IP (24h)"
+              style={{ marginBottom: 0 }}
+              layout="vertical"
+            >
+              <InputNumber
+                id="max-sessions-input"
+                className="rate-limit-input"
+                value={maxSessionsPerIP}
+                min={1}
+                max={500}
+                onChange={(value) => setMaxSessionsPerIP(value as number)}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
         </div>
       </div>
 
       {/* ── 4. Bottom Save Button (domains + rate limit) ── */}
       <div className="security-save-row">
-        <button type="button" className="security-save-btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Changes'}
-        </button>
+        <Button
+          type="primary"
+          className="security-save-btn"
+          onClick={handleSave}
+          loading={saving}
+          style={{ height: 40, borderRadius: 8, padding: '0 24px' }}
+        >
+          Save Changes
+        </Button>
       </div>
     </div>
   );

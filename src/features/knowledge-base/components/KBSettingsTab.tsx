@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Button, Spin } from 'antd';
+import { Alert, Button, Spin, Input, InputNumber, Form } from 'antd';
 import type { KBSettings } from '../types/knowledge-base.types';
 
 interface KBSettingsTabProps {
@@ -90,28 +90,30 @@ export function KBSettingsTab({
         <h3 className="kb-settings-section-title">Chunking Settings</h3>
         <div className="kb-settings-grid">
           <div className="kb-setting-field">
-            <label className="kb-setting-label">Chunk Size (tokens)</label>
-            <input
-              type="number"
-              min={100}
-              max={2000}
-              className="kb-setting-input"
-              value={Number.isNaN(draft.chunkSize) ? '' : draft.chunkSize}
-              disabled={!canManage}
-              onChange={(event) => setNumber('chunkSize', event.target.value)}
-            />
+            <Form.Item label="Chunk Size (tokens)" style={{ marginBottom: 0 }} layout="vertical">
+              <InputNumber
+                min={100}
+                max={2000}
+                className="kb-setting-input"
+                value={Number.isNaN(draft.chunkSize) ? undefined : draft.chunkSize}
+                disabled={!canManage}
+                onChange={(value) => setNumber('chunkSize', String(value ?? ''))}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
           <div className="kb-setting-field">
-            <label className="kb-setting-label">Chunk Overlap (tokens)</label>
-            <input
-              type="number"
-              min={0}
-              max={500}
-              className="kb-setting-input"
-              value={Number.isNaN(draft.chunkOverlap) ? '' : draft.chunkOverlap}
-              disabled={!canManage}
-              onChange={(event) => setNumber('chunkOverlap', event.target.value)}
-            />
+            <Form.Item label="Chunk Overlap (tokens)" style={{ marginBottom: 0 }} layout="vertical">
+              <InputNumber
+                min={0}
+                max={500}
+                className="kb-setting-input"
+                value={Number.isNaN(draft.chunkOverlap) ? undefined : draft.chunkOverlap}
+                disabled={!canManage}
+                onChange={(value) => setNumber('chunkOverlap', String(value ?? ''))}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
         </div>
         <p className="kb-settings-helper">
@@ -125,12 +127,20 @@ export function KBSettingsTab({
         <h3 className="kb-settings-section-title">Embedding Model</h3>
         <div className="kb-settings-grid">
           <div className="kb-setting-field disabled">
-            <label className="kb-setting-label">Embedding Model</label>
-            <input className="kb-setting-input" value={draft.embeddingModel} readOnly disabled />
+            <Form.Item label="Embedding Model" style={{ marginBottom: 0 }} layout="vertical">
+              <Input className="kb-setting-input" value={draft.embeddingModel} readOnly disabled />
+            </Form.Item>
           </div>
           <div className="kb-setting-field disabled">
-            <label className="kb-setting-label">Vector Dimensions</label>
-            <input type="number" className="kb-setting-input" readOnly disabled value={1536} />
+            <Form.Item label="Vector Dimensions" style={{ marginBottom: 0 }} layout="vertical">
+              <InputNumber
+                className="kb-setting-input"
+                readOnly
+                disabled
+                value={1536}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
         </div>
       </div>
@@ -139,29 +149,33 @@ export function KBSettingsTab({
         <h3 className="kb-settings-section-title">Retrieval Settings</h3>
         <div className="kb-settings-grid">
           <div className="kb-setting-field">
-            <label className="kb-setting-label">Top K Results</label>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              className="kb-setting-input"
-              value={Number.isNaN(draft.topKResults) ? '' : draft.topKResults}
-              disabled={!canManage}
-              onChange={(event) => setNumber('topKResults', event.target.value)}
-            />
+            <Form.Item label="Top K Results" style={{ marginBottom: 0 }} layout="vertical">
+              <InputNumber
+                min={1}
+                max={20}
+                className="kb-setting-input"
+                value={Number.isNaN(draft.topKResults) ? undefined : draft.topKResults}
+                disabled={!canManage}
+                onChange={(value) => setNumber('topKResults', String(value ?? ''))}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
           <div className="kb-setting-field">
-            <label className="kb-setting-label">Similarity Threshold</label>
-            <input
-              type="number"
-              step="0.05"
-              min={0}
-              max={1}
-              className="kb-setting-input"
-              value={Number.isNaN(draft.similarityThreshold) ? '' : draft.similarityThreshold}
-              disabled={!canManage}
-              onChange={(event) => setNumber('similarityThreshold', event.target.value)}
-            />
+            <Form.Item label="Similarity Threshold" style={{ marginBottom: 0 }} layout="vertical">
+              <InputNumber
+                step={0.05}
+                min={0}
+                max={1}
+                className="kb-setting-input"
+                value={
+                  Number.isNaN(draft.similarityThreshold) ? undefined : draft.similarityThreshold
+                }
+                disabled={!canManage}
+                onChange={(value) => setNumber('similarityThreshold', String(value ?? ''))}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
           </div>
         </div>
         <p className="kb-settings-helper">

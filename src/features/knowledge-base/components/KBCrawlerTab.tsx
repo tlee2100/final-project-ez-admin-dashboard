@@ -29,7 +29,7 @@ import {
   type TableProps,
 } from 'antd';
 import { useState } from 'react';
-import { List } from '@refinedev/antd';
+
 import { useParams } from 'next/navigation';
 import { useCustom, useCustomMutation } from '@refinedev/core';
 import { App } from 'antd';
@@ -290,6 +290,7 @@ function RunPagesTable({
   const { mutateAsync } = useCustomMutation();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRetrying, setIsRetrying] = useState<string | null>(null);
+  const [retriedItems, setRetriedItems] = useState<Set<string>>(new Set());
 
   const handleDeleteFailed = async (itemId: string) => {
     setIsDeleting(true);
@@ -311,12 +312,20 @@ function RunPagesTable({
   const handleRetryUrl = async (url: string, itemId: string) => {
     setIsRetrying(itemId);
     try {
+      // 1. Queue the URL for recrawl
       await mutateAsync({
         url: `/sites/${siteId}/kb/upload/url`,
         method: 'post',
         values: { url },
       });
-      message.success('URL queued for recrawl');
+      // 2. Add to local state so we render it as 'queued' without deleting it from history
+      setRetriedItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(itemId);
+        return newSet;
+      });
+
+      message.success('URL queued for recrawl in a new task');
       void refetchPages();
     } catch {
       message.error('Failed to recrawl URL');
@@ -344,9 +353,10 @@ function RunPagesTable({
       title: 'Status',
       dataIndex: 'status',
       width: 130,
-      render: (status: CrawlRunItemStatus) => (
-        <Tag color={statusColors[status]}>{itemStatusLabels[status]}</Tag>
-      ),
+      render: (status: CrawlRunItemStatus, item) => {
+        const displayStatus = retriedItems.has(item.id) ? 'queued' : status;
+        return <Tag color={statusColors[displayStatus]}>{itemStatusLabels[displayStatus]}</Tag>;
+      },
     },
     {
       title: 'HTTP',
@@ -359,6 +369,14 @@ function RunPagesTable({
       width: 220,
       ellipsis: true,
       render: (_, item) => {
+        if (retriedItems.has(item.id)) {
+          return (
+            <Typography.Text type="secondary" style={{ fontSize: '13px' }}>
+              Pending recrawl...
+            </Typography.Text>
+          );
+        }
+
         const errorMsg = getDebugError(item.errorMessage) || item.errorCode;
         if (!errorMsg) return '—';
         const isError = item.status === 'failed' || item.status === 'quota_exceeded';
@@ -375,60 +393,74 @@ function RunPagesTable({
     {
       title: 'Action',
       width: 150,
-      render: (_, item) => (
-        <Space>
-          {item.documentId && canManage && (
-            <Tooltip title="Recrawl this URL">
-              <Button
-                size="small"
-                icon={<ReloadOutlined />}
-                disabled={isActive}
-                onClick={() => void onRecrawlSource(item.documentId!)}
-              >
-                Recrawl
-              </Button>
-            </Tooltip>
-          )}
-          {!item.documentId &&
-            canManage &&
-            (item.status === 'failed' || item.status === 'quota_exceeded') && (
-              <Tooltip title="Retry crawling this URL">
+      render: (_, item) => {
+        if (retriedItems.has(item.id)) {
+          return null; // Hide actions for items already queued for retry locally
+        }
+
+        return (
+          <Space>
+            {item.documentId && canManage && (
+              <Tooltip title="Recrawl this URL">
                 <Button
                   size="small"
                   icon={<ReloadOutlined />}
                   disabled={isActive}
-                  loading={isRetrying === item.id}
-                  onClick={() => void handleRetryUrl(item.url, item.id)}
+                  onClick={() => void onRecrawlSource(item.documentId!)}
                 >
                   Recrawl
                 </Button>
               </Tooltip>
             )}
-          {canManage && (item.status === 'failed' || item.status === 'quota_exceeded') && (
-            <Tooltip title="Delete failed URL">
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                loading={isDeleting}
-                onClick={() => void handleDeleteFailed(item.id)}
-              />
-            </Tooltip>
-          )}
-        </Space>
-      ),
+            {!item.documentId &&
+              canManage &&
+              (item.status === 'failed' || item.status === 'quota_exceeded') && (
+                <Tooltip title="Retry crawling this URL">
+                  <Button
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    disabled={isActive}
+                    loading={isRetrying === item.id}
+                    onClick={() => void handleRetryUrl(item.url, item.id)}
+                  >
+                    Recrawl
+                  </Button>
+                </Tooltip>
+              )}
+            {canManage && (item.status === 'failed' || item.status === 'quota_exceeded') && (
+              <Tooltip title="Delete failed URL">
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={isDeleting}
+                  onClick={() => void handleDeleteFailed(item.id)}
+                />
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
   const urlOptions = Array.from(new Set(pages.map((p) => p.url))).map((url) => ({ value: url }));
 
   return (
-    <div style={{ padding: '16px', background: '#fafafa', borderRadius: '8px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '10px' }}>
+    <div
+      style={{
+        padding: '24px',
+        background: '#ffffff',
+        borderRadius: '16px',
+        border: '1px solid #f0f0f0',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+      }}
+    >
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <AutoComplete
           allowClear
           options={urlOptions}
-          style={{ width: 300 }}
+          style={{ width: 320 }}
           placeholder="Search crawled URL"
           onSelect={(val) => {
             setPageSearch(val);
@@ -554,21 +586,33 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
   return (
     <Row gutter={[24, 24]} style={{ width: '100%', marginTop: '16px' }}>
       <Col xs={24} lg={16} xl={17}>
-        <List
-          wrapperProps={{ className: 'kb-crawler-history-card kb-crawler-hover-effect' }}
-          title={
-            <Typography.Title
-              level={4}
-              style={{ margin: 0, padding: '4px 12px', fontSize: '20px' }}
-            >
-              Crawl history and URLs
-            </Typography.Title>
-          }
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid #f0f0f0',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+          }}
         >
+          <Typography.Title
+            level={4}
+            style={{
+              margin: 0,
+              marginBottom: '24px',
+              fontSize: '18px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <GlobalOutlined style={{ color: '#1677ff' }} /> Crawl history and URLs
+          </Typography.Title>
           <Table
             className="kb-custom-table"
             rowKey="id"
-            size="small"
+            size="middle"
             columns={mainColumns}
             dataSource={props.runs}
             loading={props.isLoading}
@@ -584,7 +628,6 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
                   onRetryFailed={props.onRetryFailed}
                 />
               ),
-              rowExpandable: (record) => record.totalPages > 0,
             }}
             pagination={{
               pageSize: 5,
@@ -595,7 +638,7 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
                     <Space direction="vertical" size={2}>
-                      <Typography.Text>No crawls yet</Typography.Text>
+                      <Typography.Text strong>No crawls yet</Typography.Text>
                       <Typography.Text type="secondary">
                         Start a crawl to discover and index pages from this website.
                       </Typography.Text>
@@ -605,7 +648,7 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
               ),
             }}
           />
-        </List>
+        </div>
       </Col>
 
       <Col xs={24} lg={8} xl={7}>
@@ -613,26 +656,45 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
           <Alert
             type={run?.status === 'failed' ? 'error' : isActive ? 'info' : 'success'}
             showIcon
-            icon={isActive ? <SyncOutlined spin /> : <GlobalOutlined />}
-            message={statusDescription}
+            icon={
+              isActive ? (
+                <SyncOutlined spin style={{ fontSize: '20px' }} />
+              ) : (
+                <GlobalOutlined style={{ fontSize: '20px' }} />
+              )
+            }
+            message={
+              <Typography.Text strong style={{ fontSize: '16px' }}>
+                {statusDescription}
+              </Typography.Text>
+            }
             description={run ? `Job Status: ${jobStatus.label}` : 'Ready to configure'}
             style={{
-              borderRadius: '12px',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+              padding: '20px',
+              borderRadius: '16px',
+              border: '1px solid #f0f0f0',
+              boxShadow:
+                '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)',
+              alignItems: 'center',
             }}
           />
 
           <Card
             className="kb-crawler-config-card kb-crawler-hover-effect"
             title={
-              <Space>
-                <LinkOutlined /> Source &amp; sync settings
+              <Space style={{ fontSize: '16px', fontWeight: 600 }}>
+                <LinkOutlined style={{ color: '#1677ff' }} /> Source &amp; Sync Settings
               </Space>
             }
+            style={{
+              borderRadius: '16px',
+              border: '1px solid #f0f0f0',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+              background: 'linear-gradient(to bottom right, #ffffff, #fafafa)',
+            }}
             extra={
               props.canManage && !props.config ? (
-                <Button type="primary" size="small" onClick={props.onAddSitemapClick}>
+                <Button type="primary" shape="round" onClick={props.onAddSitemapClick}>
                   Add URL
                 </Button>
               ) : null
@@ -673,25 +735,40 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
               </div>
 
               {props.canManage && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    marginTop: '16px',
+                  }}
+                >
                   <Button
                     type="primary"
+                    shape="round"
+                    size="large"
                     icon={<SyncOutlined spin={isActive} />}
                     loading={isActive || props.isActionLoading}
                     disabled={!props.config || isActive || props.isActionLoading}
                     onClick={() => void props.onStartCrawl()}
-                    style={{ width: '100%' }}
+                    style={{
+                      width: '100%',
+                      fontWeight: 600,
+                      boxShadow: '0 4px 14px 0 rgba(22, 119, 255, 0.39)',
+                    }}
                   >
                     {isActive ? 'Crawling...' : 'Start Crawl'}
                   </Button>
                   <Button
+                    shape="round"
+                    size="large"
                     icon={<SaveOutlined />}
                     loading={props.isActionLoading && !isActive}
                     disabled={!sitemapUrl.trim() || props.isActionLoading}
                     onClick={() => void props.onSaveConfig(sitemapUrl.trim(), autoSyncEnabled)}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', fontWeight: 500 }}
                   >
-                    Save configuration
+                    Save Configuration
                   </Button>
                 </div>
               )}
@@ -714,7 +791,17 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
 
           <Card
             className="kb-crawler-progress-card kb-crawler-hover-effect"
-            title="Crawler Progress"
+            title={
+              <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                <ClockCircleOutlined style={{ color: '#1677ff', marginRight: '8px' }} />
+                Crawler Progress
+              </span>
+            }
+            style={{
+              borderRadius: '16px',
+              border: '1px solid #f0f0f0',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+            }}
           >
             <div aria-live="polite">
               {failedRunError && (
@@ -783,30 +870,50 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
-                    gap: '12px',
-                    marginTop: '20px',
+                    gap: '16px',
+                    marginTop: '24px',
                   }}
                 >
-                  <Statistic
-                    title="Found"
-                    value={run.totalPages}
-                    valueStyle={{ fontSize: '18px' }}
-                  />
-                  <Statistic
-                    title="Indexed"
-                    value={run.indexedPages}
-                    valueStyle={{ fontSize: '18px', color: '#3f8600' }}
-                  />
-                  <Statistic
-                    title="Failed"
-                    value={run.failedPages + run.quotaExceededPages}
-                    valueStyle={{ fontSize: '18px', color: '#cf1322' }}
-                  />
-                  <Statistic
-                    title="Skipped"
-                    value={run.skippedPages}
-                    valueStyle={{ fontSize: '18px' }}
-                  />
+                  <Card
+                    size="small"
+                    style={{ borderRadius: '12px', background: '#fafafa', border: 'none' }}
+                  >
+                    <Statistic
+                      title="Found"
+                      value={run.totalPages}
+                      valueStyle={{ fontSize: '20px', fontWeight: 600 }}
+                    />
+                  </Card>
+                  <Card
+                    size="small"
+                    style={{ borderRadius: '12px', background: '#f6ffed', border: 'none' }}
+                  >
+                    <Statistic
+                      title="Indexed"
+                      value={run.indexedPages}
+                      valueStyle={{ fontSize: '20px', fontWeight: 600, color: '#3f8600' }}
+                    />
+                  </Card>
+                  <Card
+                    size="small"
+                    style={{ borderRadius: '12px', background: '#fff1f0', border: 'none' }}
+                  >
+                    <Statistic
+                      title="Failed"
+                      value={run.failedPages + run.quotaExceededPages}
+                      valueStyle={{ fontSize: '20px', fontWeight: 600, color: '#cf1322' }}
+                    />
+                  </Card>
+                  <Card
+                    size="small"
+                    style={{ borderRadius: '12px', background: '#fafafa', border: 'none' }}
+                  >
+                    <Statistic
+                      title="Skipped"
+                      value={run.skippedPages}
+                      valueStyle={{ fontSize: '20px', fontWeight: 600, color: '#8c8c8c' }}
+                    />
+                  </Card>
                 </div>
               )}
             </div>
