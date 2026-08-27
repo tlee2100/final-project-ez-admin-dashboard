@@ -71,7 +71,7 @@ export function parseBookingMessage(text: string): ParsedBookingMessage {
 
   // Suffix label extraction: e.g. `/confirm-booking {...} :: Xác nhận đặt lịch`
   const suffixMatch = text.match(
-    /^\/(confirm-booking|update-draft-booking|select-booking-slot|select-booking-option|cancel-booking|confirm-cancel-booking|keep-booking|abandon-booking)(?:[\s\S]*?)(?:\s*::\s*([\s\S]+))?$/i,
+    /^\/(confirm-booking|update-draft-booking|select-booking-slot|select-booking-option|assign-slot-services|cancel-booking|confirm-cancel-booking|keep-booking|abandon-booking)(?:[\s\S]*?)(?:\s*::\s*([\s\S]+))?$/i,
   );
 
   if (!suffixMatch) {
@@ -124,6 +124,14 @@ export function parseBookingMessage(text: string): ParsedBookingMessage {
         label: label || payload?.label || payload?.value || 'Chọn dịch vụ / nhân viên',
         payload,
         cleanText: label || payload?.label || payload?.value || 'Chọn tùy chọn',
+      };
+    case 'assign-slot-services':
+      return {
+        isCommand: true,
+        type: 'select_booking_option',
+        label: label || 'Phân bổ dịch vụ theo khung giờ',
+        payload,
+        cleanText: label || 'Phân bổ dịch vụ theo khung giờ',
       };
     case 'cancel-booking':
     case 'confirm-cancel-booking':

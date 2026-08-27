@@ -1,25 +1,7 @@
 import React, { useState } from 'react';
 import type { Site } from '@/src/features/sites/types/site.types';
-import {
-  Card,
-  Typography,
-  Switch,
-  Radio,
-  Input,
-  Button,
-  Select,
-  Checkbox,
-  Space,
-  Tag,
-  Row,
-  Col,
-  Divider,
-  Spin,
-  InputNumber,
-  Modal,
-  Form,
-} from 'antd';
-import { WarningOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Typography, Switch, Button, Divider, Spin, Modal, Form } from 'antd';
+import { WarningOutlined } from '@ant-design/icons';
 import { CreateBlockoutModal } from '@/src/features/bookings/components/CreateBlockoutModal';
 import { useBlockouts } from '@/src/features/bookings/hooks/useBlockouts';
 import {
@@ -27,7 +9,10 @@ import {
   type BookingFormValues,
 } from '@/src/features/sites/hooks/useSiteBookingConfig';
 import type { UpdateBookingConfigPayload } from '@/src/features/bookings/types/booking.types';
-import dayjs from 'dayjs';
+import { BookingGeneralSection } from './booking/BookingGeneralSection';
+import { BookingServicesSection } from './booking/BookingServicesSection';
+import { BookingStaffSection } from './booking/BookingStaffSection';
+import { BookingBlockoutsSection } from './booking/BookingBlockoutsSection';
 
 const { Title, Text } = Typography;
 
@@ -36,35 +21,6 @@ interface TabBookingProps {
 }
 
 const DAYS_MAP = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-export const SALON_PRESET_SERVICES = [
-  'Haircut (Women)',
-  'Haircut (Men)',
-  'Hair Wash & Blow Dry',
-  'Hair Styling',
-  'Hair Coloring',
-  'Hair Perm & Straightening',
-  'Hair & Scalp Treatment',
-  'Facial Skincare',
-  'Manicure & Pedicure',
-  'Nail Art',
-  'Full Body Massage',
-  'Head Spa & Relax',
-];
-
-const generateTimeOptions = () => {
-  const options = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 30) {
-      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      options.push({ value: time, label: time });
-    }
-  }
-  return options;
-};
-
-const TIME_OPTIONS = generateTimeOptions();
-const DAYS_OPTIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function TabBooking({ site }: TabBookingProps) {
   const [form] = Form.useForm();
@@ -264,337 +220,35 @@ export function TabBooking({ site }: TabBookingProps) {
             pointerEvents: bookingEnabled ? 'auto' : 'none',
           }}
         >
-          {/* Industry Template */}
-          <div>
-            <Title level={5} style={{ fontSize: 14, marginBottom: 16 }}>
-              Industry Template
-            </Title>
-            <Form.Item name="industryTemplate" noStyle>
-              <Radio.Group>
-                <Space direction="vertical">
-                  <Radio value="salon">
-                    <span style={{ fontWeight: 500 }}>Salon</span>
-                    <div style={{ color: '#9ca3af', fontSize: 13 }}>
-                      Services catalog + staff assignment (Stylists, Therapists)
-                    </div>
-                  </Radio>
-                  <Radio value="general">
-                    <span style={{ fontWeight: 500 }}>General</span>
-                    <div style={{ color: '#9ca3af', fontSize: 13 }}>
-                      Resource-based assignment (Rooms, Courts, Machines) + custom notes
-                    </div>
-                  </Radio>
-                </Space>
-              </Radio.Group>
-            </Form.Item>
-          </div>
+          <BookingGeneralSection />
 
-          {/* Services */}
-          <div>
-            <Title level={5} style={{ fontSize: 14, marginBottom: 8 }}>
-              Services{' '}
-              {industryTemplate === 'salon'
-                ? '(Salon Catalog & Custom Services)'
-                : '(Custom Services)'}
-            </Title>
-            {industryTemplate === 'salon' ? (
-              <div>
-                <div style={{ marginBottom: 12, fontSize: 13, color: '#6b7280' }}>
-                  Select services from the preset salon catalog or type your own custom service
-                  names (press Enter to add).
-                </div>
-                <Form.Item name="services" noStyle>
-                  <Select
-                    mode="tags"
-                    style={{ width: '100%' }}
-                    placeholder="Select preset services or type custom service names (press Enter)"
-                    value={services}
-                    onChange={(selected) => {
-                      setServices(selected);
-                      form.setFieldValue('services', selected);
-                    }}
-                    options={Array.from(new Set([...SALON_PRESET_SERVICES, ...services])).map(
-                      (s) => ({
-                        value: s,
-                        label: s,
-                      }),
-                    )}
-                  />
-                </Form.Item>
-              </div>
-            ) : (
-              <div>
-                <div style={{ marginBottom: 12, fontSize: 13, color: '#6b7280' }}>
-                  Add custom services or booking purposes for your site. Each service will be
-                  assigned a unique ID in your catalog.
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  {services.map((service) => (
-                    <Tag
-                      key={service}
-                      closable
-                      onClose={() => handleRemoveService(service)}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: 14,
-                        background: '#f3f4f6',
-                        border: 'none',
-                        borderRadius: 16,
-                      }}
-                    >
-                      {service}
-                    </Tag>
-                  ))}
-                </div>
-                <Space.Compact style={{ width: '100%' }}>
-                  <Input
-                    placeholder="Add a custom service (e.g., Badminton Court, Meeting Room A, Equipment Rental)"
-                    value={newServiceInput}
-                    onChange={(e) => setNewServiceInput(e.target.value)}
-                    onPressEnter={handleAddService}
-                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb', height: 40 }}
-                  />
-                  <Button
-                    type="primary"
-                    onClick={handleAddService}
-                    style={{
-                      height: 40,
-                      background: '#bfdbfe',
-                      color: '#1e40af',
-                      border: 'none',
-                    }}
-                  >
-                    Add service
-                  </Button>
-                </Space.Compact>
-              </div>
-            )}
-          </div>
+          <BookingServicesSection
+            industryTemplate={industryTemplate}
+            services={services}
+            setServices={(newServices) => {
+              setServices(newServices);
+              form.setFieldValue('services', newServices);
+            }}
+            newServiceInput={newServiceInput}
+            setNewServiceInput={setNewServiceInput}
+            handleAddService={handleAddService}
+            handleRemoveService={handleRemoveService}
+          />
 
-          {/* Staff / Resources */}
-          <div>
-            <Title level={5} style={{ fontSize: 14, marginBottom: 12 }}>
-              {industryTemplate === 'general'
-                ? 'Resources (Rooms / Courts / Machines)'
-                : 'Staff / Stylists'}
-            </Title>
-            <div style={{ marginBottom: 12 }}>
-              {staff.map((s) => (
-                <Tag
-                  key={s}
-                  closable
-                  onClose={() => handleRemoveStaff(s)}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: 14,
-                    background: '#f3e8ff',
-                    color: '#6b21a8',
-                    border: 'none',
-                    borderRadius: 16,
-                  }}
-                >
-                  {s}
-                </Tag>
-              ))}
-            </div>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                placeholder={
-                  industryTemplate === 'general'
-                    ? 'Add resource (e.g., Room 101, Court A, 3D Printer #2)'
-                    : 'Add staff (e.g., Stylist Lan)'
-                }
-                value={newStaffInput}
-                onChange={(e) => setNewStaffInput(e.target.value)}
-                onPressEnter={handleAddStaff}
-                style={{ background: '#f9fafb', border: '1px solid #e5e7eb', height: 40 }}
-              />
-              <Button
-                type="primary"
-                onClick={handleAddStaff}
-                style={{ height: 40, background: '#bfdbfe', color: '#1e40af', border: 'none' }}
-              >
-                {industryTemplate === 'general' ? 'Add resource' : 'Add staff'}
-              </Button>
-            </Space.Compact>
-          </div>
+          <BookingStaffSection
+            industryTemplate={industryTemplate}
+            staff={staff}
+            newStaffInput={newStaffInput}
+            setNewStaffInput={setNewStaffInput}
+            handleAddStaff={handleAddStaff}
+            handleRemoveStaff={handleRemoveStaff}
+          />
 
-          {/* Slot Configuration */}
-          <div>
-            <Title level={5} style={{ fontSize: 14, marginBottom: 16 }}>
-              Slot Configuration
-            </Title>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <div style={{ marginBottom: 4, fontSize: 13, color: '#6b7280' }}>Timezone</div>
-                <Form.Item name="timezone" noStyle>
-                  <Select
-                    style={{ width: '100%', height: 40 }}
-                    className="custom-select-bg"
-                    options={[
-                      { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho_Chi_Minh' },
-                      { value: 'Asia/Bangkok', label: 'Asia/Bangkok' },
-                      { value: 'Asia/Singapore', label: 'Asia/Singapore' },
-                      { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
-                      { value: 'UTC', label: 'UTC' },
-                    ]}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <div style={{ marginBottom: 4, fontSize: 13, color: '#6b7280' }}>Slot Duration</div>
-                <Form.Item name="slotDuration" noStyle>
-                  <InputNumber
-                    min={1}
-                    style={{ width: '100%', height: 40, paddingTop: 4 }}
-                    addonAfter="mins"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <div style={{ marginBottom: 4, fontSize: 13, color: '#6b7280' }}>Start Time</div>
-                <Form.Item name="startTime" noStyle>
-                  <Select
-                    style={{ width: '100%', height: 40 }}
-                    className="custom-select-bg"
-                    options={TIME_OPTIONS}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <div style={{ marginBottom: 4, fontSize: 13, color: '#6b7280' }}>End Time</div>
-                <Form.Item name="endTime" noStyle>
-                  <Select
-                    style={{ width: '100%', height: 40 }}
-                    className="custom-select-bg"
-                    options={TIME_OPTIONS}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <div style={{ marginTop: 24 }}>
-              <div style={{ marginBottom: 8, fontSize: 14, color: '#6b7280' }}>Available Days</div>
-              <Form.Item name="availableDays" noStyle>
-                <Checkbox.Group options={DAYS_OPTIONS} />
-              </Form.Item>
-            </div>
-          </div>
-
-          {/* Block-Out Times & Staff Leave */}
-          <Divider style={{ margin: '24px 0 16px 0' }} />
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 16,
-              }}
-            >
-              <div>
-                <Title level={5} style={{ fontSize: 14, margin: '0 0 4px 0' }}>
-                  🔒 Block-Out Times & Staff Leave
-                </Title>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  Mark specific dates or hours as unavailable (holidays, closures, or staff leave).
-                </Text>
-              </div>
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={() => setIsBlockoutModalOpen(true)}
-                style={{
-                  borderRadius: 8,
-                  borderColor: '#fca5a5',
-                  color: '#dc2626',
-                  background: '#fff5f5',
-                  fontWeight: 500,
-                }}
-              >
-                Add Block-Out
-              </Button>
-            </div>
-
-            {blockouts.length === 0 ? (
-              <div
-                style={{
-                  padding: '20px',
-                  background: '#f9fafb',
-                  borderRadius: 8,
-                  border: '1px dashed #e5e7eb',
-                  textAlign: 'center',
-                  color: '#6b7280',
-                  fontSize: 13,
-                }}
-              >
-                No active block-outs configured for this site. Click <strong>Add Block-Out</strong>{' '}
-                to block dates or hours.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {blockouts.map((b) => {
-                  const isWholeSalon = !b.resourceId;
-                  const startDay = dayjs(b.startAt);
-                  const endDay = dayjs(b.endAt);
-                  const isAllDay =
-                    startDay.format('HH:mm') === '00:00' &&
-                    (endDay.format('HH:mm') === '23:59' || endDay.format('HH:mm') === '00:00');
-                  const dateDisplay = isAllDay
-                    ? `${startDay.format('DD/MM/YYYY')} (Full Day)`
-                    : `${startDay.format('DD/MM/YYYY HH:mm')} - ${endDay.format('DD/MM/YYYY HH:mm')}`;
-
-                  return (
-                    <div
-                      key={b.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        background: '#fef2f2',
-                        border: '1px solid #fee2e2',
-                        borderRadius: 8,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: 18 }}>🔒</span>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: '#991b1b' }}>
-                            {b.reason || (isWholeSalon ? 'Entire Salon Closure' : 'Staff Leave')}
-                            <Tag
-                              color={isWholeSalon ? 'red' : 'purple'}
-                              style={{ marginLeft: 8, fontSize: 11, borderRadius: 10 }}
-                            >
-                              {isWholeSalon ? 'Entire Salon' : b.resource?.name || 'Staff'}
-                            </Tag>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: '#7f1d1d',
-                              opacity: 0.85,
-                              marginTop: 2,
-                            }}
-                          >
-                            {dateDisplay}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => confirmDeleteBlockout(b)}
-                        style={{ color: '#ef4444' }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <BookingBlockoutsSection
+            blockouts={blockouts}
+            onOpenAddModal={() => setIsBlockoutModalOpen(true)}
+            confirmDeleteBlockout={confirmDeleteBlockout}
+          />
         </div>
 
         <CreateBlockoutModal
