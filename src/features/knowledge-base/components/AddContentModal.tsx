@@ -7,6 +7,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { ModalTabType } from '../types/knowledge-base.types';
+import { Button, Input } from 'antd';
 
 interface AddContentModalProps {
   isOpen: boolean;
@@ -88,33 +89,40 @@ export function AddContentModal({
     <div className="kb-modal-overlay" onClick={onClose}>
       <div className="kb-modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
-        <button className="kb-modal-close" onClick={onClose} aria-label="Close modal">
-          <CloseOutlined />
-        </button>
+        <Button
+          type="text"
+          className="kb-modal-close"
+          onClick={onClose}
+          aria-label="Close modal"
+          icon={<CloseOutlined />}
+        />
 
         {/* Title */}
         <h2 className="kb-modal-title">Add to Knowledge Base</h2>
 
         {/* Sub Tabs */}
         <div className="kb-modal-tabs">
-          <button
-            className={`kb-modal-tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
+          <Button
+            type={activeTab === 'upload' ? 'primary' : 'text'}
+            className="kb-modal-tab-btn"
             onClick={() => setActiveTab('upload')}
           >
             Upload File
-          </button>
-          <button
-            className={`kb-modal-tab-btn ${activeTab === 'url' ? 'active' : ''}`}
+          </Button>
+          <Button
+            type={activeTab === 'url' ? 'primary' : 'text'}
+            className="kb-modal-tab-btn"
             onClick={() => setActiveTab('url')}
           >
             From URL
-          </button>
-          <button
-            className={`kb-modal-tab-btn ${activeTab === 'sitemap' ? 'active' : ''}`}
+          </Button>
+          <Button
+            type={activeTab === 'sitemap' ? 'primary' : 'text'}
+            className="kb-modal-tab-btn"
             onClick={() => setActiveTab('sitemap')}
           >
             Sitemap
-          </button>
+          </Button>
         </div>
 
         {/* ── TAB 1: Upload File ── */}
@@ -145,8 +153,8 @@ export function AddContentModal({
                 Supports PDF, DOCX, Markdown, HTML, TXT (Max 10MB)
               </div>
 
-              <button
-                type="button"
+              <Button
+                type="primary"
                 className="kb-browse-btn"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -154,7 +162,7 @@ export function AddContentModal({
                 }}
               >
                 Browse Files
-              </button>
+              </Button>
             </div>
 
             {/* Selected File List */}
@@ -181,17 +189,12 @@ export function AddContentModal({
                       <CheckCircleOutlined style={{ color: '#10b981', marginRight: 6 }} />
                       {file.name} ({(file.size / 1024).toFixed(0)} KB)
                     </span>
-                    <button
+                    <Button
+                      type="text"
+                      danger
+                      icon={<CloseOutlined />}
                       onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <CloseOutlined />
-                    </button>
+                    />
                   </div>
                 ))}
               </div>
@@ -206,12 +209,13 @@ export function AddContentModal({
               <label className="kb-form-label">URL to scrape</label>
               <div className="kb-input-with-icon">
                 <GlobalOutlined className="kb-input-icon" />
-                <input
+                <Input
                   type="url"
                   className="kb-text-input"
                   placeholder="https://example.com/page-to-add"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
+                  bordered={false}
                 />
               </div>
             </div>
@@ -230,12 +234,13 @@ export function AddContentModal({
               <label className="kb-form-label">Sitemap URL</label>
               <div className="kb-input-with-icon">
                 <FileTextOutlined className="kb-input-icon" />
-                <input
+                <Input
                   type="url"
                   className="kb-text-input"
                   placeholder="https://example.com/sitemap.xml"
                   value={sitemapInput}
                   onChange={(e) => setSitemapInput(e.target.value)}
+                  bordered={false}
                 />
               </div>
             </div>
@@ -248,11 +253,12 @@ export function AddContentModal({
 
         {/* Modal Footer Buttons */}
         <div className="kb-modal-footer">
-          <button className="kb-btn-secondary" onClick={onClose}>
+          <Button className="kb-btn-secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            className={`kb-btn-primary ${!isSubmitDisabled ? 'active' : ''}`}
+          </Button>
+          <Button
+            type="primary"
+            className="kb-btn-primary"
             onClick={handleSubmit}
             disabled={isSubmitDisabled}
           >
@@ -261,7 +267,7 @@ export function AddContentModal({
               : activeTab === 'url'
                 ? 'Start Crawl'
                 : 'Save & Crawl'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

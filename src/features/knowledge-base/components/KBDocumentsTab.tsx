@@ -16,7 +16,7 @@ import {
   ExclamationCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { Popconfirm, Dropdown, MenuProps, Pagination, Popover, Tag } from 'antd';
+import { Popconfirm, Dropdown, MenuProps, Pagination, Popover, Tag, Input, Button } from 'antd';
 import { DocFileType, type KBDocument } from '../types/knowledge-base.types';
 import type { SortOption } from '../hooks/useKnowledgeBase';
 
@@ -126,8 +126,7 @@ export function KBDocumentsTab({
       <div className="kb-toolbar">
         <div className="kb-search-box">
           <SearchOutlined className="kb-search-icon" />
-          <input
-            type="text"
+          <Input
             className="kb-search-input"
             placeholder="Search documents..."
             value={searchQuery}
@@ -148,10 +147,10 @@ export function KBDocumentsTab({
             open={filterDropdownOpen}
             onOpenChange={setFilterDropdownOpen}
           >
-            <button className="kb-tool-btn">
+            <Button className="kb-tool-btn">
               <FilterOutlined />
               Filter {selectedType !== 'all' ? `(${selectedType.toUpperCase()})` : ''}
-            </button>
+            </Button>
           </Dropdown>
 
           {/* Sort Dropdown */}
@@ -166,10 +165,10 @@ export function KBDocumentsTab({
             open={sortDropdownOpen}
             onOpenChange={setSortDropdownOpen}
           >
-            <button className="kb-tool-btn">
+            <Button className="kb-tool-btn">
               <SortAscendingOutlined />
               Sort
-            </button>
+            </Button>
           </Dropdown>
         </div>
       </div>
@@ -253,9 +252,9 @@ export function KBDocumentsTab({
                         content={doc.reindexError || 'The source could not be re-indexed.'}
                         trigger="click"
                       >
-                        <button className="kb-tool-btn" style={{ marginTop: 8 }}>
+                        <Button size="small" className="kb-tool-btn" style={{ marginTop: 8 }}>
                           View details
-                        </button>
+                        </Button>
                       </Popover>
                     )}
                   </div>
@@ -281,23 +280,23 @@ export function KBDocumentsTab({
                         okText="Re-index"
                         cancelText="Cancel"
                       >
-                        <button
+                        <Button
+                          type="text"
                           className="kb-icon-action view"
                           title={doc.reindexStatus === 'failed' ? 'Retry Re-index' : 'Re-index'}
                           aria-label={`Re-index ${doc.name}`}
-                        >
-                          <ReloadOutlined />
-                        </button>
+                          icon={<ReloadOutlined />}
+                        />
                       </Popconfirm>
                     )}
-                    <button
+                    <Button
+                      type="text"
                       className="kb-icon-action view"
                       title="Preview Document"
                       onClick={() => onPreview(doc)}
                       aria-label={`Preview ${doc.name}`}
-                    >
-                      <EyeOutlined />
-                    </button>
+                      icon={<EyeOutlined />}
+                    />
 
                     <Popconfirm
                       title="Delete document"
@@ -307,13 +306,14 @@ export function KBDocumentsTab({
                       cancelText="Cancel"
                       placement="topRight"
                     >
-                      <button
+                      <Button
+                        type="text"
+                        danger
                         className="kb-icon-action delete"
                         title="Delete Document"
                         aria-label={`Delete ${doc.name}`}
-                      >
-                        <DeleteOutlined />
-                      </button>
+                        icon={<DeleteOutlined />}
+                      />
                     </Popconfirm>
                   </div>
                 </div>

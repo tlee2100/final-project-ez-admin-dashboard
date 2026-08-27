@@ -16,7 +16,7 @@ import {
   ClockCircleOutlined,
   FontSizeOutlined,
 } from '@ant-design/icons';
-import { Tag, Spin, Tooltip, message, Segmented } from 'antd';
+import { Tag, Spin, Tooltip, message, Segmented, Input, Button } from 'antd';
 import type { KBDocument, DocumentChunksResponse } from '../types/knowledge-base.types';
 import { useCustom } from '@refinedev/core';
 
@@ -180,27 +180,28 @@ export function DocPreviewModal({ doc, siteId, onClose }: DocPreviewModalProps) 
             )}
 
             <Tooltip title={copied ? 'Copied!' : 'Copy full document text'}>
-              <button
+              <Button
+                type="primary"
                 className="kb-btn-header-action primary"
                 onClick={handleCopyFullText}
                 disabled={!fullDocumentText || loading}
                 aria-label="Copy full document text"
+                icon={copied ? <CheckOutlined style={{ color: '#10b981' }} /> : <CopyOutlined />}
               >
-                {copied ? <CheckOutlined style={{ color: '#10b981' }} /> : <CopyOutlined />}
                 <span>{copied ? 'Copied' : 'Copy All'}</span>
-              </button>
+              </Button>
             </Tooltip>
 
             {/* Vertical Divider & Clean Close Button */}
             <div className="kb-reader-header-divider" />
-            <button
+            <Button
+              type="text"
               className="kb-reader-close-btn"
               onClick={onClose}
               aria-label="Close modal"
               title="Close modal"
-            >
-              <CloseOutlined />
-            </button>
+              icon={<CloseOutlined />}
+            />
           </div>
         </div>
 
@@ -236,21 +237,22 @@ export function DocPreviewModal({ doc, siteId, onClose }: DocPreviewModalProps) 
             <div className="kb-reader-search-wrapper">
               <div className="kb-reader-search-box">
                 <SearchOutlined style={{ color: '#94a3b8' }} />
-                <input
-                  type="text"
+                <Input
                   placeholder="Search in document..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="kb-reader-search-input"
+                  bordered={false}
                 />
                 {searchQuery && (
-                  <button
+                  <Button
+                    type="text"
+                    size="small"
                     className="kb-reader-search-clear"
                     onClick={() => setSearchQuery('')}
                     title="Clear search"
-                  >
-                    <CloseOutlined style={{ fontSize: 10 }} />
-                  </button>
+                    icon={<CloseOutlined style={{ fontSize: 10 }} />}
+                  />
                 )}
               </div>
               {searchQuery.trim() && (
@@ -356,9 +358,9 @@ export function DocPreviewModal({ doc, siteId, onClose }: DocPreviewModalProps) 
               {readingMetrics.characters.toLocaleString()} characters
             </span>
           </div>
-          <button className="kb-btn-secondary" onClick={onClose}>
+          <Button className="kb-btn-secondary" onClick={onClose}>
             Close Reader
-          </button>
+          </Button>
         </div>
       </div>
     </div>
