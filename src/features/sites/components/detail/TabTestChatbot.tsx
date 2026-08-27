@@ -1,10 +1,29 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { CheckSquareOutlined, BorderOutlined, ExperimentOutlined } from '@ant-design/icons';
+import {
+  CheckSquareOutlined,
+  BorderOutlined,
+  ExperimentOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import { API_BASE_URL } from '@/src/lib/api.client';
 import { siteApi } from '../../services/site.api';
 import type { SiteDetailInfo, MockKBFile } from '../../mock/sitesDetailMockData';
+
+/**
+ * Reads NEXT_PUBLIC_CHAT_WIDGET_URL from the environment.
+ * Returns null when the variable is missing or blank — callers must handle
+ * this case explicitly rather than silently falling back to localhost.
+ *
+ * This value is baked in at build time by Next.js.
+ * Set it in GitHub → Settings → Variables → NEXT_PUBLIC_CHAT_WIDGET_URL
+ * and pass it as a Docker build-arg in the CI workflow.
+ */
+export function getChatWidgetUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_CHAT_WIDGET_URL?.trim();
+  return url || null;
+}
 
 interface TabTestChatbotProps {
   siteId: string;
@@ -57,12 +76,9 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
     );
   }, []);
 
-  // Widget URL & backend base URL for iframe
-  const chatWidgetUrl = process.env.NEXT_PUBLIC_CHAT_WIDGET_URL || 'http://localhost:5173';
+  // Resolve widget URL — must come from the environment, never hardcoded
+  const chatWidgetUrl = getChatWidgetUrl();
   const backendBaseUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '').replace(/\/api\/?$/, '');
-  const iframeSrc = `${chatWidgetUrl}/?siteId=${encodeURIComponent(
-    siteId,
-  )}&backendUrl=${encodeURIComponent(backendBaseUrl)}&testMode=true&openDefault=true`;
 
   return (
     <div className="test-chatbot-container">
@@ -78,15 +94,29 @@ export function TabTestChatbot({ siteId, stats }: TabTestChatbotProps) {
           </div>
         </div>
 
-        {/* Embedded Chat Widget Iframe */}
+        {/* Embedded Chat Widget Iframe — or config error banner */}
         <div className="test-chat-iframe-container">
-          <iframe
-            ref={iframeRef}
-            src={iframeSrc}
-            title="Chatbot Test Sandbox"
-            className="test-chat-iframe"
-            allow="clipboard-write"
-          />
+          {chatWidgetUrl ? (
+            <iframe
+              ref={iframeRef}
+              src={`${chatWidgetUrl}/?siteId=${encodeURIComponent(siteId)}&backendUrl=${encodeURIComponent(backendBaseUrl)}&testMode=true&openDefault=true`}
+              title="Chatbot Test Sandbox"
+              className="test-chat-iframe"
+              allow="clipboard-write"
+            />
+          ) : (
+            <div className="test-widget-config-error" role="alert">
+              <WarningOutlined className="test-widget-config-error-icon" />
+              <p className="test-widget-config-error-title">Widget URL not configured</p>
+              <p className="test-widget-config-error-desc">
+                The environment variable <code>NEXT_PUBLIC_CHAT_WIDGET_URL</code> is missing or
+                empty.
+              </p>
+              <p className="test-widget-config-error-hint">
+                Add it to your deployment environment variables and rebuild the application.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -647,6 +647,55 @@
   display: block;
 }
 
+/* Config error banner shown when NEXT_PUBLIC_CHAT_WIDGET_URL is not set */
+.test-widget-config-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+  color: #92400e;
+  background: #fffbeb;
+  border-radius: 0 0 10px 10px;
+}
+
+.test-widget-config-error-icon {
+  font-size: 32px;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+.test-widget-config-error-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #78350f;
+}
+
+.test-widget-config-error-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.test-widget-config-error-desc code {
+  background: #fde68a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  color: #78350f;
+}
+
+.test-widget-config-error-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #b45309;
+}
+
 /* Chat Message Logs */
 .test-chat-messages {
   flex: 1;
