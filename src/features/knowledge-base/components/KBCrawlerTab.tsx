@@ -44,28 +44,17 @@ interface KBCrawlerTabProps {
   config: CrawlerConfigDto | null;
   activeRun: CrawlRunDto | null;
   selectedRun: CrawlRunDto | null;
-  selectedRunId: string | null;
   runs: CrawlRunDto[];
-  pages: CrawlRunPageDto[];
-  pagesTotal: number;
-  pagesPage: number;
-  pagesLimit: number;
-  pageSearch: string;
-  pageStatusFilter?: CrawlRunItemStatus;
   progressPercent: number;
   isLoading: boolean;
   isActionLoading: boolean;
   canManage: boolean;
-  onSelectRun: (runId: string) => void;
-  onStatusFilter: (status?: CrawlRunItemStatus) => void;
-  onSearchPages: (search: string) => void;
-  onPagesChange: (page: number, limit: number) => void;
   onSaveConfig: (sitemapUrl: string, autoSyncEnabled: boolean) => Promise<unknown>;
   onStartCrawl: () => Promise<unknown>;
   onRetryFailed: (runId: string) => Promise<unknown>;
   onRecrawlSource: (documentId: string) => Promise<unknown>;
   onAddSitemapClick: () => void;
-  deleteFailedItem?: (runId: string, itemId: string) => Promise<unknown>;
+  onCrawlerDataChanged: () => Promise<void>;
   siteId?: string;
 }
 
@@ -252,17 +241,21 @@ function RunPagesTable({
   runId,
   run,
   isActive,
+  isRunActive,
   canManage,
   onRecrawlSource,
   onRetryFailed,
+  onCrawlerDataChanged,
 }: {
   siteId: string;
   runId: string;
   run: CrawlRunDto;
   isActive: boolean;
+  isRunActive: boolean;
   canManage: boolean;
   onRecrawlSource: (documentId: string) => Promise<unknown>;
   onRetryFailed: (runId: string) => Promise<unknown>;
+  onCrawlerDataChanged: () => Promise<void>;
 }) {
   const { message } = App.useApp();
   const [pageSearch, setPageSearch] = useState('');
@@ -283,6 +276,7 @@ function RunPagesTable({
     },
     queryOptions: {
       enabled: !!siteId && !!runId,
+      refetchInterval: isRunActive ? 3000 : false,
     },
   });
   const refetchPages = pagesQuery.refetch;
@@ -300,8 +294,8 @@ function RunPagesTable({
         method: 'delete',
         values: {},
       });
+      await Promise.all([refetchPages(), onCrawlerDataChanged()]);
       message.success('Failed URL deleted');
-      void refetchPages();
     } catch {
       message.error('Failed to delete URL');
     } finally {
@@ -325,8 +319,8 @@ function RunPagesTable({
         return newSet;
       });
 
+      await Promise.all([refetchPages(), onCrawlerDataChanged()]);
       message.success('URL queued for recrawl in a new task');
-      void refetchPages();
     } catch {
       message.error('Failed to recrawl URL');
     } finally {
@@ -342,6 +336,7 @@ function RunPagesTable({
     {
       title: 'URL',
       dataIndex: 'url',
+      width: 300,
       ellipsis: true,
       render: (url: string) => (
         <Typography.Link href={url} target="_blank" rel="noreferrer" title={url}>
@@ -508,6 +503,7 @@ function RunPagesTable({
         columns={columns}
         dataSource={pages}
         loading={isLoading}
+        scroll={{ x: 800 }}
         pagination={{
           current: pagesPage,
           pageSize: pagesLimit,
@@ -623,9 +619,11 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
                   runId={record.id}
                   run={record}
                   isActive={isActive}
+                  isRunActive={ACTIVE_STATUSES.has(record.status)}
                   canManage={props.canManage}
                   onRecrawlSource={props.onRecrawlSource}
                   onRetryFailed={props.onRetryFailed}
+                  onCrawlerDataChanged={props.onCrawlerDataChanged}
                 />
               ),
             }}
