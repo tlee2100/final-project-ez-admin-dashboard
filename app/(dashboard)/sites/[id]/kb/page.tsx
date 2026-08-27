@@ -161,25 +161,11 @@ export default function KnowledgeBasePage({ params }: PageProps) {
             config={crawler.config}
             activeRun={crawler.activeRun}
             selectedRun={crawler.selectedRun}
-            selectedRunId={crawler.selectedRunId}
             runs={crawler.runs}
-            pages={crawler.pages}
-            pagesTotal={crawler.pagesTotal}
-            pagesPage={crawler.pagesPage}
-            pagesLimit={crawler.pagesLimit}
-            pageSearch={crawler.pageSearch}
-            pageStatusFilter={crawler.pageStatusFilter}
             progressPercent={crawler.progressPercent}
             isLoading={crawler.isLoading}
             isActionLoading={crawler.isActionLoading}
             canManage={canAddContent}
-            onSelectRun={crawler.setSelectedRunId}
-            onStatusFilter={crawler.setPageStatusFilter}
-            onSearchPages={crawler.searchPages}
-            onPagesChange={(page, pageSize) => {
-              crawler.setPagesPage(page);
-              crawler.setPagesLimit(pageSize);
-            }}
             onSaveConfig={crawler.saveConfig}
             onStartCrawl={crawler.startCrawl}
             onRetryFailed={crawler.retryFailed}
@@ -189,6 +175,7 @@ export default function KnowledgeBasePage({ params }: PageProps) {
               setAddContentInitialTab('sitemap');
               setIsAddModalOpen(true);
             }}
+            onCrawlerDataChanged={crawler.refreshCrawler}
           />
         )}
 

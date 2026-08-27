@@ -3,12 +3,7 @@
 import { App } from 'antd';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useCustom, useCustomMutation } from '@refinedev/core';
-import type {
-  CrawlerConfigDto,
-  CrawlRunDto,
-  CrawlRunItemStatus,
-  CrawlRunPageDto,
-} from '../types/knowledge-base.types';
+import type { CrawlerConfigDto, CrawlRunDto } from '../types/knowledge-base.types';
 
 const ACTIVE_STATUSES = new Set(['queued', 'discovering', 'processing']);
 const POLLED_STATUSES = new Set(['waiting', ...ACTIVE_STATUSES]);
@@ -18,10 +13,6 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
-  const [pagesPage, setPagesPage] = useState(1);
-  const [pagesLimit, setPagesLimit] = useState(20);
-  const [pageSearch, setPageSearch] = useState('');
-  const [pageStatusFilter, setPageStatusFilter] = useState<CrawlRunItemStatus | undefined>();
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   // --- GET OVERVIEW ---
@@ -75,29 +66,7 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
 
   const selectedRun = selectedRunQuery.data?.data || null;
   const refetchSelectedRun = selectedRunQuery.refetch;
-  const isSelectedRunChanging = selectedRun?.status && POLLED_STATUSES.has(selectedRun.status);
 
-  // --- GET RUN PAGES ---
-  const { query: pagesQuery } = useCustom<{ data: CrawlRunPageDto[]; total: number }>({
-    url: effectiveRunId ? `/sites/${siteId}/kb/crawls/${effectiveRunId}/pages` : '',
-    method: 'get',
-    config: {
-      query: {
-        page: String(pagesPage),
-        limit: String(pagesLimit),
-        ...(pageStatusFilter ? { status: pageStatusFilter } : {}),
-        ...(pageSearch ? { search: pageSearch } : {}),
-      },
-    },
-    queryOptions: {
-      enabled: !!siteId && !!effectiveRunId,
-      refetchInterval: isSelectedRunChanging ? 3000 : false,
-    },
-  });
-
-  const pages = pagesQuery.data?.data?.data || [];
-  const pagesTotal = pagesQuery.data?.data?.total || 0;
-  const refetchPages = pagesQuery.refetch;
   const isLoading = isOverviewLoading;
 
   // --- POLL ACTIVE RUN IF IT'S DIFFERENT FROM SELECTED ---
@@ -118,12 +87,12 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
     activeRunPolledQuery.data?.data || overviewQuery.data?.data?.activeRun || null;
 
   const refreshCrawler = useCallback(async () => {
-    await Promise.all([refetchOverview(), refetchRuns()]);
-  }, [refetchOverview, refetchRuns]);
+    await Promise.all([refetchOverview(), refetchRuns(), refetchSelectedRun()]);
+  }, [refetchOverview, refetchRuns, refetchSelectedRun]);
 
   const refreshSelectedRunFn = useCallback(async () => {
-    await Promise.all([refetchSelectedRun(), refetchPages()]);
-  }, [refetchSelectedRun, refetchPages]);
+    await refetchSelectedRun();
+  }, [refetchSelectedRun]);
 
   // Monitor active run completion to trigger knowledge changed
   const prevStatusRef = useRef<string | null>(null);
@@ -175,7 +144,6 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
         const runId = response.runId;
         if (runId) {
           setSelectedRunId(runId);
-          setPagesPage(1);
         }
         await refreshCrawler();
       } catch (error: unknown) {
@@ -225,38 +193,11 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
     [config?.autoSyncEnabled, saveConfig, siteId, runAction],
   );
 
-  const selectRun = useCallback((runId: string) => {
-    setSelectedRunId(runId);
-    setPagesPage(1);
-  }, []);
-
-  const changeStatusFilter = useCallback((status?: CrawlRunItemStatus) => {
-    setPageStatusFilter(status);
-    setPagesPage(1);
-  }, []);
-
-  const searchPages = useCallback((search: string) => {
-    setPageSearch(search.trim());
-    setPagesPage(1);
-  }, []);
-
   return {
     config,
     activeRun: effectiveActiveRun,
     runs,
     selectedRun,
-    selectedRunId: effectiveRunId,
-    setSelectedRunId: selectRun,
-    pages,
-    pagesTotal,
-    pagesPage,
-    pagesLimit,
-    setPagesPage,
-    setPagesLimit,
-    pageSearch,
-    searchPages,
-    pageStatusFilter,
-    setPageStatusFilter: changeStatusFilter,
     isLoading,
     isActionLoading,
     refreshCrawler,
@@ -280,12 +221,6 @@ export function useCrawler(siteId: string, onKnowledgeChanged: () => void) {
       ),
     recrawlSource: (documentId: string) =>
       runAction(`/sites/${siteId}/kb/sources/${documentId}/recrawl`, 'post', 'URL recrawl started'),
-    deleteFailedItem: (runId: string, itemId: string) =>
-      runAction(
-        `/sites/${siteId}/kb/crawls/${runId}/pages/${itemId}`,
-        'delete',
-        'Failed URL deleted',
-      ),
     siteId,
     progressPercent: useMemo(() => {
       const run = effectiveActiveRun ?? selectedRun;
