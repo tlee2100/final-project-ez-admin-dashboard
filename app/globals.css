@@ -12,6 +12,67 @@
   --header-height: 64px;
 }
 
+/* ─── Zero-Flicker Sidebar Initial State & Transition Control (Desktop Only) ─ */
+@media (min-width: 769px) {
+  html:not(.sidebar-transitions-enabled) .sidebar,
+  html:not(.sidebar-transitions-enabled) .app-header,
+  html:not(.sidebar-transitions-enabled) .layout-main,
+  html:not(.sidebar-transitions-enabled) .sidebar-logo-text,
+  html:not(.sidebar-transitions-enabled) .nav-label,
+  html:not(.sidebar-transitions-enabled) .sidebar-section-label,
+  html:not(.sidebar-transitions-enabled) .sidebar-toggle {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  html.ez-sidebar-collapsed .sidebar {
+    width: 72px;
+  }
+
+  html.ez-sidebar-collapsed .app-header {
+    left: 72px;
+  }
+
+  html.ez-sidebar-collapsed .layout-main {
+    margin-left: 72px;
+  }
+
+  html.ez-sidebar-collapsed .sidebar-logo-text {
+    opacity: 0;
+    width: 0;
+  }
+}
+
+/* ─── Mobile Sidebar & Header Layout Override ──────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    display: none !important;
+  }
+
+  .app-header {
+    left: 0 !important;
+    width: 100% !important;
+  }
+
+  .layout-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .sidebar {
+    width: 260px !important;
+    z-index: 1000 !important;
+  }
+
+  .sidebar:not(.open) {
+    transform: translateX(-100%) !important;
+  }
+
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+}
+
 /* ─── Reset ───────────────────────────────────────────────────────────────────── */
 *,
 *::before,

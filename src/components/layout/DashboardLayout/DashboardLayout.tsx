@@ -43,6 +43,26 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
 
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      if (collapsed) {
+        document.documentElement.classList.add('ez-sidebar-collapsed');
+      } else {
+        document.documentElement.classList.remove('ez-sidebar-collapsed');
+      }
+    } catch {
+      // ignore
+    }
+
+    const timer = setTimeout(() => {
+      document.documentElement.classList.add('sidebar-transitions-enabled');
+      setMounted(true);
+    }, 60);
+
+    return () => clearTimeout(timer);
+  }, [collapsed]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -65,6 +85,11 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
     try {
       const next = !collapsed;
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(next));
+      if (next) {
+        document.documentElement.classList.add('ez-sidebar-collapsed');
+      } else {
+        document.documentElement.classList.remove('ez-sidebar-collapsed');
+      }
       window.dispatchEvent(new Event('sidebar-toggle'));
     } catch {
       // ignore
@@ -82,7 +107,7 @@ export function DashboardLayout({ children, pageName }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="layout-root">
+    <div className={`layout-root ${!mounted ? 'layout-no-transition' : ''}`}>
       {isMobile && mobileOpen && (
         <div className="sidebar-mobile-overlay" onClick={closeMobileSidebar} />
       )}

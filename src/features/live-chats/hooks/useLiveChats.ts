@@ -24,6 +24,7 @@ export function useLiveChats(siteId?: string) {
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     activeBotCount: 0,
@@ -58,6 +59,7 @@ export function useLiveChats(siteId?: string) {
   useEffect(() => {
     let isMounted = true;
     const loadStats = async () => {
+      setIsLoadingStats(true);
       try {
         const url = siteId
           ? `/chat/conversations/stats?siteId=${siteId}`
@@ -72,6 +74,8 @@ export function useLiveChats(siteId?: string) {
         if (isMounted) setStats(data);
       } catch (err) {
         console.error('[live-chats] failed to fetch stats:', err);
+      } finally {
+        if (isMounted) setIsLoadingStats(false);
       }
     };
     void loadStats();
@@ -243,6 +247,7 @@ export function useLiveChats(siteId?: string) {
     conversations,
     total,
     stats,
+    isLoadingStats,
     page,
     pageSize,
     hasMore,

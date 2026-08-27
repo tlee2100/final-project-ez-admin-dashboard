@@ -58,6 +58,7 @@ export default function LiveChatsPage() {
     conversations,
     total,
     stats,
+    isLoadingStats,
     handlingFilter,
     isLoading,
     isLoadingMore,
@@ -109,61 +110,69 @@ export default function LiveChatsPage() {
       )}
 
       {/* ── Stat Cards Row ── */}
-      <div className="stats-grid">
-        <div className="stat-card bot-chats">
-          <div className="stat-header">
-            <span className="stat-title">Active Bot Chats</span>
-            <div className="stat-icon-wrapper bot">
+      <div className="lc-stats-grid">
+        <div className="lc-stat-card lc-bot-chats">
+          <div className="lc-stat-header">
+            <span className="lc-stat-title">Active Bot Chats</span>
+            <div className="lc-stat-icon-wrapper lc-bot">
               <RobotOutlined style={{ fontSize: 16 }} />
             </div>
           </div>
-          <div className="stat-body">
-            <span className="stat-value">{activeBotCount}</span>
+          <div className="lc-stat-body">
+            <span className="lc-stat-value">
+              {isLoadingStats ? <span className="lc-stat-skeleton" /> : activeBotCount}
+            </span>
           </div>
         </div>
 
-        <div className="stat-card waiting">
-          <div className="stat-header">
-            <span className="stat-title">Waiting for Agent</span>
-            <div className="stat-icon-wrapper waiting">
+        <div className="lc-stat-card lc-waiting">
+          <div className="lc-stat-header">
+            <span className="lc-stat-title">Waiting for Agent</span>
+            <div className="lc-stat-icon-wrapper lc-waiting">
               <ClockCircleOutlined style={{ fontSize: 16 }} />
             </div>
           </div>
-          <div className="stat-body">
-            <span className="stat-value">{waitingCount}</span>
-            <span className="stat-badge high-priority">2 high priority</span>
+          <div className="lc-stat-body">
+            <span className="lc-stat-value">
+              {isLoadingStats ? <span className="lc-stat-skeleton" /> : waitingCount}
+            </span>
+            <span className="lc-stat-badge lc-high-priority">2 high priority</span>
           </div>
         </div>
 
-        <div className="stat-card assigned">
-          <div className="stat-header">
-            <span className="stat-title">Agent Assigned</span>
-            <div className="stat-icon-wrapper assigned">
+        <div className="lc-stat-card lc-assigned">
+          <div className="lc-stat-header">
+            <span className="lc-stat-title">Agent Assigned</span>
+            <div className="lc-stat-icon-wrapper lc-assigned">
               <UserOutlined style={{ fontSize: 16 }} />
             </div>
           </div>
-          <div className="stat-body">
-            <span className="stat-value">{assignedCount}</span>
-            <span className="stat-badge to-me">2 to me</span>
+          <div className="lc-stat-body">
+            <span className="lc-stat-value">
+              {isLoadingStats ? <span className="lc-stat-skeleton" /> : assignedCount}
+            </span>
+            <span className="lc-stat-badge lc-to-me">2 to me</span>
           </div>
         </div>
 
-        <div className="stat-card closed">
-          <div className="stat-header">
-            <span className="stat-title">Recently Closed</span>
-            <div className="stat-icon-wrapper closed">
+        <div className="lc-stat-card lc-closed">
+          <div className="lc-stat-header">
+            <span className="lc-stat-title">Recently Closed</span>
+            <div className="lc-stat-icon-wrapper lc-closed">
               <CheckCircleOutlined style={{ fontSize: 16 }} />
             </div>
           </div>
-          <div className="stat-body">
-            <span className="stat-value">{closedCount}</span>
+          <div className="lc-stat-body">
+            <span className="lc-stat-value">
+              {isLoadingStats ? <span className="lc-stat-skeleton" /> : closedCount}
+            </span>
           </div>
         </div>
       </div>
 
       {/* ── Filters Row ── */}
-      <div className="filters-row">
-        <div className="search-input-wrapper">
+      <div className="lc-filters-row">
+        <div className="lc-search-input-wrapper">
           <Input.Search
             placeholder="Search by visitor name..."
             allowClear
@@ -173,7 +182,7 @@ export default function LiveChatsPage() {
             onSearch={(val) => setSearchText(val)}
           />
         </div>
-        <div className="filters-actions">
+        <div className="lc-filters-actions">
           <Dropdown
             menu={{
               items: [
@@ -184,7 +193,7 @@ export default function LiveChatsPage() {
             }}
             trigger={['click']}
           >
-            <Button icon={<FilterOutlined />} className="filter-btn">
+            <Button icon={<FilterOutlined />} className="lc-filter-btn">
               {selectedSiteId
                 ? filteredSites.find((s) => s.id === selectedSiteId)?.name || 'Filtered'
                 : 'Filter by Site'}
@@ -223,32 +232,32 @@ export default function LiveChatsPage() {
       </div>
 
       {/* ── Tabs Row ── */}
-      <div className="custom-tabs-row">
+      <div className="lc-custom-tabs-row">
         {tabs.map((tab) => (
           <div
             key={tab.key}
-            className={`pill-tab ${handlingFilter === tab.key ? 'active' : ''}`}
+            className={`lc-pill-tab ${handlingFilter === tab.key ? 'active' : ''}`}
             onClick={() => {
               setHandlingFilter(tab.key as HandlingStatus | 'CLOSED' | '');
             }}
           >
             {tab.label}
-            <span className="tab-count">{tab.count}</span>
+            <span className="lc-tab-count">{isLoadingStats ? '-' : tab.count}</span>
           </div>
         ))}
       </div>
 
       {/* ── List / Cards View ── */}
-      <div className="conversations-list">
+      <div className="lc-conversations-list">
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <Spin size="large" />
           </div>
         ) : conversations.length === 0 ? (
-          <div className="empty-state">
-            <MessageOutlined className="empty-state-icon" />
-            <div className="empty-state-title">No conversations found</div>
-            <div className="empty-state-desc">New chats will appear here in real time</div>
+          <div className="lc-empty-state">
+            <MessageOutlined className="lc-empty-state-icon" />
+            <div className="lc-empty-state-title">No conversations found</div>
+            <div className="lc-empty-state-desc">New chats will appear here in real time</div>
           </div>
         ) : (
           conversations.map((chat: Conversation) => {
@@ -269,8 +278,8 @@ export default function LiveChatsPage() {
             }
 
             return (
-              <div key={chat.id} className="conversation-card">
-                <div className="card-avatar">
+              <div key={chat.id} className="lc-conversation-card">
+                <div className="lc-card-avatar">
                   <Avatar
                     size={48}
                     src={undefined}
@@ -281,38 +290,38 @@ export default function LiveChatsPage() {
                   </Avatar>
                 </div>
 
-                <div className="card-content">
-                  <div className="card-header">
-                    <span className="visitor-name">{chat.visitorName}</span>
-                    <span className={`status-tag ${statusClass}`}>{statusLabel}</span>
+                <div className="lc-card-content">
+                  <div className="lc-card-header">
+                    <span className="lc-visitor-name">{chat.visitorName}</span>
+                    <span className={`lc-status-tag ${statusClass}`}>{statusLabel}</span>
                   </div>
 
                   {/* Latest message preview */}
-                  <div className="message-preview">
+                  <div className="lc-message-preview">
                     {chat.latestMessage?.content ?? 'No messages yet'}
                   </div>
 
-                  <div className="card-footer">
-                    <div className="footer-item">
+                  <div className="lc-card-footer">
+                    <div className="lc-footer-item">
                       <GlobalOutlined />
                       <span>{chat.site?.name || 'TechSolutions Inc.'}</span>
                     </div>
                     <span>•</span>
-                    <div className="footer-item">
+                    <div className="lc-footer-item">
                       <ClockCircleOutlined />
                       <span>{relativeTime(chat.lastActivityAt)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="card-actions">
+                <div className="lc-card-actions">
                   <Link href={`/live-chats/${chat.id}`}>
-                    <button className="action-btn">
+                    <button className="lc-action-btn">
                       {chat.agentId ? 'View Chat' : isAdmin ? 'View Chat' : 'Take Chat'}
                       <ArrowRightOutlined style={{ fontSize: 12 }} />
                     </button>
                   </Link>
-                  <div className="page-url">
+                  <div className="lc-page-url">
                     <FileTextOutlined />
                     <a href={chat.site?.url || '#'} target="_blank" rel="noreferrer">
                       {chat.site?.url || 'https://techsolutions.example.com'}
