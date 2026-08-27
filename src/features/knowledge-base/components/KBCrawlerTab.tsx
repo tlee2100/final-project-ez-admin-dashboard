@@ -503,6 +503,7 @@ function RunPagesTable({
         columns={columns}
         dataSource={pages}
         loading={isLoading}
+        scroll={{ x: 800 }}
         pagination={{
           current: pagesPage,
           pageSize: pagesLimit,
@@ -611,6 +612,7 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
             columns={mainColumns}
             dataSource={props.runs}
             loading={props.isLoading}
+            scroll={{ x: 1000 }}
             expandable={{
               expandedRowRender: (record) => (
                 <RunPagesTable
