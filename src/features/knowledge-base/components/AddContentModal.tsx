@@ -92,6 +92,7 @@ export function AddContentModal({
         <Button
           type="text"
           className="kb-modal-close"
+          style={{ position: 'absolute', top: 20, right: 20 }}
           onClick={onClose}
           aria-label="Close modal"
           icon={<CloseOutlined />}
@@ -103,22 +104,22 @@ export function AddContentModal({
         {/* Sub Tabs */}
         <div className="kb-modal-tabs">
           <Button
-            type={activeTab === 'upload' ? 'primary' : 'text'}
-            className="kb-modal-tab-btn"
+            type="text"
+            className={`kb-modal-tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
             onClick={() => setActiveTab('upload')}
           >
             Upload File
           </Button>
           <Button
-            type={activeTab === 'url' ? 'primary' : 'text'}
-            className="kb-modal-tab-btn"
+            type="text"
+            className={`kb-modal-tab-btn ${activeTab === 'url' ? 'active' : ''}`}
             onClick={() => setActiveTab('url')}
           >
             From URL
           </Button>
           <Button
-            type={activeTab === 'sitemap' ? 'primary' : 'text'}
-            className="kb-modal-tab-btn"
+            type="text"
+            className={`kb-modal-tab-btn ${activeTab === 'sitemap' ? 'active' : ''}`}
             onClick={() => setActiveTab('sitemap')}
           >
             Sitemap
@@ -154,7 +155,6 @@ export function AddContentModal({
               </div>
 
               <Button
-                type="primary"
                 className="kb-browse-btn"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -207,17 +207,15 @@ export function AddContentModal({
           <div>
             <div className="kb-form-group">
               <label className="kb-form-label">URL to scrape</label>
-              <div className="kb-input-with-icon">
-                <GlobalOutlined className="kb-input-icon" />
-                <Input
-                  type="url"
-                  className="kb-text-input"
-                  placeholder="https://example.com/page-to-add"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  bordered={false}
-                />
-              </div>
+              <Input
+                type="url"
+                className="kb-text-input"
+                placeholder="https://example.com/page-to-add"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                prefix={<GlobalOutlined style={{ color: '#9ca3af', marginRight: 6 }} />}
+                style={{ padding: '10px 14px' }}
+              />
             </div>
             <div className="kb-form-hint">
               The system will scrape the content from this URL and add it to your knowledge base.
@@ -232,17 +230,15 @@ export function AddContentModal({
           <div>
             <div className="kb-form-group">
               <label className="kb-form-label">Sitemap URL</label>
-              <div className="kb-input-with-icon">
-                <FileTextOutlined className="kb-input-icon" />
-                <Input
-                  type="url"
-                  className="kb-text-input"
-                  placeholder="https://example.com/sitemap.xml"
-                  value={sitemapInput}
-                  onChange={(e) => setSitemapInput(e.target.value)}
-                  bordered={false}
-                />
-              </div>
+              <Input
+                type="url"
+                className="kb-text-input"
+                placeholder="https://example.com/sitemap.xml"
+                value={sitemapInput}
+                onChange={(e) => setSitemapInput(e.target.value)}
+                prefix={<FileTextOutlined style={{ color: '#9ca3af', marginRight: 6 }} />}
+                style={{ padding: '10px 14px' }}
+              />
             </div>
             <div className="kb-form-hint">
               The system will parse all pages listed in this sitemap file and automatically crawl

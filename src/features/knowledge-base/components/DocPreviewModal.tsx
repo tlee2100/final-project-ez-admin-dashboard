@@ -181,7 +181,6 @@ export function DocPreviewModal({ doc, siteId, onClose }: DocPreviewModalProps) 
 
             <Tooltip title={copied ? 'Copied!' : 'Copy full document text'}>
               <Button
-                type="primary"
                 className="kb-btn-header-action primary"
                 onClick={handleCopyFullText}
                 disabled={!fullDocumentText || loading}
