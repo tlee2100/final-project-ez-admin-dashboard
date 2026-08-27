@@ -6,6 +6,18 @@
   background: #f8fafc;
 }
 
+.layout-root.layout-no-transition,
+.layout-root.layout-no-transition .sidebar,
+.layout-root.layout-no-transition .app-header,
+.layout-root.layout-no-transition .layout-main,
+.layout-root.layout-no-transition .sidebar-logo-text,
+.layout-root.layout-no-transition .nav-label,
+.layout-root.layout-no-transition .sidebar-section-label,
+.layout-root.layout-no-transition .sidebar-toggle {
+  transition: none !important;
+  animation: none !important;
+}
+
 .layout-main {
   flex: 1;
   min-width: 0;

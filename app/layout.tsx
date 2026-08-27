@@ -23,6 +23,18 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var c = localStorage.getItem('ez_sidebar_collapsed');
+                if (c === 'true' || c === true) {
+                  document.documentElement.classList.add('ez-sidebar-collapsed');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
       <body>
         <AntdRegistry>
