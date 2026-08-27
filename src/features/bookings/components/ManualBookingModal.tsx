@@ -1,28 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  DatePicker,
-  Button,
-  Typography,
-  Spin,
-  Tag,
-  Tabs,
-  message,
-} from 'antd';
-import { CopyOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, Button, Typography, Tag, message } from 'antd';
 import dayjs from 'dayjs';
 import { bookingApi } from '../services/booking.api';
 import type {
-  AdminBookingSlotItem,
   AvailableSlot,
   BookingConfig,
   ManualBookingFormData,
   ManualBookingFormValues,
   SelectedCalendarSlot,
 } from '../types/booking.types';
+import { useHoldCountdown } from '../hooks/useHoldCountdown';
+import {
+  phoneValidator,
+  getEffectiveServices,
+  getEffectiveStaff,
+  buildTimeSlotOptions,
+  convertFormToBookingPayload,
+} from '../utils/manual-booking.utils';
+import { ManualBookingSingleSlotSection } from './ManualBookingSingleSlotSection';
+import { ManualBookingMultiSlotSection } from './ManualBookingMultiSlotSection';
 
 const { Title, Text } = Typography;
 
@@ -77,8 +73,9 @@ export function ManualBookingModal({
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [isFetchingSlots, setIsFetchingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [activeTabKey, setActiveTabKey] = useState<string>('0');
+
+  const { timeLeft, formattedTimeLeft } = useHoldCountdown(holdExpiry, onHoldExpired);
 
   const isMultiSlot = selectedSlots && selectedSlots.length > 0;
   const isSalon = industryTemplateId === 'salon';
@@ -108,96 +105,17 @@ export function ManualBookingModal({
 
   const totalSlots = isMultiSlot ? selectedSlots.length : Math.max(1, selectedTimeSlotsArr.length);
 
-  const effectiveServices = useMemo<Array<{ id: string; name: string }>>(() => {
-    const list =
-      siteServices && siteServices.length > 0
-        ? siteServices
-        : config?.serviceDetails && config.serviceDetails.length > 0
-          ? config.serviceDetails
-          : (config?.services as Array<{ id?: string; name?: string } | string>) || [];
-    return list.map((s) => {
-      if (typeof s === 'string') return { id: s, name: s };
-      return { id: s.id || s.name || 'service', name: s.name || s.id || 'Service' };
-    });
-  }, [siteServices, config]);
+  const effectiveServices = useMemo(
+    () => getEffectiveServices(siteServices, config),
+    [siteServices, config],
+  );
 
-  const effectiveStaff = useMemo<Array<{ id: string; name: string }>>(() => {
-    const list =
-      siteStaff && siteStaff.length > 0
-        ? siteStaff
-        : config?.resourceDetails && config.resourceDetails.length > 0
-          ? config.resourceDetails
-          : (config?.resources as Array<{ id?: string; name?: string } | string>) || [];
-    return list.map((s) => {
-      if (typeof s === 'string') return { id: s, name: s };
-      return { id: s.id || s.name || 'staff', name: s.name || s.id || 'Staff' };
-    });
-  }, [siteStaff, config]);
+  const effectiveStaff = useMemo(() => getEffectiveStaff(siteStaff, config), [siteStaff, config]);
 
-  // Computed options representing available slot + resource pairs
-  const timeSlotOptions = useMemo(() => {
-    const options: Array<{
-      value: string;
-      label: string;
-      startAt: string;
-      endAt: string;
-      resourceId: string;
-      resourceName: string;
-      isHolding: boolean;
-    }> = [];
-
-    for (const slot of availableSlots) {
-      const time = dayjs(slot.startAt).format('HH:mm');
-      const dateLabel = dayjs(slot.startAt).format('DD/MM');
-      const baseTimeStr = selectedFormDates.length > 1 ? `${dateLabel} ${time}` : time;
-      const isHolding = slot.status === 'HOLDING';
-
-      if (slot.availableResources && slot.availableResources.length > 0) {
-        for (const res of slot.availableResources) {
-          if (selectedStaffIds.length > 0 && !selectedStaffIds.includes(res.resourceId)) {
-            continue;
-          }
-          const displayLabel =
-            selectedStaffIds.length > 1 ? `${baseTimeStr} — 👤 ${res.resourceName}` : baseTimeStr;
-          options.push({
-            value: `${slot.startAt}__${res.resourceId}`,
-            label: isHolding ? `${displayLabel} - Being booked... 🕒` : displayLabel,
-            startAt: slot.startAt,
-            endAt: slot.endAt,
-            resourceId: res.resourceId,
-            resourceName: res.resourceName,
-            isHolding,
-          });
-        }
-      } else {
-        const resId = slot.resourceId || selectedStaffIds[0] || '';
-        const resObj = effectiveStaff.find((s) => s.id === resId);
-        const resName = resObj?.name || 'Staff';
-        const displayLabel =
-          selectedStaffIds.length > 1 ? `${baseTimeStr} — 👤 ${resName}` : baseTimeStr;
-        options.push({
-          value: `${slot.startAt}__${resId}`,
-          label: isHolding ? `${displayLabel} - Being booked... 🕒` : displayLabel,
-          startAt: slot.startAt,
-          endAt: slot.endAt,
-          resourceId: resId,
-          resourceName: resName,
-          isHolding,
-        });
-      }
-    }
-    return options;
-  }, [availableSlots, selectedStaffIds, selectedFormDates.length, effectiveStaff]);
-
-  // Validate Vietnamese phone number: 0 + 9-10 digits
-  const phoneValidator = (_: unknown, value: string) => {
-    if (!value) return Promise.resolve();
-    const phoneRegex = /^0[0-9]{9,10}$/;
-    if (!phoneRegex.test(value)) {
-      return Promise.reject(new Error('Phone must match Vietnamese format (0xxxxxxxxx).'));
-    }
-    return Promise.resolve();
-  };
+  const timeSlotOptions = useMemo(
+    () => buildTimeSlotOptions(availableSlots, selectedStaffIds, selectedFormDates, effectiveStaff),
+    [availableSlots, selectedStaffIds, selectedFormDates, effectiveStaff],
+  );
 
   useEffect(() => {
     if (open) {
@@ -292,23 +210,6 @@ export function ManualBookingModal({
     fetchAvailableSlots,
   ]);
 
-  useEffect(() => {
-    if (!holdExpiry) return;
-
-    const interval = setInterval(() => {
-      const now = new Date();
-      const remaining = Math.max(0, holdExpiry.getTime() - now.getTime());
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        clearInterval(interval);
-        onHoldExpired();
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [holdExpiry, onHoldExpired]);
-
   const handleTimeSlotChange = async (value: string | string[]) => {
     const values = Array.isArray(value) ? value : value ? [value] : [];
     if (values.length === 0) {
@@ -348,14 +249,13 @@ export function ManualBookingModal({
   };
 
   const handleApplyToAllSlots = () => {
-    const slotServices = (form.getFieldValue('slotServices') as Record<string, string>) || {};
-    const slotNotes = (form.getFieldValue('slotNotes') as Record<string, string>) || {};
-    const currentIdx = parseInt(activeTabKey, 10) || 0;
-    const targetService = slotServices[currentIdx] || slotServices[0];
-    const targetNote = slotNotes[currentIdx] || slotNotes[0];
+    const currentValues = form.getFieldsValue();
+    const activeIdx = Number(activeTabKey) || 0;
+    const targetService = currentValues.slotServices?.[activeIdx];
+    const targetNote = currentValues.slotNotes?.[activeIdx];
 
-    const nextServices: Record<string, string> = {};
-    const nextNotes: Record<string, string> = {};
+    const nextServices: Record<number, string> = { ...currentValues.slotServices };
+    const nextNotes: Record<number, string> = { ...currentValues.slotNotes };
 
     for (let i = 0; i < totalSlots; i++) {
       if (targetService) nextServices[i] = targetService;
@@ -373,112 +273,17 @@ export function ManualBookingModal({
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const slotServicesList: string[] = [];
-      const slotNotesRaw: string[] = [];
-      if (totalSlots > 1) {
-        for (let i = 0; i < totalSlots; i++) {
-          const sId =
-            (Array.isArray(values.slotServices)
-              ? values.slotServices[i]
-              : values.slotServices?.[i]) || values.serviceId;
-          if (sId) slotServicesList.push(sId);
-
-          const sNote =
-            (Array.isArray(values.slotNotes) ? values.slotNotes[i] : values.slotNotes?.[i]) || '';
-          slotNotesRaw.push(sNote.trim());
-        }
-      } else {
-        if (values.serviceId) {
-          slotServicesList.push(values.serviceId);
-        }
-        const singleSlotNote =
-          (Array.isArray(values.slotNotes) ? values.slotNotes[0] : values.slotNotes?.[0]) || '';
-        slotNotesRaw.push(singleSlotNote.trim());
-      }
-
-      const singleServiceId = slotServicesList[0] || values.serviceId;
-      const serviceIds = slotServicesList.length > 0 ? slotServicesList : undefined;
-
-      let slotsPayload: AdminBookingSlotItem[] | undefined = undefined;
-
-      if (isMultiSlot) {
-        slotsPayload = selectedSlots.map((s, idx) => {
-          const parsed = dayjs(s.date);
-          return {
-            resourceId: s.staffId,
-            date: parsed.isValid() ? parsed.format('YYYY-MM-DD') : String(s.date),
-            timeSlot: s.time,
-            serviceId: slotServicesList[idx] || slotServicesList[0],
-            notes: slotNotesRaw[idx] || undefined,
-          };
-        });
-      } else if (selectedTimeSlotsArr.length > 1 || selectedFormDates.length > 0) {
-        slotsPayload = selectedTimeSlotsArr.map((timeVal, idx) => {
-          const opt = timeSlotOptions.find((o) => o.value === timeVal);
-          const matchedSlot = availableSlots.find(
-            (s) => s.startAt === timeVal || (opt && s.startAt === opt.startAt),
-          );
-          const slotStartAt = opt ? opt.startAt : matchedSlot ? matchedSlot.startAt : timeVal;
-          const slotDate = dayjs(slotStartAt).isValid()
-            ? dayjs(slotStartAt).format('YYYY-MM-DD')
-            : selectedFormDates[0]
-              ? selectedFormDates[0].format('YYYY-MM-DD')
-              : dayjs().format('YYYY-MM-DD');
-          const slotTime = dayjs(slotStartAt).isValid()
-            ? dayjs(slotStartAt).format('HH:mm')
-            : timeVal;
-          const slotResourceId =
-            opt?.resourceId ||
-            selectedStaffIds[0] ||
-            (typeof values.staffId === 'string' ? values.staffId : values.staffId?.[0]) ||
-            '';
-
-          return {
-            resourceId: slotResourceId,
-            date: slotDate,
-            timeSlot: slotTime,
-            serviceId: slotServicesList[idx] || slotServicesList[0],
-            notes: slotNotesRaw[idx] || undefined,
-          };
-        });
-      }
-
-      const singleTimeSlot = isMultiSlot
-        ? selectedSlots[0]?.time
-        : slotsPayload?.[0]?.timeSlot || selectedTimeSlotsArr[0];
-
-      const singleStaffId = isMultiSlot
-        ? selectedSlots[0]?.staffId
-        : slotsPayload?.[0]?.resourceId ||
-          selectedStaffIds[0] ||
-          (typeof values.staffId === 'string' ? values.staffId : values.staffId?.[0]);
-
-      const generalNote = values.notes?.trim() || '';
-      const topLevelNote =
-        totalSlots === 1 && slotNotesRaw[0]
-          ? [generalNote, slotNotesRaw[0]].filter(Boolean).join('\n')
-          : generalNote;
-
-      const parsedDate = values.date
-        ? dayjs.isDayjs(values.date)
-          ? values.date
-          : Array.isArray(values.date) && values.date[0] && dayjs.isDayjs(values.date[0])
-            ? values.date[0]
-            : dayjs(values.date as string)
-        : undefined;
-
-      const bookingPayload: ManualBookingFormData = {
-        customerName: values.customerName,
-        customerPhone: values.customerPhone,
-        customerEmail: values.customerEmail?.trim() || undefined,
-        staffId: singleStaffId,
-        date: parsedDate && parsedDate.isValid() ? parsedDate : undefined,
-        notes: topLevelNote || undefined,
-        timeSlot: singleTimeSlot,
-        serviceId: singleServiceId,
-        serviceIds,
-        slots: slotsPayload,
-      };
+      const bookingPayload = convertFormToBookingPayload({
+        values,
+        isMultiSlot,
+        totalSlots,
+        selectedSlots,
+        selectedTimeSlotsArr,
+        timeSlotOptions,
+        availableSlots,
+        selectedStaffIds,
+        selectedFormDates,
+      });
 
       const success = await onSuccess(bookingPayload);
       if (success !== false) {
@@ -582,254 +387,38 @@ export function ManualBookingModal({
         </Form.Item>
 
         {!isMultiSlot && (
-          <>
-            <Title level={5} style={{ marginTop: 24, marginBottom: 16 }}>
-              Time & Staff Selection
-            </Title>
-
-            <Form.Item
-              name="staffId"
-              label="Staff / Resource(s)"
-              rules={[{ required: true, message: 'Please select at least one staff/resource' }]}
-            >
-              <Select
-                mode="multiple"
-                maxTagCount="responsive"
-                placeholder="Select staff or resource(s)"
-                onChange={async () => {
-                  if (holdExpiry) {
-                    await onReleaseHold();
-                  }
-                  form.setFieldValue('timeSlot', undefined);
-                }}
-              >
-                {siteStaff.map((s) => (
-                  <Select.Option key={s.id} value={s.id}>
-                    {s.name}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              name="date"
-              label="Date(s)"
-              rules={[{ required: true, message: 'Please select at least one date' }]}
-            >
-              <DatePicker
-                multiple
-                maxTagCount="responsive"
-                placeholder="Select date(s)"
-                style={{ width: '100%' }}
-                format="DD/MM/YYYY"
-                disabledDate={(current) =>
-                  Boolean(current && dayjs(current).isBefore(dayjs().startOf('day')))
-                }
-                onChange={async () => {
-                  if (holdExpiry && onReleaseHold) {
-                    try {
-                      await onReleaseHold();
-                    } catch {
-                      // ignore
-                    }
-                  }
-                  form.setFieldValue('timeSlot', undefined);
-                }}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="timeSlot"
-              label={
-                selectedTimeSlotsArr.length > 1
-                  ? `Time Slots (${selectedTimeSlotsArr.length} selected)`
-                  : 'Time Slot'
-              }
-              rules={[{ required: true, message: 'Please select at least one time slot' }]}
-              extra={
-                selectedFormDates.length === 0 || selectedStaffIds.length === 0
-                  ? 'Please select date(s) and staff/resource(s) first'
-                  : `${timeSlotOptions.length} slot option(s) available across ${selectedFormDates.length} date(s)`
-              }
-            >
-              <Select
-                mode="multiple"
-                placeholder="Select time slot(s)"
-                loading={isFetchingSlots}
-                notFoundContent={isFetchingSlots ? <Spin size="small" /> : 'No available slots'}
-                disabled={selectedFormDates.length === 0 || selectedStaffIds.length === 0}
-                onChange={handleTimeSlotChange}
-                allowClear
-              >
-                {timeSlotOptions.map((opt) => (
-                  <Select.Option
-                    key={opt.value}
-                    value={opt.value}
-                    disabled={opt.isHolding}
-                    style={
-                      opt.isHolding ? { color: '#d97706', backgroundColor: '#fef08a' } : undefined
-                    }
-                  >
-                    {opt.label}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </>
+          <ManualBookingSingleSlotSection
+            form={form}
+            siteStaff={siteStaff}
+            selectedFormDates={selectedFormDates}
+            selectedStaffIds={selectedStaffIds}
+            selectedTimeSlotsArr={selectedTimeSlotsArr}
+            timeSlotOptions={timeSlotOptions}
+            isFetchingSlots={isFetchingSlots}
+            holdExpiry={holdExpiry}
+            onReleaseHold={onReleaseHold}
+            onTimeSlotChange={handleTimeSlotChange}
+          />
         )}
 
-        {/* Slot Configurations: Tabs when multiple slots, simple select when single slot */}
         {totalSlots > 1 ? (
-          <div style={{ marginTop: 24, marginBottom: 20 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 10,
-              }}
-            >
-              <div>
-                <Title level={5} style={{ margin: 0 }}>
-                  Slot Configuration ({totalSlots} slots)
-                </Title>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  Configure service and notes for each slot
-                </Text>
-              </div>
-              <Button
-                size="small"
-                type="primary"
-                ghost
-                icon={<CopyOutlined />}
-                onClick={handleApplyToAllSlots}
-                style={{ borderRadius: 6 }}
-              >
-                Apply to all slots
-              </Button>
-            </div>
-
-            <Tabs
-              activeKey={activeTabKey}
-              onChange={setActiveTabKey}
-              type="card"
-              items={Array.from({ length: totalSlots }).map((_, idx) => {
-                let slotTime = '';
-                let staffName = '';
-                let slotDate = '';
-
-                if (isMultiSlot && selectedSlots[idx]) {
-                  slotTime = selectedSlots[idx].time;
-                  staffName = selectedSlots[idx].staffName;
-                  const parsedSlotDate = dayjs(selectedSlots[idx].date);
-                  slotDate = parsedSlotDate.isValid() ? parsedSlotDate.format('DD/MM/YYYY') : '';
-                } else if (selectedTimeSlotsArr[idx]) {
-                  const timeVal = selectedTimeSlotsArr[idx];
-                  const opt = timeSlotOptions.find((o) => o.value === timeVal);
-                  const matchedSlot = availableSlots.find(
-                    (s) => s.startAt === timeVal || (opt && s.startAt === opt.startAt),
-                  );
-                  const slotStartAt = opt
-                    ? opt.startAt
-                    : matchedSlot
-                      ? matchedSlot.startAt
-                      : timeVal;
-                  slotTime = dayjs(slotStartAt).isValid()
-                    ? dayjs(slotStartAt).format('HH:mm')
-                    : timeVal;
-                  staffName =
-                    opt?.resourceName ||
-                    siteStaff.find((s) => s.id === selectedStaffIds[0])?.name ||
-                    'Staff';
-                  slotDate = dayjs(slotStartAt).isValid()
-                    ? dayjs(slotStartAt).format('DD/MM/YYYY')
-                    : selectedFormDates[0]
-                      ? selectedFormDates[0].format('DD/MM/YYYY')
-                      : dayjs().format('DD/MM/YYYY');
-                }
-
-                const tabLabel =
-                  selectedFormDates.length > 1 && slotDate
-                    ? `${slotDate.slice(0, 5)} ${slotTime}`
-                    : staffName && selectedStaffIds.length > 1
-                      ? `${slotTime} (${staffName})`
-                      : slotTime || `Slot ${idx + 1}`;
-
-                return {
-                  key: String(idx),
-                  label: tabLabel,
-                  children: (
-                    <div
-                      style={{
-                        padding: '16px',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderTop: 'none',
-                        borderRadius: '0 0 8px 8px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          marginBottom: 16,
-                          padding: '8px 12px',
-                          background: '#ffffff',
-                          borderRadius: 6,
-                          border: '1px solid #e2e8f0',
-                        }}
-                      >
-                        {slotTime && <Tag color="blue">🕒 {slotTime}</Tag>}
-                        {staffName && <Tag color="purple">👤 {staffName}</Tag>}
-                        {slotDate && <Tag color="default">📅 {slotDate}</Tag>}
-                      </div>
-
-                      {effectiveServices && effectiveServices.length > 0 && (
-                        <Form.Item
-                          name={['slotServices', idx]}
-                          label={
-                            <span>
-                              Service
-                              {isSalon && (
-                                <span style={{ color: '#ff4d4f', marginLeft: 4 }}>*</span>
-                              )}
-                            </span>
-                          }
-                          rules={[
-                            {
-                              required: isSalon,
-                              message: 'Please select a service for this slot',
-                            },
-                          ]}
-                          style={{ marginBottom: 14 }}
-                        >
-                          <Select
-                            placeholder="Select service for this slot"
-                            options={effectiveServices.map((s) => ({ value: s.id, label: s.name }))}
-                            allowClear
-                          />
-                        </Form.Item>
-                      )}
-
-                      <Form.Item
-                        name={['slotNotes', idx]}
-                        label="Note for this slot (Optional)"
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input.TextArea
-                          placeholder="Specific notes/instructions for this slot..."
-                          rows={2}
-                        />
-                      </Form.Item>
-                    </div>
-                  ),
-                };
-              })}
-            />
-          </div>
+          <ManualBookingMultiSlotSection
+            totalSlots={totalSlots}
+            activeTabKey={activeTabKey}
+            setActiveTabKey={setActiveTabKey}
+            isMultiSlot={isMultiSlot}
+            isSalon={isSalon}
+            selectedSlots={selectedSlots}
+            selectedTimeSlotsArr={selectedTimeSlotsArr}
+            timeSlotOptions={timeSlotOptions}
+            availableSlots={availableSlots}
+            siteStaff={siteStaff}
+            selectedStaffIds={selectedStaffIds}
+            selectedFormDates={selectedFormDates}
+            effectiveServices={effectiveServices}
+            onApplyToAllSlots={handleApplyToAllSlots}
+          />
         ) : (
-          /* Single Slot View */
           effectiveServices &&
           effectiveServices.length > 0 && (
             <div style={{ marginTop: 24 }}>
@@ -859,40 +448,27 @@ export function ManualBookingModal({
         {timeLeft !== null && timeLeft > 0 && (
           <div
             style={{
-              padding: '12px 16px',
-              backgroundColor: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: 8,
-              marginBottom: 24,
-              textAlign: 'center',
+              padding: '10px 14px',
+              backgroundColor: '#fffbe6',
+              border: '1px solid #ffe58f',
+              borderRadius: 6,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
-            <Text strong style={{ color: '#166534' }}>
-              Slot held for{' '}
-              {Math.floor(timeLeft / 60000)
-                .toString()
-                .padStart(2, '0')}
-              :
-              {Math.floor((timeLeft % 60000) / 1000)
-                .toString()
-                .padStart(2, '0')}
-            </Text>
-            <div style={{ fontSize: 12, color: '#15803d', marginTop: 4 }}>
-              Complete your booking before time expires.
-            </div>
+            <span style={{ fontSize: 13, color: '#d48806' }}>
+              🔒 Selected slot is held for: <strong>{formattedTimeLeft}</strong>
+            </span>
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
           <Button onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={isSubmitting}
-            disabled={isSubmitting || (!isMultiSlot && !holdExpiry)}
-          >
+          <Button type="primary" htmlType="submit" loading={isSubmitting}>
             Create Booking
           </Button>
         </div>
