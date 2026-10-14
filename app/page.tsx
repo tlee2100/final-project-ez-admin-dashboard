@@ -1,20 +1,26 @@
 'use client';
 
-import { Button, Card, Flex, Tag, Typography } from 'antd';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/contexts/AuthContext';
 
-export default function Home() {
-  return (
-    <main className="dashboard">
-      <Card>
-        <Flex vertical gap={16} align="flex-start">
-          <Tag color="blue">Phase 1A</Tag>
-          <Typography.Title level={1}>ez-chatbot Admin</Typography.Title>
-          <Typography.Text type="secondary">
-            Baseline Next.js và Ant Design đã sẵn sàng để phát triển feature.
-          </Typography.Text>
-          <Button type="primary">Bắt đầu</Button>
-        </Flex>
-      </Card>
-    </main>
-  );
+/**
+ * Root page — checks authentication state.
+ * Redirects to /dashboard if logged in, otherwise to /login.
+ */
+export default function RootPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  return null;
 }

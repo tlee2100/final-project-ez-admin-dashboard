@@ -1,0 +1,549 @@
+/* Analytics Feature Styles */
+
+/* ── Toolbar Row (Tabs Switcher + Date Range Picker) ── */
+.analytics-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* ── Tabs Container ── */
+.analytics-tabs-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #f1f5f9; /* Slate 100 - distinct container background */
+  padding: 4px;
+  border-radius: 10px;
+  height: 42px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .analytics-tabs-container {
+    display: flex;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .analytics-tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .analytics-card {
+    padding: 16px;
+  }
+}
+
+.analytics-tab-btn {
+  padding: 6px 18px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b; /* Slate 500 */
+  cursor: pointer;
+  transition: all 0.18s ease-in-out;
+  outline: none;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analytics-tab-btn:hover {
+  color: #0f172a;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.analytics-tab-btn.active {
+  background-color: #ffffff;
+  color: #0f172a; /* Slate 900 */
+  font-weight: 600;
+  border-color: #cbd5e1;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Date Range Picker ── */
+.analytics-date-picker-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.analytics-range-picker {
+  border-radius: 10px !important;
+  padding: 4px 14px !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #334155 !important;
+  transition: all 0.2s ease !important;
+  height: 42px !important;
+  min-width: 260px !important;
+  box-sizing: border-box !important;
+}
+
+.analytics-range-picker:hover,
+.analytics-range-picker:focus-within {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+}
+
+/* ── Content Layout ── */
+.analytics-tab-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Custom Cards for Analytics ── */
+.analytics-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0; /* Sharp, crisp border */
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.analytics-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.analytics-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+/* ── Horizontal Bar Chart (Topics, Usage by Site) ── */
+.horizontal-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.horizontal-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.horizontal-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.horizontal-bar-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.horizontal-bar-value {
+  color: #64748b;
+  font-weight: 500;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.horizontal-bar-percent {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.horizontal-bar-track {
+  height: 8px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.horizontal-bar-fill {
+  height: 100%;
+  background-color: #2563eb; /* Vibrant blue fill */
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+/* ── Metrics List ── */
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.metric-trend {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #16a34a; /* Distinct green trend */
+}
+
+/* ── Simple Lists (Top Docs, Intents) ── */
+.simple-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.simple-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding: 2px 0;
+}
+
+.simple-list-label {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.simple-list-value {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ── Header Action Button Overrides for Analytics Page ── */
+.analytics-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.analytics-action-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Grid Layouts ── */
+.analytics-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .analytics-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Performance Tab Specific Styles ── */
+.perf-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.perf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.perf-badge.success {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.perf-badge.primary {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.perf-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.perf-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.perf-doc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.perf-doc-item:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.perf-doc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.perf-doc-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.perf-doc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.perf-doc-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perf-doc-site {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.perf-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.perf-doc-chunks {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.perf-doc-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.perf-doc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.perf-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 16px;
+  color: #64748b;
+}
+
+.perf-empty-icon {
+  font-size: 36px;
+  color: #cbd5e1;
+  margin-bottom: 12px;
+}
+
+/* Response Latency & Pipeline Styles */
+.perf-latency-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.perf-latency-val {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1e40af;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.perf-latency-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.perf-pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.perf-pipeline-step {
+  display: flex;
+  gap: 14px;
+  position: relative;
+}
+
+.perf-pipeline-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 32px;
+  left: 15px;
+  bottom: -10px;
+  width: 2px;
+  background-color: #e2e8f0;
+}
+
+.perf-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.perf-step-content {
+  flex: 1;
+  padding-bottom: 6px;
+}
+
+.perf-step-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 3px;
+}
+
+.perf-step-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.perf-info-callout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #475569;
+  margin-top: 18px;
+}
