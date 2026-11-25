@@ -53,7 +53,6 @@ interface KBCrawlerTabProps {
   onStartCrawl: () => Promise<unknown>;
   onRetryFailed: (runId: string) => Promise<unknown>;
   onRecrawlSource: (documentId: string) => Promise<unknown>;
-  onAddSitemapClick: () => void;
   onCrawlerDataChanged: () => Promise<void>;
   siteId?: string;
 }
@@ -680,9 +679,20 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
           <Card
             className="kb-crawler-config-card kb-crawler-hover-effect"
             title={
-              <Space style={{ fontSize: '16px', fontWeight: 600 }}>
-                <LinkOutlined style={{ color: '#1677ff' }} /> Source &amp; Sync Settings
-              </Space>
+              <span
+                style={{
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'normal',
+                  lineHeight: 1.4,
+                }}
+              >
+                <LinkOutlined style={{ color: '#1677ff', flexShrink: 0 }} />
+                <span>Source &amp; Sync Settings</span>
+              </span>
             }
             style={{
               borderRadius: '16px',
@@ -690,13 +700,6 @@ export function KBCrawlerTab(props: KBCrawlerTabProps) {
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
               background: 'linear-gradient(to bottom right, #ffffff, #fafafa)',
             }}
-            extra={
-              props.canManage && !props.config ? (
-                <Button type="primary" shape="round" onClick={props.onAddSitemapClick}>
-                  Add URL
-                </Button>
-              ) : null
-            }
             loading={props.isLoading}
           >
             <Space direction="vertical" size={16} style={{ width: '100%' }}>

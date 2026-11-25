@@ -170,11 +170,6 @@ export default function KnowledgeBasePage({ params }: PageProps) {
             onStartCrawl={crawler.startCrawl}
             onRetryFailed={crawler.retryFailed}
             onRecrawlSource={crawler.recrawlSource}
-            onAddSitemapClick={() => {
-              if (!canAddContent) return;
-              setAddContentInitialTab('sitemap');
-              setIsAddModalOpen(true);
-            }}
             onCrawlerDataChanged={crawler.refreshCrawler}
           />
         )}
